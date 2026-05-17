@@ -50,7 +50,7 @@ return;
 
 }
 
-await loadLayout("student");
+
 await loadLayout("student");
 
 // FIX PATH COMPONENT
