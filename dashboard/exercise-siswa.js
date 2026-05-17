@@ -223,6 +223,20 @@ window.check = function (i) {
       if (val !== ans) correct = false;
     });
   }
+  else if (q.type === "match") {
+
+  const ans = window.matchAnswers[i] || {};
+
+  correct = true;
+
+  q.pairs.forEach((p, idx) => {
+
+    if (String(ans[idx]) !== String(idx)) {
+      correct = false;
+    }
+
+  });
+}
 
   const res = document.getElementById("res" + i);
 
@@ -238,4 +252,100 @@ window.toggle = function (i) {
   el.style.display = el.style.display === "block" ? "none" : "block";
 };
 
-loadExercise();
+
+
+// ================= MATCH LOGIC =================
+
+window.currentLeft = {};
+
+window.selectLeft = function(qIndex, el) {
+
+  // reset selected kiri
+  document.querySelectorAll(`#matchWrap${qIndex} .left-item`)
+    .forEach(x => x.classList.remove("selected"));
+
+  el.classList.add("selected");
+
+  window.currentLeft[qIndex] = el;
+};
+
+window.selectRight = function(qIndex, el) {
+
+  const leftEl = window.currentLeft[qIndex];
+
+  if (!leftEl) {
+    alert("Pilih sisi kiri dulu");
+    return;
+  }
+
+  const leftIndex = leftEl.dataset.index;
+  const rightIndex = el.dataset.original;
+
+  // simpan jawaban
+  if (!window.matchAnswers[qIndex]) {
+    window.matchAnswers[qIndex] = {};
+  }
+
+  window.matchAnswers[qIndex][leftIndex] = rightIndex;
+
+  leftEl.classList.remove("selected");
+
+  leftEl.classList.add("connected");
+  el.classList.add("connected");
+
+  drawLines(qIndex);
+
+  window.currentLeft[qIndex] = null;
+};
+
+// ================= DRAW SVG LINES =================
+
+function drawLines(qIndex) {
+
+  const wrap = document.getElementById(`matchWrap${qIndex}`);
+  const svg = document.getElementById(`svg${qIndex}`);
+
+  svg.innerHTML = "";
+
+  const wrapRect = wrap.getBoundingClientRect();
+
+  const answers = window.matchAnswers[qIndex] || {};
+
+  Object.entries(answers).forEach(([leftIdx, rightIdx]) => {
+
+    const leftEl = wrap.querySelector(
+      `.left-item[data-index="${leftIdx}"]`
+    );
+
+    const rightEl = wrap.querySelector(
+      `.right-item[data-original="${rightIdx}"]`
+    );
+
+    if (!leftEl || !rightEl) return;
+
+    const leftRect = leftEl.getBoundingClientRect();
+    const rightRect = rightEl.getBoundingClientRect();
+
+    const x1 = leftRect.right - wrapRect.left;
+    const y1 = leftRect.top + leftRect.height / 2 - wrapRect.top;
+
+    const x2 = rightRect.left - wrapRect.left;
+    const y2 = rightRect.top + rightRect.height / 2 - wrapRect.top;
+
+    const line = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "line"
+    );
+
+    line.setAttribute("x1", x1);
+    line.setAttribute("y1", y1);
+    line.setAttribute("x2", x2);
+    line.setAttribute("y2", y2);
+
+    line.setAttribute("stroke", "#2563eb");
+    line.setAttribute("stroke-width", "3");
+    line.setAttribute("stroke-linecap", "round");
+
+    svg.appendChild(line);
+  });
+}
