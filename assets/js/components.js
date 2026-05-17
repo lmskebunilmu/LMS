@@ -21,10 +21,10 @@ export async function loadLayout(role = "superadmin") {
   window.role = role; // Set global role
 
   // Load header
-  await loadComponent("header-container", "../../components/header.html");
+  await loadComponent("header-container", "../components/header.html");
 
   // Load sidebar sesuai role
-  const sidebarFile = `../../components/sidebar-${role}.html`;
+  const sidebarFile = `../components/sidebar-${role}.html`;
   await loadComponent("sidebar-container", sidebarFile);
 
   // Set active menu setelah sidebar muncul
