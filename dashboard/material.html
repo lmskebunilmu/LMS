@@ -6,68 +6,46 @@
   <title>Material Detail</title>
 
   <style>
-  body {
-    font-family: 'Segoe UI', sans-serif;
-    background: #f4f7fb;
-    margin: 0;
-    padding: 0;
-    color: #1f2937;
-  }
+ body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #f4f7fb;
+  margin: 0;
+  padding: 0;
+  color: #1f2937;
+}
 
-  /* 🔥 FULL WIDTH SYSTEM */
-  .container {
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    padding: 0;
-  }
+/* =========================
+   LAYOUT UTAMA
+========================= */
+.container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
 
-  /* TOP BAR SPACING BACK BUTTON */
-  .topbar {
-    padding: 12px 16px;
-    background: white;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    border-bottom: 1px solid #e5e7eb;
-  }
+/* TOPBAR */
+.topbar {
+  padding: 12px 16px;
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid #e5e7eb;
 
-  .back {
-    text-decoration: none;
-    color: #2563eb;
-    font-weight: bold;
-  }
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-  /* CONTENT AREA */
-  .content-wrapper {
-    max-width: 1100px;
-    margin: auto;
-    padding: 16px;
-  }
+.back {
+  text-decoration: none;
+  color: #2563eb;
+  font-weight: bold;
+}
 
-  /* TITLE */
-  h1 {
-    font-size: 24px;
-    margin-bottom: 8px;
-  }
-
-  /* CARD STYLE */
-  .card {
-    background: white;
-    padding: 18px;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-    margin-top: 16px;
-  }
-
-  iframe {
-    width: 100%;
-    border-radius: 10px;
-    margin: 12px 0;
-  }
-
-    .fs-btn {
-  float: right;
+/* FULLSCREEN BUTTON */
+.fs-btn {
   background: #2563eb;
   color: white;
   border: none;
@@ -82,49 +60,101 @@
   background: #1e40af;
 }
 
-/* biar topbar tetap rapi */
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* =========================
+   CONTENT CARD
+========================= */
+.card {
+  background: white;
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  margin: 16px;
+  overflow-x: auto;
 }
 
-  /* 🔥 MOBILE OPTIMIZATION */
-  @media (max-width: 768px) {
-
-    .content-wrapper {
-      padding: 12px;
-    }
-
-    h1 {
-      font-size: 20px;
-    }
-
-    .card {
-      padding: 14px;
-      border-radius: 10px;
-    }
-  }
-
-  /* 🔥 EXTRA SMALL PHONE */
-  @media (max-width: 480px) {
-
-    h1 {
-      font-size: 18px;
-    }
-
-    .content-wrapper {
-      padding: 10px;
-    }
-  }
-
-    .card{
-  overflow-x:auto;
+/* TITLE */
+h1 {
+  font-size: 24px;
+  margin-bottom: 8px;
 }
-    img{
-  max-width:100%;
-  height:auto;
-  border-radius:10px;
+
+/* =========================
+   IMAGE & MEDIA
+========================= */
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
+/* =========================
+   IFRAME (KUNCI RESPONSIVE)
+========================= */
+iframe {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 10px;
+  margin: 12px 0;
+
+  /* default enak di HP & laptop */
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: none;
+}
+
+/* PDF & DRIVE lebih tinggi sedikit */
+iframe[src*="pdf"],
+iframe[src*="drive"] {
+  aspect-ratio: 4 / 3;
+}
+
+/* =========================
+   TABLET
+========================= */
+@media (max-width: 768px) {
+
+  h1 {
+    font-size: 20px;
+  }
+
+  .card {
+    padding: 14px;
+    margin: 12px;
+    border-radius: 10px;
+  }
+
+  .topbar {
+    padding: 10px 12px;
+  }
+
+  .fs-btn {
+    padding: 7px 10px;
+    font-size: 14px;
+  }
+}
+
+/* =========================
+   HP KECIL
+========================= */
+@media (max-width: 480px) {
+
+  h1 {
+    font-size: 18px;
+  }
+
+  .card {
+    padding: 12px;
+    margin: 10px;
+  }
+
+  .fs-btn {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  iframe {
+    border-radius: 8px;
+  }
 }
 
 </style>
@@ -172,7 +202,7 @@
           if (url.includes("watch?v=")) videoId = url.split("watch?v=")[1].split("&")[0];
           else if (url.includes("youtu.be/")) videoId = url.split("youtu.be/")[1].split("?")[0];
 
-          return `<iframe height="315" src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
+          return `<iframe  src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>`;
         }
       );
 
@@ -182,7 +212,7 @@
       output = output.replace(
         /https?:\/\/drive\.google\.com\/file\/d\/([^\/]+)\/view[^\s<]*/g,
         (match, fileId) => {
-          return `<iframe height="500" src="https://drive.google.com/file/d/${fileId}/preview"></iframe>`;
+          return `<iframe  src="https://drive.google.com/file/d/${fileId}/preview"></iframe>`;
         }
       );
 
@@ -191,7 +221,7 @@
       // =====================
       output = output.replace(
         /(https?:\/\/[^\s<]+\.pdf)/g,
-        (url) => `<iframe height="500" src="${url}"></iframe>`
+        (url) => `<iframe  src="${url}"></iframe>`
       );
 
       // remove script
