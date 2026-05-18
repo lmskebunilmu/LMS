@@ -15,6 +15,17 @@ import {
 
 import { loadLayout } from "../assets/js/components.js";
 
+function waitForElement(id) {
+  return new Promise(resolve => {
+    const interval = setInterval(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        clearInterval(interval);
+        resolve(el);
+      }
+    }, 50);
+  });
+}
 /* =========================
    GET CLASS ID
 ========================= */
@@ -34,9 +45,19 @@ onAuthStateChanged(auth, async (user) => {
   try {
     await loadLayout("student");
 
-    await loadClassDetail(classId);
-    await loadMaterials(classId);
+// tunggu header benar-benar ready
+await Promise.all([
+  waitForElement("headerAvatarHeader"),
+  waitForElement("headerNameHeader"),
+  waitForElement("headerSchoolLogo"),
+  waitForElement("headerSchoolName")
+]);
 
+// ⬇️ WAJIB pakai await
+    
+await loadClassDetail(classId);
+await loadMaterials(classId);
+    
   } catch (err) {
     console.error(err);
     alert("Terjadi kesalahan");
