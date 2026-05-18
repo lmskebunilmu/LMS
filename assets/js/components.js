@@ -140,7 +140,7 @@ function goBookingStudent() {
     window.role === "student"
   ) {
 
-    navigate("../modules/booking-student/booking-student.html");
+    navigate("/modules/booking-student/booking-student.html");
 
   }
 
