@@ -65,10 +65,16 @@ async function loadExercise() {
 function render(title) {
 
   let html = `
-    <div class="question-card">
-      <h3>📘 ${title}</h3>
+  <div class="question-card" style="display:flex;justify-content:space-between;align-items:center">
+    <h3>📘 ${title}</h3>
+
+    <div>
+      <button id="fsBtn" onclick="toggleFullscreen()" class="btn-full">
+  ⛶ Fullscreen
+</button>
     </div>
-  `;
+  </div>
+`;
 
   questions.forEach((q, i) => {
 
@@ -349,3 +355,25 @@ function drawLines(qIndex) {
     svg.appendChild(line);
   });
 }
+
+// ================= FULLSCREEN =================
+window.toggleFullscreen = function () {
+  const el = document.documentElement;
+
+  if (!document.fullscreenElement) {
+    el.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+};
+
+document.addEventListener("fullscreenchange", () => {
+  const btn = document.getElementById("fsBtn");
+  if (!btn) return;
+
+  if (document.fullscreenElement) {
+    btn.innerText = "❌ Exit Fullscreen";
+  } else {
+    btn.innerText = "⛶ Fullscreen";
+  }
+});
