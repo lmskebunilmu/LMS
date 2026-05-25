@@ -327,13 +327,15 @@ async function redirectByRole(uid){
     window.location =
     "dashboard/guru.html";
 
-  else if (
-    role === "siswa" ||
-    role === "student"
-  )
+ else if (role === "siswa")
 
-    window.location =
-    "dashboard/student.html";
+  window.location =
+  "dashboard/siswa.html";
+
+else if (role === "student")
+
+  window.location =
+  "dashboard/student.html";
 
   else
 
