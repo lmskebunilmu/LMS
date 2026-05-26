@@ -196,76 +196,174 @@ async function loadMaterials(classId) {
     });
 
     /* =====================
-       4. RENDER UI
-    ===================== */
+   4. RENDER UI
+===================== */
 
-    container.innerHTML = "";
+container.innerHTML = "";
 
-    Object.keys(grouped)
-  .sort((a, b) => a.localeCompare(b))
-  .forEach(chapter => {
+Object.keys(grouped)
+.sort((a,b)=>a.localeCompare(b))
+.forEach(chapter => {
 
-      const chapterDiv = document.createElement("div");
-      chapterDiv.className = "card";
+  const chapterBox = document.createElement("div");
+  chapterBox.className = "chapter-box";
 
-      let html = `<h2>📘 ${chapter}</h2>`;
+  let chapterHTML = `
+    <div class="chapter-header">
+      <span>📘 ${chapter}</span>
+      <span class="arrow">▶</span>
+    </div>
 
-      Object.keys(grouped[chapter])
-  .sort((a, b) => a.localeCompare(b))
+    <div class="chapter-content">
+  `;
+
+  Object.keys(grouped[chapter])
+  .sort((a,b)=>a.localeCompare(b))
   .forEach(sub => {
 
-        html += `<h3>📖 ${sub}</h3>`;
+    chapterHTML += `
+      <div class="subchapter-box">
 
-        grouped[chapter][sub]
-  .sort((a, b) => a.title.localeCompare(b.title))
-  .forEach(m => {
+        <div class="subchapter-header">
+          <span>📖 ${sub}</span>
+          <span class="arrow">▶</span>
+        </div>
 
-          const exercises = exerciseMap[String(m.id).trim()] || [];
+        <div class="subchapter-content">
+    `;
 
-          let exHTML = "";
+    grouped[chapter][sub]
+    .sort((a,b)=>a.title.localeCompare(b.title))
+    .forEach(m => {
 
-          exercises
-  .sort((a, b) => a.title.localeCompare(b.title))
-  .forEach((ex, i) => {
-           exHTML += `
-  <div class="exercise-item"
-       style="cursor:pointer"
-       onclick="event.stopPropagation(); openExercise('${ex.id}')">
+      const exercises =
+        exerciseMap[String(m.id).trim()] || [];
 
-    📝 ${i + 1}. ${ex.title}
-  </div>
-`;
-          });
+      let exHTML = "";
 
-         html += `
-  <div class="material-item"
-       style="cursor:pointer"
-       onclick="openMaterial('${m.id}')">
+      exercises
+      .sort((a,b)=>a.title.localeCompare(b.title))
+      .forEach((ex,i)=>{
 
-    <div>
-      <b>📚 ${m.title}</b>
-      <p>${m.description || ""}</p>
-
-      ${exHTML}
-    </div>
-  </div>
-`;
-
-        });
+        exHTML += `
+          <div
+            class="exercise-item"
+            onclick="openExercise('${ex.id}')"
+          >
+            📝 Exercise ${i+1} :
+            ${ex.title}
+          </div>
+        `;
 
       });
 
-      chapterDiv.innerHTML = html;
-      container.appendChild(chapterDiv);
+      chapterHTML += `
+
+        <div class="material-box">
+
+          <!-- MATERIAL -->
+          <div
+            class="material-header"
+            onclick="openMaterial('${m.id}')"
+          >
+            <div>
+              <div style="font-weight:700">
+                📚 ${m.title}
+              </div>
+
+              <div style="
+                font-size:13px;
+                color:#64748b;
+                margin-top:4px;
+              ">
+                ${m.description || ""}
+              </div>
+            </div>
+          </div>
+
+          <!-- EXERCISE -->
+          <div class="exercise-box">
+
+            <div class="exercise-header">
+              <span>
+                🧪 Exercises
+                (${exercises.length})
+              </span>
+
+              <span class="arrow">▶</span>
+            </div>
+
+            <div class="exercise-content">
+              ${exHTML || `
+                <div class="exercise-item">
+                  Belum ada exercise
+                </div>
+              `}
+            </div>
+
+          </div>
+
+        </div>
+      `;
 
     });
+
+    chapterHTML += `
+        </div>
+      </div>
+    `;
+
+  });
+
+  chapterHTML += `
+    </div>
+  `;
+
+  chapterBox.innerHTML = chapterHTML;
+
+  container.appendChild(chapterBox);
+
+});
+    
 
   } catch (err) {
     console.error(err);
     container.innerHTML = "Gagal load materi";
   }
 }
+document.addEventListener("click", (e) => {
 
+  // CHAPTER
+  const chapterHeader =
+    e.target.closest(".chapter-header");
+
+  if (chapterHeader) {
+    chapterHeader.parentElement
+      .classList.toggle("active");
+  }
+
+  // SUB CHAPTER
+  const subHeader =
+    e.target.closest(".subchapter-header");
+
+  if (subHeader) {
+    subHeader.parentElement
+      .classList.toggle("active");
+  }
+
+  // EXERCISE
+  const exHeader =
+    e.target.closest(".exercise-header");
+
+  if (exHeader) {
+
+    e.stopPropagation();
+
+    exHeader.parentElement
+      .classList.toggle("active");
+  }
+
+});
 window.openExercise = function (id) {
   window.location.href =
     `/LMS/dashboard/exercise.html?id=${encodeURIComponent(id)}`;
