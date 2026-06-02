@@ -3,7 +3,7 @@ import { auth, db } from "../firebase/firebase-config.js";
 import {
   doc, getDoc,
   collection, getDocs,
-  query, where
+  query, where, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const id = new URLSearchParams(location.search).get("id");
@@ -49,8 +49,12 @@ async function loadExercise() {
   }
 
   const qSnap = await getDocs(
-    query(collection(db, "questions"), where("exerciseId", "==", id))
-  );
+  query(
+    collection(db, "questions"), 
+    where("exerciseId", "==", id),
+    orderBy("createdAt", "asc") // Tribu: Urutkan dari soal paling lama/pertama dibuat ke yang baru
+  )
+);
 
   // 🔥 FIX: ambil id juga
   questions = qSnap.docs.map(d => ({
