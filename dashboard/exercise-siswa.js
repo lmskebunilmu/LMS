@@ -48,13 +48,14 @@ async function loadExercise() {
     return;
   }
 
+  // ✅ Perbaikan di sini: Kueri bersih dari teks bocor dan terurut secara kronologis
   const qSnap = await getDocs(
-  query(
-    collection(db, "questions"), 
-    where("exerciseId", "==", id),
-    orderBy("createdAt", "asc") // Tribu: Urutkan dari soal paling lama/pertama dibuat ke yang baru
-  )
-);
+    query(
+      collection(db, "questions"), 
+      where("exerciseId", "==", id),
+      orderBy("createdAt", "asc")
+    )
+  );
 
   // 🔥 FIX: ambil id juga
   questions = qSnap.docs.map(d => ({
@@ -74,7 +75,7 @@ function render(title) {
 
     <div>
       <button id="fsBtn" onclick="toggleFullscreen()" class="btn-full">
-  ⛶ Fullscreen
+   ⛶ Fullscreen
 </button>
     </div>
   </div>
@@ -235,18 +236,18 @@ window.check = function (i) {
   }
   else if (q.type === "match") {
 
-  const ans = window.matchAnswers[i] || {};
+    const ans = window.matchAnswers[i] || {};
 
-  correct = true;
+    correct = true;
 
-  q.pairs.forEach((p, idx) => {
+    q.pairs.forEach((p, idx) => {
 
-    if (String(ans[idx]) !== String(idx)) {
-      correct = false;
-    }
+      if (String(ans[idx]) !== String(idx)) {
+        correct = false;
+      }
 
-  });
-}
+    });
+  }
 
   const res = document.getElementById("res" + i);
 
