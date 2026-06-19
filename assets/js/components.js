@@ -109,7 +109,7 @@ function goSchools() {
 }
 
 function goTeachers() {
-  if (window.role === "admin") navigate("../../modules/teachers/teachers.html");
+  if (window.role === "admin") navigate("../modules/teachers/teachers.html");
 }
 
 function goClasses() {
