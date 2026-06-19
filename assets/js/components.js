@@ -105,7 +105,7 @@ function goDashboard() {
 
 function goSchools() {
   if (window.role === "admin") navigate("../../modules/students/students.html");
-  else navigate("../../modules/schools/schools.html");
+  else navigate("../modules/schools/schools.html");
 }
 
 function goTeachers() {
