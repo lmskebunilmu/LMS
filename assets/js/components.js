@@ -67,53 +67,48 @@ document.addEventListener("click", e => {
 function navigate(url) {
   closeSidebar();
   setTimeout(() => {
-    window.location = "/LMS" + url;
+    // Memastikan path diawali dengan /LMS dan tidak double slash
+    window.location.origin + "/LMS" + url; 
+    window.location = "/LMS/" + url.replace(/^\//, ""); 
   }, 200);
 }
 
 function goDashboard() {
-
   if (window.role === "admin") {
-
-    navigate("../../dashboard/admin.html");
-
+    navigate("/dashboard/admin.html");
   }
-
   else if (window.role === "guru") {
-
-    navigate("../../dashboard/guru.html");
-
+    navigate("/dashboard/guru.html");
   }
-
   else if (window.role === "siswa") {
-
-    navigate("../../dashboard/siswa.html");
-
+    navigate("/dashboard/siswa.html");
   }
-
-  // 🔥 TAMBAH INI
   else if (window.role === "student") {
-  navigate("/dashboard/student.html");
-}
-  else {
-
-    navigate("../../dashboard/superadmin.html");
-
+    navigate("/dashboard/student.html");
   }
-
+  else {
+    navigate("/dashboard/superadmin.html");
+  }
 }
 
 function goSchools() {
-  if (window.role === "admin") navigate("../../modules/students/students.html");
-  else navigate("../modules/schools/schools.html");
+  // Menuju ke halaman daftar murid untuk admin sekolah
+  if (window.role === "admin") navigate("/modules/students/students.html");
+  else navigate("/modules/schools/schools.html");
 }
 
 function goTeachers() {
-  if (window.role === "admin") navigate("../../../modules/teachers/teachers.html");
+  if (window.role === "admin") navigate("/modules/teachers/teachers.html");
 }
 
 function goClasses() {
-  if (window.role === "admin") navigate("../../modules/classes/classes.html");
+  if (window.role === "admin") navigate("/modules/classes/classes.html");
+}
+
+function goMaterialsAdmin() {
+  if (window.role === "admin") {
+    navigate("/modules/materials-admin/materials-admin.html");
+  }
 }
 
 function goAdmins() {
@@ -191,43 +186,18 @@ function goAssignmentsSiswa() {
 }
 
 function goAttendance() {
-
-  // ==========================
-  // SUPERADMIN
-  // ==========================
   if (window.role === "superadmin") {
-
-    navigate("../../modules/attendance-system/attendance-system.html");
-
+    navigate("/modules/attendance-system/attendance-system.html");
   }
-
-  // ==========================
-  // GURU
-  // ==========================
   else if (window.role === "guru") {
-
-    navigate("../../modules/attendance/attendance.html");
-
+    navigate("/modules/attendance/attendance.html");
   }
-
-  // ==========================
-  // ADMIN
-  // ==========================
   else if (window.role === "admin") {
-
-    navigate("../../modules/attendance-admin/attendance-admin.html");
-
+    navigate("/modules/attendance-admin/attendance-admin.html");
   }
-
-  // ==========================
-  // SISWA
-  // ==========================
   else if (window.role === "siswa") {
-
-    navigate("../../modules/attendance-siswa/attendance-siswa.html");
-
+    navigate("/modules/attendance-siswa/attendance-siswa.html");
   }
-
 }
 function goClassSuperAdmin() {
 
