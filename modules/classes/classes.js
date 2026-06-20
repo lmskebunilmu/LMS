@@ -125,8 +125,8 @@ async function loadClasses() {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td><b>${classNameClean}</b></td>
-        <td><a href="#" onclick="openTeacherDetailModal('${classId}', '${classNameForAttribute}')" style="color: #4f46e5; font-weight: 600; text-decoration: none;">🔗 ${totalTeachers} Guru</a></td>
-        <td><a href="#" onclick="openStudentDetailModal('${classId}', '${classNameForAttribute}')" style="color: #4f46e5; font-weight: 600; text-decoration: none;">🔗 ${totalStudents} Siswa</a></td>
+        <td><a href="#" onclick="openTeacherDetailModal('${classId}', '${classNameForAttribute}')" style="color: #4f46e5; font-weight: 600; text-decoration: none;"> ${totalTeachers} Guru</a></td>
+        <td><a href="#" onclick="openStudentDetailModal('${classId}', '${classNameForAttribute}')" style="color: #4f46e5; font-weight: 600; text-decoration: none;"> ${totalStudents} Siswa</a></td>
         <td>
           <button class="btn-info" onclick="viewClass('${classId}', '${classNameForAttribute}')">👁️ Lihat Semua</button>
           <button class="btn-warning" onclick="editClass('${classId}', '${classNameForAttribute}')">✏️ Edit</button>
