@@ -84,7 +84,7 @@ function goDashboard() {
     navigate("/dashboard/siswa.html");
   }
   else if (window.role === "student") {
-    navigate("../../dashboard/student.html");
+    navigate("/dashboard/student.html");
   }
   else {
     navigate("/dashboard/superadmin.html");
@@ -153,11 +153,7 @@ function goCurriculum() {
   if (window.role === "superadmin") navigate("../../modules/curriculum/curriculum.html");
 }
 
-function goMaterialsAdmin() {
-  if (window.role === "admin") {
-    navigate("../../modules/materials-admin/materials-admin.html");
-  }
-}
+
 function goMaterialsTeacher() {
   if (window.role === "guru") {
     navigate("../../modules/materials-guru/materials-guru.html");
