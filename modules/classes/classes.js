@@ -72,7 +72,7 @@ async function loadProfileHeader(userData) {
 }
 
 // ==========================
-// LOAD DATA KELAS (FIRESTORE)
+// LOAD DATA KELAS (FIRESTORE) - REALTIME QUERY SISWA
 // ==========================
 async function loadClasses() {
   const tableBody = document.getElementById("classTable");
@@ -93,19 +93,37 @@ async function loadClasses() {
       return;
     }
 
+    // Ambil semua data murid sekaligus untuk kalkulasi jumlah per kelas secara lokal (efisiensi read Firestore)
+    const studentsQuery = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
+    const studentsSnap = await getDocs(studentsQuery);
+    
+    // Kelompokkan jumlah murid berdasarkan classId
+    const studentCountMap = {};
+    studentsSnap.forEach(sDoc => {
+      const sData = sDoc.data();
+      if (sData.classId) {
+        studentCountMap[sData.classId] = (studentCountMap[sData.classId] || 0) + 1;
+      }
+    });
+
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
+      const classId = docSnap.id;
       
       const classNameClean = data.name ? data.name : "-";
       const classNameForAttribute = classNameClean.replace(/'/g, "\\'");
+      
+      const totalTeachers = data.teacherIds ? data.teacherIds.length : 0;
+      // Ambil jumlah siswa dari hasil map pencarian real-time siswa
+      const totalStudents = studentCountMap[classId] || 0;
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td><b>${classNameClean}</b></td>
-        <td>${data.teacherIds ? data.teacherIds.length : 0} Guru</td>
-        <td>${data.studentIds ? data.studentIds.length : 0} Siswa</td>
+        <td>${totalTeachers} Guru</td>
+        <td>${totalStudents} Siswa</td>
         <td>
-          <button class="btn-warning" onclick="editClass('${docSnap.id}', '${classNameForAttribute}')">✏️ Edit</button>
+          <button class="btn-warning" onclick="editClass('${classId}', '${classNameForAttribute}')">✏️ Edit</button>
         </td>
       `;
       tableBody.appendChild(tr);
@@ -139,11 +157,9 @@ async function loadTeachersToSelect() {
   const selectEl = document.getElementById("teacherSelect");
   if (!selectEl) return;
 
-  // Bersihkan isi option bawaan HTML
   selectEl.innerHTML = '<option value="">Pilih Guru</option>';
 
   try {
-    // Ambil data user yang merupakan "guru" di sekolah yang sama
     const teacherQuery = query(
       collection(db, "users"),
       where("role", "==", "guru"),
@@ -155,12 +171,11 @@ async function loadTeachersToSelect() {
     snap.forEach(docSnap => {
       const teacherData = docSnap.data();
       const option = document.createElement("option");
-      option.value = docSnap.id; // UID guru sebagai value
+      option.value = docSnap.id; 
       option.textContent = teacherData.name || "Tanpa Nama";
       selectEl.appendChild(option);
     });
 
-    // Inisialisasi TomSelect agar dropdown select multiple terlihat rapi dan bisa dicari
     if (window.TomSelect && !teacherSelectInstance) {
       teacherSelectInstance = new TomSelect("#teacherSelect", {
         plugins: ['remove_button'],
@@ -168,7 +183,6 @@ async function loadTeachersToSelect() {
         create: false
       });
     } else if (teacherSelectInstance) {
-      // Jika data berubah, sinkronkan ulang isi pilihan TomSelect
       teacherSelectInstance.sync();
     }
 
@@ -176,6 +190,7 @@ async function loadTeachersToSelect() {
     console.error("Gagal memuat daftar guru untuk opsi kelas:", err);
   }
 }
+
 // ==========================
 // CONTROL MODAL & ACTIONS
 // ==========================
@@ -184,7 +199,6 @@ window.openClassModal = () => {
   document.getElementById("className").value = "";
   document.getElementById("classModalTitle").innerText = "Tambah Kelas";
   
-  // Reset pilihan guru menjadi kosong saat tambah kelas baru
   if (teacherSelectInstance) {
     teacherSelectInstance.clear();
   }
@@ -198,13 +212,11 @@ window.editClass = async (id, name) => {
   document.getElementById("classModalTitle").innerText = "Edit Kelas";
 
   try {
-    // Ambil data detail kelas dari Firestore untuk melihat teacherIds yang sudah terdaftar
     const classSnap = await getDoc(doc(db, "classes", id));
     if (classSnap.exists()) {
       const classData = classSnap.data();
       const currentTeacherIds = classData.teacherIds || [];
 
-      // Set value TomSelect secara otomatis berdasarkan array ID guru yang tersimpan
       if (teacherSelectInstance) {
         teacherSelectInstance.setValue(currentTeacherIds);
       }
@@ -220,17 +232,13 @@ window.closeClassModal = () => {
   document.getElementById("classModal").classList.remove("active");
 };
 
-
-
 window.saveClass = async () => {
   const classId = document.getElementById("classId").value;
   const className = document.getElementById("className").value.trim();
 
-  // Mengambil array ID guru yang dipilih dari TomSelect
   let selectedTeacherIds = [];
   if (teacherSelectInstance) {
-    selectedTeacherIds = teacherSelectInstance.getValue(); // Menghasilkan array, misal: ["uid1", "uid2"]
-    // Jika TomSelect mengembalikan string tunggal (karena iseng dikosongkan), ubah ke array
+    selectedTeacherIds = teacherSelectInstance.getValue(); 
     if (typeof selectedTeacherIds === 'string') {
       selectedTeacherIds = selectedTeacherIds ? [selectedTeacherIds] : [];
     }
@@ -243,18 +251,15 @@ window.saveClass = async () => {
 
   try {
     if (classId) {
-      // Update nama kelas beserta guru pengampunya
       await updateDoc(doc(db, "classes", classId), { 
         name: className,
         teacherIds: selectedTeacherIds
       });
     } else {
-      // Tambah kelas baru dengan struktur default lengkap
       await addDoc(collection(db, "classes"), {
         name: className,
         schoolId: currentSchoolId,
-        teacherIds: selectedTeacherIds,
-        studentIds: [] // Awalnya kosong, nanti diisi via modal siswa
+        teacherIds: selectedTeacherIds
       });
     }
     
@@ -269,6 +274,7 @@ window.saveClass = async () => {
 window.closeStudentModal = () => document.getElementById("studentModal").classList.remove("active");
 window.closeTeacherModal = () => document.getElementById("teacherModal").classList.remove("active");
 window.closeAddTeacherModal = () => document.getElementById("addTeacherModal").classList.remove("active");
+
 // ==========================
 // EXPORT EXCEL (SheetJS)
 // ==========================
@@ -276,17 +282,16 @@ window.exportClassesExcel = () => {
   const table = document.querySelector("table");
   if (!table) return;
 
-  // Membuat salinan tabel tanpa kolom 'Aksi'
   const tempTable = table.cloneNode(true);
   tempTable.querySelectorAll("tr").forEach(row => {
     if (row.lastElementChild) {
-      row.removeChild(row.lastElementChild); // Hapus kolom aksi
+      row.removeChild(row.lastElementChild); 
     }
   });
 
   try {
     const wb = XLSX.utils.table_to_book(tempTable, { sheet: "Data Kelas" });
-    XLSX.writeFile(wb, `Data_Kelas_${currentSchoolName.replace(/\s+/g, '_')}.xlsx`);
+    XXLSX.writeFile(wb, `Data_Kelas_${currentSchoolName.replace(/\s+/g, '_')}.xlsx`);
   } catch (err) {
     console.error("Gagal Export Excel:", err);
     alert("Gagal mengekspor data ke Excel.");
@@ -294,10 +299,9 @@ window.exportClassesExcel = () => {
 };
 
 // ==========================
-// EXPORT PDF GABUNGAN (Ringkasan + Detail Per Kelas)
+// EXPORT PDF GABUNGAN (Ringkasan + Detail Sinkron Siswa)
 // ==========================
 window.exportClassesPDF = async () => {
-  // Tampilkan loading sederhana karena menarik data dari Firestore
   const btnEl = document.querySelector("button[onclick='exportClassesPDF()']");
   const originalBtnText = btnEl ? btnEl.innerText : "Export PDF";
   if (btnEl) btnEl.innerText = "⏳ Memproses Laporan...";
@@ -307,7 +311,7 @@ window.exportClassesPDF = async () => {
     const schoolLogo = currentSchoolLogo || "/LMS/assets/images/default-logo.png";
     const date = new Date().toLocaleDateString("id-ID", { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // 1. Ambil data kelas langsung dari Firestore
+    // 1. Ambil data kelas
     let classesQuery = collection(db, "classes");
     if (currentSchoolId) {
       classesQuery = query(collection(db, "classes"), where("schoolId", "==", currentSchoolId));
@@ -320,34 +324,50 @@ window.exportClassesPDF = async () => {
       return;
     }
 
-    // 2. BAGIAN I: MEMBUAT TABEL RINGKASAN (SUMMARY OVERVIEW)
-    let summaryRowsHtml = "";
+    // 2. Ambil data seluruh siswa untuk dicocokkan berdasarkan classId (Real-time Sync)
+    const studentsQuery = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
+    const studentsSnap = await getDocs(studentsQuery);
     
-    // Kita juga siapkan wadah untuk menyimpan HTML detail per kelas di bawah nanti
+    // Kelompokkan data object siswa berdasarkan classId
+    const studentsByClassMap = {};
+    studentsSnap.forEach(sDoc => {
+      const sData = sDoc.data();
+      if (sData.classId) {
+        if (!studentsByClassMap[sData.classId]) {
+          studentsByClassMap[sData.classId] = [];
+        }
+        studentsByClassMap[sData.classId].push(sData);
+      }
+    });
+
+    let summaryRowsHtml = "";
     let detailSectionsHtml = "";
 
-    // Loop data untuk membangun Ringkasan sekaligus mencatat antrean detail
+    // 3. Loop bangun Ringkasan dan Detail Breakdown
     for (const classDoc of classSnap.docs) {
+      const classId = classDoc.id;
       const classData = classDoc.data();
       const className = classData.name || "-";
       const teacherIds = classData.teacherIds || [];
-      const studentIds = classData.studentIds || [];
+      
+      // Ambil data array siswa secara langsung dari map hasil query siswa
+      const classStudents = studentsByClassMap[classId] || [];
 
       // Masukkan ke baris tabel ringkasan utama
       summaryRowsHtml += `
         <tr>
           <td><b>${className}</b></td>
           <td><span class="badge blue">${teacherIds.length} Guru</span></td>
-          <td><span class="badge indigo">${studentIds.length} Siswa</span></td>
+          <td><span class="badge indigo">${classStudents.length} Siswa</span></td>
         </tr>
       `;
 
-      // --- PROSES BREAKDOWN DETAIL UNTUK BAGIAN II ---
-      // A. Detail Guru
+      // --- BREAKDOWN DETAIL GURU ---
       let teacherRows = "";
       if (teacherIds.length > 0) {
         for (const tId of teacherIds) {
-          const tSnap = await getDoc(doc(db, "teachers", tId));
+          // Mengambil dari koleksi users karena drop-down mengambil dari users role guru
+          const tSnap = await getDoc(doc(db, "users", tId));
           if (tSnap.exists()) {
             const tData = tSnap.data();
             const mapel = tData.subjects && tData.subjects.length > 0 ? tData.subjects.join(", ") : "-";
@@ -366,23 +386,19 @@ window.exportClassesPDF = async () => {
         teacherRows = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada guru pengampu.</td></tr>`;
       }
 
-      // B. Detail Siswa (Asumsi nama koleksi: "students")
+      // --- BREAKDOWN DETAIL SISWA ---
       let studentRows = "";
-      if (studentIds.length > 0) {
-        for (const sId of studentIds) {
-          const sSnap = await getDoc(doc(db, "students", sId));
-          if (sSnap.exists()) {
-            const sData = sSnap.data();
-            const status = sData.status || "aktif";
-            studentRows += `
-              <tr>
-                <td>${sData.name || "-"}</td>
-                <td>${sData.email || "-"}</td>
-                <td><span class="badge ${status === 'aktif' ? 'green' : 'red'}">${status}</span></td>
-              </tr>
-            `;
-          }
-        }
+      if (classStudents.length > 0) {
+        classStudents.forEach(sData => {
+          const status = sData.status || "aktif";
+          studentRows += `
+            <tr>
+              <td>${sData.name || "-"}</td>
+              <td>${sData.email || "-"}</td>
+              <td><span class="badge ${status === 'aktif' ? 'green' : 'red'}">${status}</span></td>
+            </tr>
+          `;
+        });
       } else {
         studentRows = `<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
       }
@@ -425,12 +441,12 @@ window.exportClassesPDF = async () => {
       `;
     }
 
-    // 3. INJEKSI TEMPLATE KE WINDOW PRINT BARU
+    // 4. INJEKSI TEMPLATE KE WINDOW PRINT BARU
     const win = window.open("", "_blank");
     win.document.write(`
     <html>
     <head>
-      <title>Laporan Akademik Lengkap - ${schoolName}</title>
+      <title>Laporan Laporan Lengkap - ${schoolName}</title>
       <style>
         * { box-sizing: border-box; }
         body {
@@ -454,13 +470,10 @@ window.exportClassesPDF = async () => {
         .title { font-size: 24px; font-weight: 700; color: #1e3a8a; margin-bottom: 5px; }
         .subtitle { font-size: 13px; color: #64748b; margin-bottom: 25px; }
         
-        /* SECTION TITLE STYLE */
         .section-main-title {
           font-size: 16px; font-weight: 700; color: #4f46e5;
           margin: 30px 0 15px 0; border-left: 4px solid #6366f1; padding-left: 10px;
         }
-
-        /* CLASS SECTION STYLING */
         .class-section { margin-bottom: 35px; page-break-inside: avoid; }
         .class-header {
           font-size: 14px; font-weight: 700; color: #ffffff;
