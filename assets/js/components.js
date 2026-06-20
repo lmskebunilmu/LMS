@@ -84,7 +84,7 @@ function goDashboard() {
     navigate("/dashboard/siswa.html");
   }
   else if (window.role === "student") {
-    navigate("/dashboard/student.html");
+    navigate("../../dashboard/student.html");
   }
   else {
     navigate("/dashboard/superadmin.html");
