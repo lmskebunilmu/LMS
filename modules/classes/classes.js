@@ -3,6 +3,9 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/f
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 let currentSchoolId = null;
+let currentSchoolRef = null;
+let currentSchoolName = "-";
+let currentSchoolLogo = "/LMS/assets/images/default-logo.png";
 
 // ==========================
 // AUTH + LOAD LAYOUT
@@ -24,6 +27,9 @@ onAuthStateChanged(auth, async (user) => {
         await window.loadLayout(window.role);
       }
       
+      // Ambil data profil admin & sekolah lalu tampilkan ke header
+      await loadProfileHeader(userData);
+      
       await loadClasses();
       initClassSearch();
     }
@@ -31,6 +37,39 @@ onAuthStateChanged(auth, async (user) => {
     console.error("Gagal inisialisasi halaman kelas:", err);
   }
 });
+
+// ==========================
+// LOAD PROFILE HEADER
+// ==========================
+async function loadProfileHeader(userData) {
+  const name = userData.name || "Admin";
+  const avatar = userData.avatarURL || "/LMS/assets/images/default-avatar.png";
+
+  // Update elemen UI Profil Admin
+  const nameEl = document.getElementById("headerNameHeader");
+  if (nameEl) nameEl.innerText = name;
+
+  const avatarEl = document.getElementById("headerAvatarHeader");
+  if (avatarEl) avatarEl.src = avatar;
+
+  // Ambil data sekolah dari Firestore jika ada ID sekolah
+  if (currentSchoolId) {
+    const schoolSnap = await getDoc(doc(db, "schools", currentSchoolId));
+    if (schoolSnap.exists()) {
+      const schoolData = schoolSnap.data();
+      currentSchoolRef = schoolSnap.ref;
+      currentSchoolName = schoolData.name || "-";
+      currentSchoolLogo = schoolData.logoURL || "/LMS/assets/images/default-logo.png";
+    }
+  }
+
+  // Update elemen UI Profil Sekolah di Header
+  const schoolNameEl = document.getElementById("headerSchoolName");
+  if (schoolNameEl) schoolNameEl.innerText = currentSchoolName;
+
+  const schoolLogoEl = document.getElementById("headerSchoolLogo");
+  if (schoolLogoEl) schoolLogoEl.src = currentSchoolLogo;
+}
 
 // ==========================
 // LOAD DATA KELAS (FIRESTORE)
@@ -57,9 +96,7 @@ async function loadClasses() {
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       
-      // FIX ERROR REPLACE: Ambil nama kelas, jika tidak ada ganti dengan string kosong "" atau "-"
       const classNameClean = data.name ? data.name : "-";
-      // Ambil string aman untuk fungsi onclick di HTML
       const classNameForAttribute = classNameClean.replace(/'/g, "\\'");
 
       const tr = document.createElement("tr");
@@ -95,7 +132,7 @@ function initClassSearch() {
 }
 
 // ==========================
-// CONTROL MODAL & ACTIONS (GLOBAL SCOPE BINDING)
+// CONTROL MODAL & ACTIONS
 // ==========================
 window.openClassModal = () => {
   document.getElementById("classId").value = "";
@@ -126,10 +163,8 @@ window.saveClass = async () => {
 
   try {
     if (classId) {
-      // Update kelas yang sudah ada
       await updateDoc(doc(db, "classes", classId), { name: className });
     } else {
-      // Tambah kelas baru
       await addDoc(collection(db, "classes"), {
         name: className,
         schoolId: currentSchoolId,
@@ -146,7 +181,6 @@ window.saveClass = async () => {
   }
 };
 
-// Menambahkan placeholder handler untuk modal-modal lain agar tombol "Tutup" bawaan HTML tidak error
 window.closeStudentModal = () => document.getElementById("studentModal").classList.remove("active");
 window.closeTeacherModal = () => document.getElementById("teacherModal").classList.remove("active");
 window.closeAddTeacherModal = () => document.getElementById("addTeacherModal").classList.remove("active");
