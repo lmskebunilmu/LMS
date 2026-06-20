@@ -220,12 +220,7 @@ window.closeClassModal = () => {
   document.getElementById("classModal").classList.remove("active");
 };
 
-window.editClass = (id, name) => {
-  document.getElementById("classId").value = id;
-  document.getElementById("className").value = name;
-  document.getElementById("classModalTitle").innerText = "Edit Kelas";
-  document.getElementById("classModal").classList.add("active");
-};
+
 
 window.saveClass = async () => {
   const classId = document.getElementById("classId").value;
@@ -274,3 +269,75 @@ window.saveClass = async () => {
 window.closeStudentModal = () => document.getElementById("studentModal").classList.remove("active");
 window.closeTeacherModal = () => document.getElementById("teacherModal").classList.remove("active");
 window.closeAddTeacherModal = () => document.getElementById("addTeacherModal").classList.remove("active");
+// ==========================
+// EXPORT EXCEL (SheetJS)
+// ==========================
+window.exportClassesExcel = () => {
+  const table = document.querySelector("table");
+  if (!table) return;
+
+  // Membuat salinan tabel tanpa kolom 'Aksi'
+  const tempTable = table.cloneNode(true);
+  tempTable.querySelectorAll("tr").forEach(row => {
+    if (row.lastElementChild) {
+      row.removeChild(row.lastElementChild); // Hapus kolom aksi
+    }
+  });
+
+  try {
+    const wb = XLSX.utils.table_to_book(tempTable, { sheet: "Data Kelas" });
+    XLSX.writeFile(wb, `Data_Kelas_${currentSchoolName.replace(/\s+/g, '_')}.xlsx`);
+  } catch (err) {
+    console.error("Gagal Export Excel:", err);
+    alert("Gagal mengekspor data ke Excel.");
+  }
+};
+
+// ==========================
+// EXPORT PDF (jsPDF + AutoTable)
+// ==========================
+window.exportClassesPDF = () => {
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Judul PDF
+    doc.text(`Data Kelas - ${currentSchoolName}`, 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Diunduh pada: ${new Date().toLocaleDateString('id-ID')}`, 14, 22);
+
+    // Mengambil data dari tabel HTML (melewati kolom 'Aksi')
+    const headers = [["Nama Kelas", "Jumlah Guru", "Jumlah Siswa"]];
+    const data = [];
+    
+    document.querySelectorAll("#classTable tr").forEach(row => {
+      const cells = row.querySelectorAll("td");
+      if (cells.length >= 3) {
+        data.push([
+          cells[0].innerText,
+          cells[1].innerText,
+          cells[2].innerText
+        ]);
+      }
+    });
+
+    if (data.length === 0) {
+      alert("Tidak ada data kelas untuk diexport!");
+      return;
+    }
+
+    // Generate tabel otomatis di PDF
+    doc.autoTable({
+      head: headers,
+      body: data,
+      startY: 28,
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185] } // Warna biru dashboard
+    });
+
+    doc.save(`Data_Kelas_${currentSchoolName.replace(/\s+/g, '_')}.pdf`);
+  } catch (err) {
+    console.error("Gagal Export PDF:", err);
+    alert("Gagal mengekspor data ke PDF.");
+  }
+};
