@@ -296,112 +296,279 @@ window.exportClassesExcel = () => {
 // ==========================
 // EXPORT PDF (jsPDF + AutoTable)
 // ==========================
-window.exportClassesPDF = async () => {
-  try {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a4');
+// ==========================
+// EXPORT PDF VIA PRINT WINDOW (Premium Theme)
+// ==========================
+window.exportClassesPDF = () => {
+  const table = document.getElementById("classTable");
+  if (!table) return;
 
-    // 1. TAMBAHKAN LOGO SEKOLAH
-    let imageLoaded = false;
-    if (currentSchoolLogo) {
-      try {
-        const toBase64 = url => fetch(url)
-          .then(response => response.blob())
-          .then(blob => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          }));
-        
-        const base64Img = await toBase64(currentSchoolLogo);
-        doc.addImage(base64Img, 'PNG', 14, 10, 18, 18);
-        imageLoaded = true;
-      } catch (e) {
-        console.log("Gagal memuat logo sekolah untuk PDF, fallback teks.", e);
-      }
+  const schoolName = currentSchoolName || "Sekolah";
+  const schoolLogo = currentSchoolLogo || "/LMS/assets/images/default-logo.png";
+  const date = new Date().toLocaleDateString("id-ID", { year: 'numeric', month: 'long', day: 'numeric' });
+
+  let rows = "";
+
+  table.querySelectorAll("tr").forEach(row => {
+    const cols = row.querySelectorAll("td");
+    if (cols.length) {
+      rows += `
+        <tr>
+          <td><b>${cols[0].innerText}</b></td>
+          <td>
+            <span class="badge blue">
+              ${cols[1].innerText}
+            </span>
+          </td>
+          <td>
+            <span class="badge indigo">
+              ${cols[2].innerText}
+            </span>
+          </td>
+        </tr>
+      `;
     }
+  });
 
-    // 2. HEADER BRANDING MODERN
-    const textStartX = imageLoaded ? 36 : 14;
-    
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.textColor = "#1a252f"; 
-    doc.text(currentSchoolName.toUpperCase(), textStartX, 16);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.textColor = "#7f8c8d"; 
-    doc.text("Laporan Data Manajemen Kelas dan Akademik", textStartX, 22);
-    doc.text(`Tanggal Cetak: ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}`, textStartX, 27);
-
-    // Garis pembatas dekoratif abu-abu tipis
-    doc.setDrawColor(220, 224, 230);
-    doc.setLineWidth(0.5);
-    doc.line(14, 32, 196, 32);
-
-    // 3. MENYIAPKAN DATA TABEL KELAS
-    const headers = [["NAMA KELAS", "GURU PENGAMPU", "JUMLAH SISWA"]];
-    const data = [];
-    
-    const rows = document.querySelectorAll("#classTable tr");
-    rows.forEach(row => {
-      const cells = row.querySelectorAll("td");
-      if (cells.length >= 3) {
-        data.push([
-          cells[0].innerText.trim(),
-          cells[1].innerText.trim(),
-          cells[2].innerText.trim()
-        ]);
-      }
-    });
-
-    if (data.length === 0) {
-      alert("Tidak ada data kelas yang tersedia untuk diexport!");
-      return;
-    }
-
-    // 4. GENERATE TABEL BERGAYA MODERN
-    doc.autoTable({
-      head: headers,
-      body: data,
-      startY: 38,
-      margin: { left: 14, right: 14 },
-      theme: 'grid',
-      styles: {
-        font: 'helvetica',
-        fontSize: 10,
-        cellPadding: 4,
-        verticalAlign: 'middle'
-      },
-      headStyles: {
-        fillColor: [44, 62, 80], // Slate / Navy Modern
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        halign: 'left'
-      },
-      altRowStyles: {
-        fillColor: [248, 249, 250]
-      },
-      columnStyles: {
-        0: { cellWidth: 70, fontStyle: 'bold' },
-        1: { cellWidth: 65 },
-        2: { cellWidth: 47, halign: 'center' }
-      },
-      didDrawPage: function(data) {
-        const str = "Halaman " + doc.internal.getNumberOfPages();
-        doc.setFontSize(9);
-        doc.textColor = "#95a5a6";
-        doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 10);
-      }
-    });
-
-    const fileNameClean = currentSchoolName.replace(/\s+/g, '_');
-    doc.save(`Laporan_Data_Kelas_${fileNameClean}.pdf`);
-
-  } catch (err) {
-    console.error("Gagal melakukan Export PDF Modern:", err);
-    alert("Terjadi kesalahan sistem saat memproses PDF.");
+  if (!rows) {
+    alert("Tidak ada data kelas untuk diexport!");
+    return;
   }
+
+  const win = window.open("", "_blank");
+
+  win.document.write(`
+  <html>
+  <head>
+    <title>Data Kelas - ${schoolName}</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Inter', Arial, sans-serif;
+        background: linear-gradient(135deg, #eef2ff, #f8fafc);
+        padding: 40px;
+        margin: 0;
+        color: #0f172a;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+      }
+
+      .card {
+        background: rgba(255,255,255,0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 25px;
+      }
+
+      .left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .logo {
+        width: 45px;
+        height: 45px;
+        border-radius: 10px;
+        object-fit: cover;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      }
+
+      .school-name {
+        font-weight: 600;
+        font-size: 16px;
+      }
+
+      .meta {
+        font-size: 12px;
+        color: #64748b;
+      }
+
+      .title {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 5px;
+      }
+
+      .subtitle {
+        font-size: 13px;
+        color: #64748b;
+        margin-bottom: 20px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+      }
+
+      /* HEADER */
+      th {
+        text-align: left;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px;
+        color: white;
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+      }
+
+      /* rounded header */
+      th:first-child {
+        border-top-left-radius: 10px;
+        border-bottom-left-radius: 10px;
+      }
+      th:last-child {
+        border-top-right-radius: 10px;
+        border-bottom-right-radius: 10px;
+      }
+
+      /* ROW STYLE */
+      tr {
+        background: white;
+        box-shadow: 0 5px 12px rgba(0,0,0,0.05);
+        border-radius: 12px;
+        transition: 0.2s;
+      }
+
+      /* CELL */
+      td {
+        padding: 14px 12px;
+        font-size: 14px;
+      }
+
+      /* rounded row */
+      td:first-child {
+        border-top-left-radius: 10px;
+        border-bottom-left-radius: 10px;
+      }
+      td:last-child {
+        border-top-right-radius: 10px;
+        border-bottom-right-radius: 10px;
+      }
+
+      /* HOVER EFFECT */
+      tr:hover {
+        transform: scale(1.01);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+      }
+
+      /* ZEBRA */
+      tbody tr:nth-child(even) {
+        background: #f8fafc;
+      }
+
+      .badge {
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-block;
+      }
+
+      .blue {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+      }
+
+      .indigo {
+        background: linear-gradient(135deg, #6366f1, #4338ca);
+        color: white;
+      }
+
+      .footer {
+        margin-top: 30px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+
+      .chip {
+        background: #e0e7ff;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #3730a3;
+      }
+
+      @media print {
+        body {
+          background: none;
+          padding: 0;
+        }
+        .card {
+          box-shadow: none;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <div class="container">
+      <div class="card">
+
+        <div class="header">
+          <div class="left">
+            <img src="${schoolLogo}" class="logo">
+            <div>
+              <div class="school-name">${schoolName}</div>
+              <div class="meta">Laporan Sistem Akademik</div>
+            </div>
+          </div>
+
+          <div class="chip">📅 ${date}</div>
+        </div>
+
+        <div class="title">Data Kelas</div>
+        <div class="subtitle">Daftar info kelas, jumlah guru pengampu, dan total siswa terpilih</div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Nama Kelas</th>
+              <th>Jumlah Guru</th>
+              <th>Jumlah Siswa</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div>© ${schoolName}</div>
+          <div>Generated automatically</div>
+        </div>
+
+      </div>
+    </div>
+
+    <script>
+      window.print();
+    </script>
+
+  </body>
+  </html>
+  `);
+
+  win.document.close();
 };
