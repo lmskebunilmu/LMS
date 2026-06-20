@@ -7,8 +7,17 @@ let currentSchoolRef = null;
 let currentSchoolName = "-";
 let currentSchoolLogo = "/LMS/assets/images/default-logo.png";
 
-// Variabel penampung fungsi hapus sementara
+// Variabel penampung fungsi hapus sementara dan modal aktif
 let classIdToDelete = null;
+let activeClassIdInModal = null;
+
+// ==========================================
+// UTILITY: CHECKBOX PILIH SEMUA
+// ==========================================
+window.toggleSelectAll = (listId, masterCheckbox) => {
+  const checkboxes = document.querySelectorAll(`#${listId} input[type="checkbox"]`);
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+};
 
 // ==========================
 // AUTH + LOAD LAYOUT
@@ -143,6 +152,7 @@ function initClassSearch() {
     });
   });
 }
+
 let teacherSelectInstance = null;
 
 async function loadTeachersToSelect() {
@@ -212,7 +222,7 @@ window.editClass = async (id, name) => {
   document.getElementById("classModal").classList.add("active");
 };
 
-// --- UPDATE MODAL: FUNGSI HAPUS KELAS DENGAN MODAL MODERN ---
+// --- MODAL KONFIRMASI HAPUS KELAS ---
 window.deleteClass = (id, name) => {
   classIdToDelete = id;
   document.getElementById("deleteModalMessage").innerText = `Apakah Anda yakin ingin menghapus kelas "${name}"? Tindakan ini tidak dapat dibatalkan.`;
@@ -224,7 +234,6 @@ window.closeDeleteModal = () => {
   classIdToDelete = null;
 };
 
-// Bind event tombol konfirmasi hapus modal
 document.getElementById("confirmDeleteBtn").onclick = async () => {
   if (!classIdToDelete) return;
   try {
@@ -238,11 +247,16 @@ document.getElementById("confirmDeleteBtn").onclick = async () => {
   }
 };
 
-// --- UPDATE MODAL: FUNGSI LIHAT GURU DI MODAL GURU ---
+// --- MODAL: LIHAT DETAIL GURU (DENGAN CEKLIS) ---
 window.openTeacherDetailModal = async (id, className) => {
+  activeClassIdInModal = id; 
   const teacherList = document.getElementById("teacherList");
-  document.getElementById("teacherModalTitle").innerText = `Daftar Guru - Kamba ${className}`;
+  document.getElementById("teacherModalTitle").innerText = `Daftar Guru - Kelas ${className}`;
   teacherList.innerHTML = "<li>⏳ Memuat daftar guru...</li>";
+  
+  const selectAllCb = document.getElementById("selectAllTeachers");
+  if(selectAllCb) selectAllCb.checked = false;
+
   document.getElementById("teacherModal").classList.add("active");
 
   try {
@@ -260,22 +274,31 @@ window.openTeacherDetailModal = async (id, className) => {
         const tSnap = await getDoc(doc(db, "users", tId));
         if (tSnap.exists()) {
           const li = document.createElement("li");
-          li.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;";
-          li.innerHTML = `<span>👨‍🏫 <b>${tSnap.data().name || "Tanpa Nama"}</b> (${tSnap.data().email || "-"})</span>`;
+          li.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+          li.innerHTML = `
+            <input type="checkbox" class="teacher-item-cb" value="${tId}" style="cursor:pointer;">
+            <span>👨‍🏫 <b>${tSnap.data().name || "Tanpa Nama"}</b> (${tSnap.data().email || "-"})</span>
+          `;
           teacherList.appendChild(li);
         }
       }
     }
   } catch (err) {
+    console.error(err);
     teacherList.innerHTML = "<li style='color:red;'>❌ Gagal memuat data.</li>";
   }
 };
 
-// --- UPDATE MODAL: FUNGSI LIHAT SISWA DI MODAL SISWA ---
+// --- MODAL: LIHAT DETAIL SISWA (DENGAN CEKLIS) ---
 window.openStudentDetailModal = async (id, className) => {
+  activeClassIdInModal = id; 
   const studentList = document.getElementById("studentList");
   document.getElementById("studentModalTitle").innerText = `Daftar Siswa - Kelas ${className}`;
   studentList.innerHTML = "<li>⏳ Memuat daftar siswa...</li>";
+  
+  const selectAllCb = document.getElementById("selectAllStudents");
+  if(selectAllCb) selectAllCb.checked = false;
+
   document.getElementById("studentModal").classList.add("active");
 
   try {
@@ -291,18 +314,114 @@ window.openStudentDetailModal = async (id, className) => {
     studentsSnap.forEach(sDoc => {
       const sData = sDoc.data();
       const li = document.createElement("li");
-      li.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;";
-      li.innerHTML = `<span>👶 <b>${sData.name || "Tanpa Nama"}</b> (${sData.email || "-"})</span>`;
+      li.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+      li.innerHTML = `
+        <input type="checkbox" class="student-item-cb" value="${sDoc.id}" style="cursor:pointer;">
+        <span>👶 <b>${sData.name || "Tanpa Nama"}</b> (${sData.email || "-"})</span>
+      `;
       studentList.appendChild(li);
     });
   } catch (err) {
+    console.error(err);
     studentList.innerHTML = "<li style='color:red;'>❌ Gagal memuat data.</li>";
   }
 };
 
-// Tombol Lihat semua memicu penampilan modal guru & siswa sekaligus/berurutan
+// Tombol Lihat Semua memicu detail siswa
 window.viewClass = (id, name) => {
   window.openStudentDetailModal(id, name);
+};
+
+// ==================================================================
+// AKSI BERKELOMPOK: KELUARKAN GURU
+// ==================================================================
+window.removeSelectedTeachers = async () => {
+  if (!activeClassIdInModal) return;
+  const checkedBoxes = document.querySelectorAll(".teacher-item-cb:checked");
+  if (checkedBoxes.length === 0) {
+    alert("Silahkan pilih guru yang ingin dikeluarkan terlebih dahulu!");
+    return;
+  }
+
+  if (confirm(`Keluarkan ${checkedBoxes.length} guru terpilih dari kelas ini?`)) {
+    try {
+      const classRef = doc(db, "classes", activeClassIdInModal);
+      const classSnap = await getDoc(classRef);
+      if (classSnap.exists()) {
+        let currentTeachers = classSnap.data().teacherIds || [];
+        const idsToRemove = Array.from(checkedBoxes).map(cb => cb.value);
+        const updatedTeachers = currentTeachers.filter(id => !idsToRemove.includes(id));
+        
+        await updateDoc(classRef, { teacherIds: updatedTeachers });
+        document.getElementById("teacherModal").classList.remove("active");
+        await loadClasses();
+        showToast("Guru terpilih berhasil dikeluarkan.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mengeluarkan guru terpilih.");
+    }
+  }
+};
+
+window.removeAllTeachers = async () => {
+  if (!activeClassIdInModal) return;
+  if (confirm("Apakah Anda yakin ingin mengeluarkan SEMUA guru dari kelas ini?")) {
+    try {
+      await updateDoc(doc(db, "classes", activeClassIdInModal), { teacherIds: [] });
+      document.getElementById("teacherModal").classList.remove("active");
+      await loadClasses();
+      showToast("Semua guru berhasil dikeluarkan.");
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mengeluarkan semua guru.");
+    }
+  }
+};
+
+// ==================================================================
+// AKSI BERKELOMPOK: KELUARKAN SISWA
+// ==================================================================
+window.removeSelectedStudents = async () => {
+  if (!activeClassIdInModal) return;
+  const checkedBoxes = document.querySelectorAll(".student-item-cb:checked");
+  if (checkedBoxes.length === 0) {
+    alert("Silahkan pilih siswa yang ingin dikeluarkan terlebih dahulu!");
+    return;
+  }
+
+  if (confirm(`Keluarkan ${checkedBoxes.length} siswa terpilih dari kelas ini?`)) {
+    try {
+      for (const cb of checkedBoxes) {
+        await updateDoc(doc(db, "students", cb.value), { classId: "" });
+      }
+      document.getElementById("studentModal").classList.remove("active");
+      await loadClasses();
+      showToast("Siswa terpilih berhasil dikeluarkan.");
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mengeluarkan siswa terpilih.");
+    }
+  }
+};
+
+window.removeAllStudents = async () => {
+  if (!activeClassIdInModal) return;
+  if (confirm("Apakah Anda yakin ingin mengeluarkan SEMUA siswa dari kelas ini?")) {
+    try {
+      const qStudents = query(collection(db, "students"), where("classId", "==", activeClassIdInModal));
+      const studentsSnap = await getDocs(qStudents);
+      for (const sDoc of studentsSnap.docs) {
+        await updateDoc(doc(db, "students", sDoc.id), { classId: "" });
+      }
+      document.getElementById("studentModal").classList.remove("active");
+      await loadClasses();
+      showToast("Semua siswa berhasil dikeluarkan.");
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mengeluarkan semua siswa.");
+    }
+  }
 };
 
 window.closeClassModal = () => document.getElementById("classModal").classList.remove("active");
@@ -310,7 +429,6 @@ window.closeStudentModal = () => document.getElementById("studentModal").classLi
 window.closeTeacherModal = () => document.getElementById("teacherModal").classList.remove("active");
 window.closeAddTeacherModal = () => document.getElementById("addTeacherModal").classList.remove("active");
 
-// Fungsi pembantu Toast untuk info estetik
 function showToast(message) {
   const toast = document.getElementById("toast");
   if(toast) {
@@ -320,9 +438,9 @@ function showToast(message) {
   }
 }
 
-// ==========================
-// SAVE & EXPORT (TETAP SAMA)
-// ==========================
+// ==========================================
+// SAVE & EXPORT 
+// ==========================================
 window.saveClass = async () => {
   const classId = document.getElementById("classId").value;
   const className = document.getElementById("className").value.trim();
@@ -457,7 +575,7 @@ window.exportClassesPDF = async () => {
     }
 
     const win = window.open("", "_blank");
-    win.document.write(`<html><head><title>Laporan Lengkap</title></head><body>... Injeksi PDF Sesuai Kode Sebelumnya ...</body></html>`); // Isi kode window.print Anda yang lama di sini
+    win.document.write(`<html><head><title>Laporan Lengkap</title></head><body>... Injeksi PDF Sesuai Kode Sebelumnya ...</body></html>`); 
     win.document.close();
   } catch (err) {
     console.error(err);
