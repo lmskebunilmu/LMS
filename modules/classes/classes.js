@@ -29,7 +29,7 @@ onAuthStateChanged(auth, async (user) => {
       
       // Ambil data profil admin & sekolah lalu tampilkan ke header
       await loadProfileHeader(userData);
-      
+      await loadTeachersToSelect();
       await loadClasses();
       initClassSearch();
     }
@@ -130,7 +130,52 @@ function initClassSearch() {
     });
   });
 }
+let teacherSelectInstance = null; // Menyimpan instance TomSelect secara global
 
+// ==========================
+// LOAD GURU KE DROP DOWN SELECT
+// ==========================
+async function loadTeachersToSelect() {
+  const selectEl = document.getElementById("teacherSelect");
+  if (!selectEl) return;
+
+  // Bersihkan isi option bawaan HTML
+  selectEl.innerHTML = '<option value="">Pilih Guru</option>';
+
+  try {
+    // Ambil data user yang merupakan "guru" di sekolah yang sama
+    const teacherQuery = query(
+      collection(db, "users"),
+      where("role", "==", "guru"),
+      where("schoolId", "==", currentSchoolId)
+    );
+
+    const snap = await getDocs(teacherQuery);
+    
+    snap.forEach(docSnap => {
+      const teacherData = docSnap.data();
+      const option = document.createElement("option");
+      option.value = docSnap.id; // UID guru sebagai value
+      option.textContent = teacherData.name || "Tanpa Nama";
+      selectEl.appendChild(option);
+    });
+
+    // Inisialisasi TomSelect agar dropdown select multiple terlihat rapi dan bisa dicari
+    if (window.TomSelect && !teacherSelectInstance) {
+      teacherSelectInstance = new TomSelect("#teacherSelect", {
+        plugins: ['remove_button'],
+        placeholder: 'Pilih Guru Pengampu...',
+        create: false
+      });
+    } else if (teacherSelectInstance) {
+      // Jika data berubah, sinkronkan ulang isi pilihan TomSelect
+      teacherSelectInstance.sync();
+    }
+
+  } catch (err) {
+    console.error("Gagal memuat daftar guru untuk opsi kelas:", err);
+  }
+}
 // ==========================
 // CONTROL MODAL & ACTIONS
 // ==========================
@@ -138,6 +183,36 @@ window.openClassModal = () => {
   document.getElementById("classId").value = "";
   document.getElementById("className").value = "";
   document.getElementById("classModalTitle").innerText = "Tambah Kelas";
+  
+  // Reset pilihan guru menjadi kosong saat tambah kelas baru
+  if (teacherSelectInstance) {
+    teacherSelectInstance.clear();
+  }
+
+  document.getElementById("classModal").classList.add("active");
+};
+
+window.editClass = async (id, name) => {
+  document.getElementById("classId").value = id;
+  document.getElementById("className").value = name;
+  document.getElementById("classModalTitle").innerText = "Edit Kelas";
+
+  try {
+    // Ambil data detail kelas dari Firestore untuk melihat teacherIds yang sudah terdaftar
+    const classSnap = await getDoc(doc(db, "classes", id));
+    if (classSnap.exists()) {
+      const classData = classSnap.data();
+      const currentTeacherIds = classData.teacherIds || [];
+
+      // Set value TomSelect secara otomatis berdasarkan array ID guru yang tersimpan
+      if (teacherSelectInstance) {
+        teacherSelectInstance.setValue(currentTeacherIds);
+      }
+    }
+  } catch (err) {
+    console.error("Gagal memuat data guru pada edit kelas:", err);
+  }
+
   document.getElementById("classModal").classList.add("active");
 };
 
@@ -156,6 +231,16 @@ window.saveClass = async () => {
   const classId = document.getElementById("classId").value;
   const className = document.getElementById("className").value.trim();
 
+  // Mengambil array ID guru yang dipilih dari TomSelect
+  let selectedTeacherIds = [];
+  if (teacherSelectInstance) {
+    selectedTeacherIds = teacherSelectInstance.getValue(); // Menghasilkan array, misal: ["uid1", "uid2"]
+    // Jika TomSelect mengembalikan string tunggal (karena iseng dikosongkan), ubah ke array
+    if (typeof selectedTeacherIds === 'string') {
+      selectedTeacherIds = selectedTeacherIds ? [selectedTeacherIds] : [];
+    }
+  }
+
   if (!className) {
     alert("Nama kelas tidak boleh kosong!");
     return;
@@ -163,13 +248,18 @@ window.saveClass = async () => {
 
   try {
     if (classId) {
-      await updateDoc(doc(db, "classes", classId), { name: className });
+      // Update nama kelas beserta guru pengampunya
+      await updateDoc(doc(db, "classes", classId), { 
+        name: className,
+        teacherIds: selectedTeacherIds
+      });
     } else {
+      // Tambah kelas baru dengan struktur default lengkap
       await addDoc(collection(db, "classes"), {
         name: className,
         schoolId: currentSchoolId,
-        teacherIds: [],
-        studentIds: []
+        teacherIds: selectedTeacherIds,
+        studentIds: [] // Awalnya kosong, nanti diisi via modal siswa
       });
     }
     
