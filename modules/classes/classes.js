@@ -294,19 +294,20 @@ window.exportClassesExcel = () => {
 };
 
 // ==========================
-// EXPORT PDF DETAIL PER KELAS (Premium Print Theme)
+// EXPORT PDF GABUNGAN (Ringkasan + Detail Per Kelas)
 // ==========================
 window.exportClassesPDF = async () => {
-  // Tampilkan loading sederhana karena kita akan mengambil data ke Firestore
-  const originalBtnText = document.querySelector("button[onclick='exportClassesPDF()']").innerText;
-  document.querySelector("button[onclick='exportClassesPDF()']").innerText = "⏳ Memproses Data...";
+  // Tampilkan loading sederhana karena menarik data dari Firestore
+  const btnEl = document.querySelector("button[onclick='exportClassesPDF()']");
+  const originalBtnText = btnEl ? btnEl.innerText : "Export PDF";
+  if (btnEl) btnEl.innerText = "⏳ Memproses Laporan...";
 
   try {
     const schoolName = currentSchoolName || "Sekolah";
     const schoolLogo = currentSchoolLogo || "/LMS/assets/images/default-logo.png";
     const date = new Date().toLocaleDateString("id-ID", { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // 1. Ambil semua data kelas di sekolah ini langsung dari Firestore
+    // 1. Ambil data kelas langsung dari Firestore
     let classesQuery = collection(db, "classes");
     if (currentSchoolId) {
       classesQuery = query(collection(db, "classes"), where("schoolId", "==", currentSchoolId));
@@ -314,21 +315,35 @@ window.exportClassesPDF = async () => {
     const classSnap = await getDocs(classesQuery);
 
     if (classSnap.empty) {
-      alert("Tidak ada data kelas untuk diexport!");
-      document.querySelector("button[onclick='exportClassesPDF()']").innerText = originalBtnText;
+      alert("Tidak ada data kelas yang tersedia untuk diexport!");
+      if (btnEl) btnEl.innerText = originalBtnText;
       return;
     }
 
-    let mainContentHtml = "";
+    // 2. BAGIAN I: MEMBUAT TABEL RINGKASAN (SUMMARY OVERVIEW)
+    let summaryRowsHtml = "";
+    
+    // Kita juga siapkan wadah untuk menyimpan HTML detail per kelas di bawah nanti
+    let detailSectionsHtml = "";
 
-    // 2. Loop setiap kelas untuk mengambil detail Guru dan Siswa
+    // Loop data untuk membangun Ringkasan sekaligus mencatat antrean detail
     for (const classDoc of classSnap.docs) {
       const classData = classDoc.data();
       const className = classData.name || "-";
       const teacherIds = classData.teacherIds || [];
       const studentIds = classData.studentIds || [];
 
-      // --- A. AMBIL DATA GURU PER KELAS ---
+      // Masukkan ke baris tabel ringkasan utama
+      summaryRowsHtml += `
+        <tr>
+          <td><b>${className}</b></td>
+          <td><span class="badge blue">${teacherIds.length} Guru</span></td>
+          <td><span class="badge indigo">${studentIds.length} Siswa</span></td>
+        </tr>
+      `;
+
+      // --- PROSES BREAKDOWN DETAIL UNTUK BAGIAN II ---
+      // A. Detail Guru
       let teacherRows = "";
       if (teacherIds.length > 0) {
         for (const tId of teacherIds) {
@@ -348,10 +363,10 @@ window.exportClassesPDF = async () => {
           }
         }
       } else {
-        teacherRows = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada guru pengampu di kelas ini.</td></tr>`;
+        teacherRows = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada guru pengampu.</td></tr>`;
       }
 
-      // --- B. AMBIL DATA SISWA PER KELAS (Asumsi koleksi bernama "students") ---
+      // B. Detail Siswa (Asumsi nama koleksi: "students")
       let studentRows = "";
       if (studentIds.length > 0) {
         for (const sId of studentIds) {
@@ -369,11 +384,11 @@ window.exportClassesPDF = async () => {
           }
         }
       } else {
-        studentRows = `<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Belum ada siswa di kelas ini.</td></tr>`;
+        studentRows = `<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
       }
 
-      // --- C. GABUNGKAN LAYOUT PER KELAS ---
-      mainContentHtml += `
+      // Gabungkan struktur detail per ruang kelas
+      detailSectionsHtml += `
         <div class="class-section">
           <div class="class-header">🏫 KELAS: ${className.toUpperCase()}</div>
           
@@ -410,12 +425,12 @@ window.exportClassesPDF = async () => {
       `;
     }
 
-    // 3. Buka jendela cetak baru dan suntikkan template HTML + CSS premium
+    // 3. INJEKSI TEMPLATE KE WINDOW PRINT BARU
     const win = window.open("", "_blank");
     win.document.write(`
     <html>
     <head>
-      <title>Laporan Detail Per Kelas - ${schoolName}</title>
+      <title>Laporan Akademik Lengkap - ${schoolName}</title>
       <style>
         * { box-sizing: border-box; }
         body {
@@ -439,13 +454,19 @@ window.exportClassesPDF = async () => {
         .title { font-size: 24px; font-weight: 700; color: #1e3a8a; margin-bottom: 5px; }
         .subtitle { font-size: 13px; color: #64748b; margin-bottom: 25px; }
         
-        /* CLASS SECTION STYLING */
-        .class-section { margin-bottom: 30px; page-break-inside: avoid; }
-        .class-header {
-          font-size: 16px; font-weight: 700; color: #ffffff;
-          background: #1e3a8a; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px;
+        /* SECTION TITLE STYLE */
+        .section-main-title {
+          font-size: 16px; font-weight: 700; color: #4f46e5;
+          margin: 30px 0 15px 0; border-left: 4px solid #6366f1; padding-left: 10px;
         }
-        .sub-title-data { font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px; padding-left: 5px;}
+
+        /* CLASS SECTION STYLING */
+        .class-section { margin-bottom: 35px; page-break-inside: avoid; }
+        .class-header {
+          font-size: 14px; font-weight: 700; color: #ffffff;
+          background: #1e3a8a; padding: 8px 12px; border-radius: 6px; margin-bottom: 15px;
+        }
+        .sub-title-data { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; padding-left: 2px;}
         
         table { width: 100%; border-collapse: separate; border-spacing: 0 6px; margin-bottom: 15px; }
         th {
@@ -458,9 +479,14 @@ window.exportClassesPDF = async () => {
         td { padding: 10px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
         
         .badge { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; display: inline-block; }
+        .blue { background: #e0f2fe; color: #0369a1; }
+        .indigo { background: #e0e7ff; color: #4338ca; }
         .green { background: #dcfce7; color: #15803d; }
         .red { background: #fee2e2; color: #b91c1c; }
-        .class-divider { border: 0; height: 1px; background: #cbd5e1; margin: 40px 0; }
+        
+        .class-divider { border: 0; height: 1px; background: #cbd5e1; margin: 30px 0; }
+        .page-break { page-break-before: always; }
+        
         .footer {
           margin-top: 30px; display: flex; justify-content: space-between;
           font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px;
@@ -471,6 +497,7 @@ window.exportClassesPDF = async () => {
           body { background: none; padding: 0; }
           .card { box-shadow: none; padding: 0; }
           .class-divider { page-break-after: always; visibility: hidden; height: 0; margin: 0; }
+          .page-break { page-break-before: always; }
         }
       </style>
     </head>
@@ -482,16 +509,33 @@ window.exportClassesPDF = async () => {
               <img src="${schoolLogo}" class="logo">
               <div>
                 <div class="school-name">${schoolName}</div>
-                <div class="meta">Laporan Pembagian Kelas Akademik</div>
+                <div class="meta">Laporan Komprehensif Sistem Akademik</div>
               </div>
             </div>
             <div class="chip">📅 ${date}</div>
           </div>
 
-          <div class="title">Laporan Detail Komparatif Per Kelas</div>
-          <div class="subtitle">Berisi rincian guru pengampu mata pelajaran beserta daftar siswa aktif per ruang kelas</div>
+          <div class="title">Laporan Data Kelas & Anggota Akademik</div>
+          <div class="subtitle">Menampilkan ringkasan seluruh kelas beserta breakdown informasi guru pengampu dan siswa.</div>
 
-          ${mainContentHtml}
+          <div class="section-main-title">I. RINGKASAN DATA KELAS</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Nama Kelas</th>
+                <th>Total Guru Pengampu</th>
+                <th>Total Siswa Terdaftar</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${summaryRowsHtml}
+            </tbody>
+          </table>
+
+          <div class="page-break"></div>
+
+          <div class="section-main-title">II. RINCIAN ANGGOTA PER KELAS</div>
+          ${detailSectionsHtml}
 
           <div class="footer">
             <div>© ${schoolName}</div>
@@ -508,10 +552,9 @@ window.exportClassesPDF = async () => {
     win.document.close();
 
   } catch (err) {
-    console.error("Gagal cetak laporan detail kelas:", err);
-    alert("Terjadi kesalahan saat menarik data detail kelas.");
+    console.error("Gagal cetak laporan gabungan kelas:", err);
+    alert("Terjadi kesalahan saat menarik data gabungan kelas.");
   } finally {
-    // Kembalikan teks tombol asli
-    document.querySelector("button[onclick='exportClassesPDF()']").innerText = originalBtnText;
+    if (btnEl) btnEl.innerText = originalBtnText;
   }
 };
