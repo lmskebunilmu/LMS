@@ -1,6 +1,7 @@
 import { auth, db } from "/LMS/firebase/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, getDocs, doc, getDoc, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// Tambahkan deleteDoc di bagian import
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 let currentSchoolId = null;
 let currentSchoolRef = null;
@@ -123,7 +124,9 @@ async function loadClasses() {
         <td>${totalTeachers} Guru</td>
         <td>${totalStudents} Siswa</td>
         <td>
+          <button class="btn-info" onclick="viewClass('${classId}', '${classNameForAttribute}')">👁️ Lihat</button>
           <button class="btn-warning" onclick="editClass('${classId}', '${classNameForAttribute}')">✏️ Edit</button>
+          <button class="btn-danger" onclick="deleteClass('${classId}', '${classNameForAttribute}')" style="background-color: #ef4444; color: white;">🗑️ Hapus</button>
         </td>
       `;
       tableBody.appendChild(tr);
@@ -226,6 +229,71 @@ window.editClass = async (id, name) => {
   }
 
   document.getElementById("classModal").classList.add("active");
+};
+
+// --- TAMBAHAN BARU: FUNGSI HAPUS KELAS ---
+window.deleteClass = async (id, name) => {
+  if (confirm(`Apakah Anda yakin ingin menghapus kelas "${name}"? Tindakan ini tidak dapat dibatalkan.`)) {
+    try {
+      await deleteDoc(doc(db, "classes", id));
+      alert("Kelas berhasil dihapus!");
+      await loadClasses(); // Refresh data tabel kelas
+    } catch (err) {
+      console.error("Gagal menghapus kelas:", err);
+      alert("Gagal menghapus kelas!");
+    }
+  }
+};
+
+// --- TAMBAHAN BARU: FUNGSI LIHAT DETAIL SISWA & GURU DI KELAS ---
+window.viewClass = async (id, name) => {
+  try {
+    // 1. Ambil data detail kelas untuk guru pengampu
+    const classSnap = await getDoc(doc(db, "classes", id));
+    if (!classSnap.exists()) {
+      alert("Data kelas tidak ditemukan.");
+      return;
+    }
+    const classData = classSnap.data();
+    const teacherIds = classData.teacherIds || [];
+
+    // Tampilkan List Guru di modal Anda (Asumsi Anda punya elemen penampung seperti #modalTeacherList atau sejenisnya)
+    // Sembari memicu penampilan modal, kita cari tau data guru
+    let teachersText = "";
+    if(teacherIds.length > 0) {
+      for (const tId of teacherIds) {
+        const tSnap = await getDoc(doc(db, "users", tId));
+        if (tSnap.exists()) {
+          teachersText += `- ${tSnap.data().name || "Tanpa Nama"}\n`;
+        }
+      }
+    } else {
+      teachersText = "Belum ada guru pengampu.\n";
+    }
+
+    // 2. Ambil data siswa yang terdaftar di classId ini
+    const qStudents = query(collection(db, "students"), where("classId", "==", id));
+    const studentsSnap = await getDocs(qStudents);
+    let studentsText = "";
+    
+    studentsSnap.forEach(sDoc => {
+      studentsText += `- ${sDoc.data().name || "Tanpa Nama"}\n`;
+    });
+    if(studentsSnap.empty) {
+      studentsText = "Belum ada siswa terdaftar.\n";
+    }
+
+    // 3. Tampilkan data (Untuk kemudahan, di sini saya berikan alert detail. Namun, Anda bisa memodifikasinya dengan memasukkan text ke modal 'studentModal' atau 'teacherModal' milik Anda sendiri)
+    alert(`🏫 DETAIL KELAS: ${name}\n\n📋 GURU PENGAMPU:\n${teachersText}\n👶 DAFTAR SISWA:\n${studentsText}`);
+    
+    // CONTOH MODAL JIKA INGIN DIALIRKAN KE MODAL JAVASCRIPT ANDA:
+    // document.getElementById("studentModal").classList.add("active");
+    // Di dalam modal tersebut, injeksikan list HTML dari data di atas.
+
+  } catch (err) {
+    console.error("Gagal memuat detail kelas:", err);
+    alert("Gagal memuat detail kelas.");
+  }
 };
 
 window.closeClassModal = () => {
