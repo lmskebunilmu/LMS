@@ -1,7 +1,7 @@
-import { auth, db } from "../firebase/firebase-config.js";
+import { auth, db } from "/LMS/firebase/firebase-config.js";
+
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
 let currentSchoolId = null;
 
 // ==========================
