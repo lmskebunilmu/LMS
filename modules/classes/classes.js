@@ -1,6 +1,6 @@
 import { auth, db } from "/LMS/firebase/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, getDocs, doc, getDoc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 let currentSchoolId = null;
 
@@ -9,7 +9,6 @@ let currentSchoolId = null;
 // ==========================
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    // FIX: Menggunakan path absolut root LMS agar tidak salah folder lagi
     window.location = "/LMS/login.html";
     return;
   }
@@ -21,13 +20,12 @@ onAuthStateChanged(auth, async (user) => {
       currentSchoolId = userData.schoolId || null;
       window.role = userData.role;
       
-      // Ambil layout admin sekolah lewat window global yang dibuat di HTML
       if (window.loadLayout) {
         await window.loadLayout(window.role);
       }
       
-      // Load data utama kelas
       await loadClasses();
+      initClassSearch();
     }
   } catch (err) {
     console.error("Gagal inisialisasi halaman kelas:", err);
@@ -43,7 +41,13 @@ async function loadClasses() {
   tableBody.innerHTML = "<tr><td colspan='4'>⏳ Memuat data kelas...</td></tr>";
 
   try {
-    const querySnapshot = await getDocs(collection(db, "classes"));
+    // Optimasi query: Langsung filter berdasarkan schoolId di Firestore jika ada
+    let classesQuery = collection(db, "classes");
+    if (currentSchoolId) {
+      classesQuery = query(collection(db, "classes"), where("schoolId", "==", currentSchoolId));
+    }
+
+    const querySnapshot = await getDocs(classesQuery);
     tableBody.innerHTML = "";
 
     if (querySnapshot.empty) {
@@ -53,9 +57,6 @@ async function loadClasses() {
 
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      
-      // Filter berdasarkan ID sekolah admin agar tidak bocor ke sekolah lain
-      if (currentSchoolId && data.schoolId !== currentSchoolId) return;
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -75,30 +76,42 @@ async function loadClasses() {
 }
 
 // ==========================
-// CONTROL MODAL
+// SEARCH CLASS
 // ==========================
-function openClassModal() {
+function initClassSearch() {
+  const searchInput = document.getElementById("classSearch");
+  if (!searchInput) return;
+
+  searchInput.addEventListener("keyup", function() {
+    const keyword = this.value.toLowerCase();
+    document.querySelectorAll("#classTable tr").forEach(row => {
+      row.style.display = row.innerText.toLowerCase().includes(keyword) ? "" : "none";
+    });
+  });
+}
+
+// ==========================
+// CONTROL MODAL & ACTIONS (GLOBAL SCOPE BINDING)
+// ==========================
+window.openClassModal = () => {
   document.getElementById("classId").value = "";
   document.getElementById("className").value = "";
   document.getElementById("classModalTitle").innerText = "Tambah Kelas";
   document.getElementById("classModal").classList.add("active");
-}
+};
 
-function closeClassModal() {
+window.closeClassModal = () => {
   document.getElementById("classModal").classList.remove("active");
-}
+};
 
-function editClass(id, name) {
+window.editClass = (id, name) => {
   document.getElementById("classId").value = id;
   document.getElementById("className").value = name;
   document.getElementById("classModalTitle").innerText = "Edit Kelas";
   document.getElementById("classModal").classList.add("active");
-}
+};
 
-// ==========================
-// SIMPAN KELAS (TAMBAH / UPDATE)
-// ==========================
-async function saveClass() {
+window.saveClass = async () => {
   const classId = document.getElementById("classId").value;
   const className = document.getElementById("className").value.trim();
 
@@ -121,17 +134,15 @@ async function saveClass() {
       });
     }
     
-    closeClassModal();
-    await loadClasses(); // Refresh tabel setelah data tersimpan
+    window.closeClassModal();
+    await loadClasses(); 
   } catch (err) {
     console.error("Gagal menyimpan data kelas:", err);
+    alert("Gagal menyimpan data kelas!");
   }
-}
+};
 
-// ==========================
-// EXPORT FUNCTIONS TO GLOBAL
-// ==========================
-window.openClassModal = openClassModal;
-window.closeClassModal = closeClassModal;
-window.editClass = editClass;
-window.saveClass = saveClass;
+// Menambahkan placeholder handler untuk modal-modal lain agar tombol "Tutup" bawaan HTML tidak error
+window.closeStudentModal = () => document.getElementById("studentModal").classList.remove("active");
+window.closeTeacherModal = () => document.getElementById("teacherModal").classList.remove("active");
+window.closeAddTeacherModal = () => document.getElementById("addTeacherModal").classList.remove("active");
