@@ -12,11 +12,8 @@
 <body>
 
 <div class="wrapper">
-
   <div id="sidebar-container"></div>
-
   <div class="main">
-
     <div id="header-container"></div>
 
     <div class="card">
@@ -41,7 +38,6 @@
         <tbody id="classTable"></tbody>
       </table>
     </div>
-
   </div>
 </div>
 
@@ -70,11 +66,44 @@
       <button class="btn-delete" onclick="removeAllStudents()">Keluarkan Semua</button>
     </div>
     <input type="text" id="studentSearch" placeholder="🔍 Cari siswa..." onkeyup="filterStudents()">
-    <ul id="studentList">
+    
+    <ul id="studentList" style="list-style: none; padding: 0; margin: 15px 0; max-height: 250px; overflow-y: auto;">
       <li>Memuat...</li>
     </ul>
+    
     <div class="modal-actions">
       <button class="danger" onclick="closeStudentModal()">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div id="teacherModal" class="modal">
+  <div class="modal-content">
+    <h3 id="teacherModalTitle">Daftar Guru</h3>
+    <div class="bulk-actions">
+      <button class="btn-warning" onclick="removeSelectedTeachers()">Keluarkan Terpilih</button>
+      <button class="btn-delete" onclick="removeAllTeachers()">Keluarkan Semua</button>
+    </div>
+    <input type="text" id="teacherSearch" placeholder="🔍 Cari guru..." onkeyup="filterTeachers()">
+    
+    <ul id="teacherList" style="list-style: none; padding: 0; margin: 15px 0; max-height: 250px; overflow-y: auto;">
+      <li>Memuat...</li>
+    </ul>
+    
+    <div class="modal-actions">
+      <button class="danger" onclick="closeTeacherModal()">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div id="deleteConfirmModal" class="modal">
+  <div class="modal-content" style="text-align: center; max-width: 400px;">
+    <div style="font-size: 50px; color: #ef4444; margin-bottom: 10px;">⚠️</div>
+    <h3>Hapus Kelas?</h3>
+    <p id="deleteModalMessage" style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Apakah Anda yakin ingin menghapus kelas ini?</p>
+    <div class="modal-actions" style="justify-content: center; gap: 10px;">
+      <button id="confirmDeleteBtn" class="danger" style="background-color: #ef4444; color: white;">Ya, Hapus</button>
+      <button class="secondary" onclick="closeDeleteModal()" style="background-color: #e2e8f0; color: #334155;">Batal</button>
     </div>
   </div>
 </div>
@@ -92,23 +121,6 @@
     <ul id="addStudentList"></ul>
     <div class="modal-actions">
       <button class="danger" onclick="document.getElementById('addStudentModal').classList.remove('active')">Tutup</button>
-    </div>
-  </div>
-</div>
-
-<div id="teacherModal" class="modal">
-  <div class="modal-content">
-    <h3 id="teacherModalTitle">Daftar Guru</h3>
-    <div class="bulk-actions">
-      <button class="btn-warning" onclick="removeSelectedTeachers()">Keluarkan Terpilih</button>
-      <button class="btn-delete" onclick="removeAllTeachers()">Keluarkan Semua</button>
-    </div>
-    <input type="text" id="teacherSearch" placeholder="🔍 Cari guru..." onkeyup="filterTeachers()">
-    <ul id="teacherList">
-      <li>Memuat...</li>
-    </ul>
-    <div class="modal-actions">
-      <button class="danger" onclick="closeTeacherModal()">Tutup</button>
     </div>
   </div>
 </div>
@@ -139,7 +151,6 @@
 
 <script type="module">
   import { loadLayout } from "/LMS/assets/js/components.js";
-  // Mengamankan loadLayout secara global agar bisa dipanggil dari classes.js tanpa salah path
   window.loadLayout = loadLayout; 
 </script>
 
