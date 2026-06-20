@@ -296,48 +296,112 @@ window.exportClassesExcel = () => {
 // ==========================
 // EXPORT PDF (jsPDF + AutoTable)
 // ==========================
-window.exportClassesPDF = () => {
+window.exportClassesPDF = async () => {
   try {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const doc = new jsPDF('p', 'mm', 'a4');
 
-    // Judul PDF
-    doc.text(`Data Kelas - ${currentSchoolName}`, 14, 15);
+    // 1. TAMBAHKAN LOGO SEKOLAH
+    let imageLoaded = false;
+    if (currentSchoolLogo) {
+      try {
+        const toBase64 = url => fetch(url)
+          .then(response => response.blob())
+          .then(blob => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          }));
+        
+        const base64Img = await toBase64(currentSchoolLogo);
+        doc.addImage(base64Img, 'PNG', 14, 10, 18, 18);
+        imageLoaded = true;
+      } catch (e) {
+        console.log("Gagal memuat logo sekolah untuk PDF, fallback teks.", e);
+      }
+    }
+
+    // 2. HEADER BRANDING MODERN
+    const textStartX = imageLoaded ? 36 : 14;
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.textColor = "#1a252f"; 
+    doc.text(currentSchoolName.toUpperCase(), textStartX, 16);
+
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Diunduh pada: ${new Date().toLocaleDateString('id-ID')}`, 14, 22);
+    doc.textColor = "#7f8c8d"; 
+    doc.text("Laporan Data Manajemen Kelas dan Akademik", textStartX, 22);
+    doc.text(`Tanggal Cetak: ${new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}`, textStartX, 27);
 
-    // Mengambil data dari tabel HTML (melewati kolom 'Aksi')
-    const headers = [["Nama Kelas", "Jumlah Guru", "Jumlah Siswa"]];
+    // Garis pembatas dekoratif abu-abu tipis
+    doc.setDrawColor(220, 224, 230);
+    doc.setLineWidth(0.5);
+    doc.line(14, 32, 196, 32);
+
+    // 3. MENYIAPKAN DATA TABEL KELAS
+    const headers = [["NAMA KELAS", "GURU PENGAMPU", "JUMLAH SISWA"]];
     const data = [];
     
-    document.querySelectorAll("#classTable tr").forEach(row => {
+    const rows = document.querySelectorAll("#classTable tr");
+    rows.forEach(row => {
       const cells = row.querySelectorAll("td");
       if (cells.length >= 3) {
         data.push([
-          cells[0].innerText,
-          cells[1].innerText,
-          cells[2].innerText
+          cells[0].innerText.trim(),
+          cells[1].innerText.trim(),
+          cells[2].innerText.trim()
         ]);
       }
     });
 
     if (data.length === 0) {
-      alert("Tidak ada data kelas untuk diexport!");
+      alert("Tidak ada data kelas yang tersedia untuk diexport!");
       return;
     }
 
-    // Generate tabel otomatis di PDF
+    // 4. GENERATE TABEL BERGAYA MODERN
     doc.autoTable({
       head: headers,
       body: data,
-      startY: 28,
-      theme: 'striped',
-      headStyles: { fillColor: [41, 128, 185] } // Warna biru dashboard
+      startY: 38,
+      margin: { left: 14, right: 14 },
+      theme: 'grid',
+      styles: {
+        font: 'helvetica',
+        fontSize: 10,
+        cellPadding: 4,
+        verticalAlign: 'middle'
+      },
+      headStyles: {
+        fillColor: [44, 62, 80], // Slate / Navy Modern
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'left'
+      },
+      altRowStyles: {
+        fillColor: [248, 249, 250]
+      },
+      columnStyles: {
+        0: { cellWidth: 70, fontStyle: 'bold' },
+        1: { cellWidth: 65 },
+        2: { cellWidth: 47, halign: 'center' }
+      },
+      didDrawPage: function(data) {
+        const str = "Halaman " + doc.internal.getNumberOfPages();
+        doc.setFontSize(9);
+        doc.textColor = "#95a5a6";
+        doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 10);
+      }
     });
 
-    doc.save(`Data_Kelas_${currentSchoolName.replace(/\s+/g, '_')}.pdf`);
+    const fileNameClean = currentSchoolName.replace(/\s+/g, '_');
+    doc.save(`Laporan_Data_Kelas_${fileNameClean}.pdf`);
+
   } catch (err) {
-    console.error("Gagal Export PDF:", err);
-    alert("Gagal mengekspor data ke PDF.");
+    console.error("Gagal melakukan Export PDF Modern:", err);
+    alert("Terjadi kesalahan sistem saat memproses PDF.");
   }
 };
