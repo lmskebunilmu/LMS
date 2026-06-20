@@ -2,11 +2,12 @@ import { auth } from "../../firebase/firebase-config.js";
 import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 // ==========================
-// LOAD HTML COMPONENT
+// LOAD HTML COMPONENT (Diperbarui agar handle path absolut)
 // ==========================
 async function loadComponent(id, file) {
   try {
     const res = await fetch(file);
+    if (!res.ok) throw new Error(`Status: ${res.status}`);
     const html = await res.text();
     document.getElementById(id).innerHTML = html;
   } catch(err) {
@@ -15,16 +16,16 @@ async function loadComponent(id, file) {
 }
 
 // ==========================
-// LOAD LAYOUT
+// LOAD LAYOUT (PERBAIKAN: Menggunakan Path Absolut /LMS/)
 // ==========================
 export async function loadLayout(role = "superadmin") {
   window.role = role; // Set global role
 
-  // Load header
-  await loadComponent("header-container", "../components/header.html");
+  // Karena folder components ada di root LMS, panggil langsung pakai /LMS/
+  await loadComponent("header-container", "/LMS/components/header.html");
 
   // Load sidebar sesuai role
-  const sidebarFile = `../components/sidebar-${role}.html`;
+  const sidebarFile = `/LMS/components/sidebar-${role}.html`;
   await loadComponent("sidebar-container", sidebarFile);
 
   // Set active menu setelah sidebar muncul
@@ -62,164 +63,148 @@ document.addEventListener("click", e => {
 });
 
 // ==========================
-// NAVIGATION (role-aware)
+// NAVIGATION (PERBAIKAN: Menghindari Double Slash & Path Relatif)
 // ==========================
 function navigate(url) {
   closeSidebar();
   setTimeout(() => {
-    // Memastikan path diawali dengan /LMS dan tidak double slash
-    window.location.origin + "/LMS" + url; 
-    window.location = "/LMS/" + url.replace(/^\//, ""); 
+    // Bersihkan slash di awal url jika ada supaya tidak terjadi double slash '//'
+    const cleanUrl = url.replace(/^\//, ""); 
+    // Paksa pindah halaman selalu berbasis root /LMS/
+    window.location = "/LMS/" + cleanUrl; 
   }, 200);
 }
 
 function goDashboard() {
   if (window.role === "admin") {
-    navigate("/dashboard/admin.html");
+    navigate("dashboard/admin.html");
   }
   else if (window.role === "guru") {
-    navigate("/dashboard/guru.html");
+    navigate("dashboard/guru.html");
   }
   else if (window.role === "siswa") {
-    navigate("/dashboard/siswa.html");
+    navigate("dashboard/siswa.html");
   }
   else if (window.role === "student") {
-    navigate("/dashboard/student.html");
+    navigate("dashboard/student.html");
   }
   else {
-    navigate("/dashboard/superadmin.html");
+    navigate("dashboard/superadmin.html");
   }
 }
 
 function goSchools() {
   // Menuju ke halaman daftar murid untuk admin sekolah
-  if (window.role === "admin") navigate("/modules/students/students.html");
-  else navigate("/modules/schools/schools.html");
+  if (window.role === "admin") navigate("modules/students/students.html");
+  else navigate("modules/schools/schools.html");
 }
 
 function goTeachers() {
-  if (window.role === "admin") navigate("/modules/teachers/teachers.html");
+  if (window.role === "admin") navigate("modules/teachers/teachers.html");
 }
 
 function goClasses() {
-  if (window.role === "admin") navigate("/modules/classes/classes.html");
+  if (window.role === "admin") navigate("modules/classes/classes.html");
 }
 
 function goMaterialsAdmin() {
   if (window.role === "admin") {
-    navigate("/modules/materials-admin/materials-admin.html");
+    navigate("modules/materials-admin/materials-admin.html");
   }
 }
 
+// Untuk superadmin, hilangkan tanda "../../" karena navigate() sudah otomatis mulai dari root LMS
 function goAdmins() {
-  if (window.role === "superadmin") navigate("../../modules/admins/admins.html");
+  if (window.role === "superadmin") navigate("modules/admins/admins.html");
 }
 
 function goBookingManagement() {
-
   if (window.role === "superadmin") {
-
-    navigate("../../modules/booking-management/booking-management.html");
-
+    navigate("modules/booking-management/booking-management.html");
   }
-
 }
+
 function goMaterials() {
-  if (window.role === "superadmin") navigate("../../modules/materials/materials.html");
+  if (window.role === "superadmin") navigate("modules/materials/materials.html");
 }
 
 function goBookingStudent() {
-
-  if (
-    window.role === "siswa" ||
-    window.role === "student"
-  ) {
-
-    navigate("/modules/booking-student/booking-student.html");
-
+  if (window.role === "siswa" || window.role === "student") {
+    navigate("modules/booking-student/booking-student.html");
   }
-
 }
 
 function goExercises() {
-  if (window.role === "superadmin") navigate("../../modules/exercises/exercises.html");
+  if (window.role === "superadmin") navigate("modules/exercises/exercises.html");
 }
 
 function goAssessments() {
-  if (window.role === "superadmin") navigate("../../modules/assessments/assessments.html");
+  if (window.role === "superadmin") navigate("modules/assessments/assessments.html");
 }
 
 function goCurriculum() {
-  if (window.role === "superadmin") navigate("../../modules/curriculum/curriculum.html");
+  if (window.role === "superadmin") navigate("modules/curriculum/curriculum.html");
 }
-
 
 function goMaterialsTeacher() {
   if (window.role === "guru") {
-    navigate("../../modules/materials-guru/materials-guru.html");
+    navigate("modules/materials-guru/materials-guru.html");
   }
 }
 
 function goTeachersSuperAdmin() {
   if (window.role === "superadmin") {
-    navigate("../../modules/teachers-superadmin/teachers.html");
+    navigate("modules/teachers-superadmin/teachers.html");
   }
 }
+
 // ==========================
 // NAVIGATION SISWA
 // ==========================
-
 function goDashboardSiswa() {
-  navigate("../../dashboard/siswa.html");
+  navigate("dashboard/siswa.html");
 }
 
 function goMaterialsSiswa() {
-  navigate("../../modules/materials-siswa/materials-siswa.html");
+  navigate("modules/materials-siswa/materials-siswa.html");
 }
 
 function goAssignmentsSiswa() {
-  navigate("../../modules/assignments/assignments-siswa.html");
+  navigate("modules/assignments/assignments-siswa.html");
 }
 
 function goAttendance() {
   if (window.role === "superadmin") {
-    navigate("/modules/attendance-system/attendance-system.html");
+    navigate("modules/attendance-system/attendance-system.html");
   }
   else if (window.role === "guru") {
-    navigate("/modules/attendance/attendance.html");
+    navigate("modules/attendance/attendance.html");
   }
   else if (window.role === "admin") {
-    navigate("/modules/attendance-admin/attendance-admin.html");
+    navigate("modules/attendance-admin/attendance-admin.html");
   }
   else if (window.role === "siswa") {
-    navigate("/modules/attendance-siswa/attendance-siswa.html");
+    navigate("modules/attendance-siswa/attendance-siswa.html");
   }
 }
+
 function goClassSuperAdmin() {
-
   if (window.role === "superadmin") {
-
-    navigate("../../modules/classes-admin/classesadmin.html");
-
+    navigate("modules/classes-admin/classesadmin.html");
   }
-
 }
+
 // ==========================
 // LOGOUT
 // ==========================
 function logout() {
   closeSidebar();
-
   setTimeout(() => {
-
     signOut(auth)
       .then(() => {
-
-        window.location = "../login.html";
-
+        window.location = "/LMS/login.html";
       })
       .catch(err => alert(err.message));
-
   }, 200);
 }
 
@@ -227,7 +212,7 @@ function logout() {
 // AUTH CHECK
 // ==========================
 onAuthStateChanged(auth, user => {
-  if (!user) window.location = "../../login.html";
+  if (!user) window.location = "/LMS/login.html";
 });
 
 // ==========================
@@ -247,72 +232,49 @@ function setActiveMenu() {
     if (onclickAttr.includes("goAdmins") && currentPath.includes("admins")) btn.classList.add("active");
     if (onclickAttr.includes("goDashboard") && currentPath.includes("dashboard")) btn.classList.add("active");
     if (onclickAttr.includes("goDashboardSiswa") && currentPath.includes("siswa")) {
-  btn.classList.add("active");
-}
+      btn.classList.add("active");
+    }
 
-if (
-  onclickAttr.includes("goBookingStudent") &&
-  currentPath.includes("booking-student")
-) {
+    if (onclickAttr.includes("goBookingStudent") && currentPath.includes("booking-student")) {
+      btn.classList.add("active");
+    }
 
-  btn.classList.add("active");
+    if (onclickAttr.includes("goAssignmentsSiswa") && currentPath.includes("assignments")) {
+      btn.classList.add("active");
+    }
 
-}
+    if (onclickAttr.includes("goTeachersSuperAdmin") && currentPath.includes("teachers")) {
+      btn.classList.add("active");
+    }
 
-if (onclickAttr.includes("goAssignmentsSiswa") && currentPath.includes("assignments")) {
-  btn.classList.add("active");
-}
+    if (onclickAttr.includes("goBookingManagement") && currentPath.includes("booking-management")) {
+      btn.classList.add("active");
+    }
 
-if (
-  onclickAttr.includes("goTeachersSuperAdmin") &&
-  currentPath.includes("teachers")
-) {
-  btn.classList.add("active");
-}
-
-if (
-  onclickAttr.includes("goBookingManagement") &&
-  currentPath.includes("booking-management")
-) {
-  btn.classList.add("active");
-}
-
-if (onclickAttr.includes("goMaterialsSiswa") && currentPath.includes("materials")) {
-  btn.classList.add("active");
-}
-if (onclickAttr.includes("goClassSuperAdmin") && currentPath.includes("classes")) {
-  btn.classList.add("active");
-}
+    if (onclickAttr.includes("goMaterialsSiswa") && currentPath.includes("materials")) {
+      btn.classList.add("active");
+    }
+    if (onclickAttr.includes("goClassSuperAdmin") && currentPath.includes("classes")) {
+      btn.classList.add("active");
+    }
   });
 }
+
 // ==========================
 // GLOBAL TOAST
 // ==========================
+window.showToast = function(message, type = "success") {
+  const toast = document.getElementById("toast");
+  if (!toast) return;
 
-window.showToast = function(
-message,
-type = "success"
-) {
+  toast.innerText = message;
+  toast.className = type === "error" ? "toast error active" : "toast active";
 
-const toast =
-document.getElementById("toast");
-
-if (!toast) return;
-
-toast.innerText = message;
-
-toast.className =
-type === "error"
-? "toast error active"
-: "toast active";
-
-setTimeout(() => {
-
-toast.classList.remove("active");
-
-}, 3000);
-
+  setTimeout(() => {
+    toast.classList.remove("active");
+  }, 3000);
 };
+
 // ==========================
 // EXPORT GLOBAL
 // ==========================
