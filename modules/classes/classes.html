@@ -1,278 +1,148 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<title>Data Kelas</title>
+  <meta charset="UTF-8">
+  <title>Data Kelas</title>
 
-<link rel="stylesheet" href="../../assets/css/style.css">
-<link rel="stylesheet" href="../../assets/css/responsive.css">
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/css/style.css">
+  <link rel="stylesheet" href="../../assets/css/responsive.css">
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
 </head>
 
 <body>
 
 <div class="wrapper">
 
-<!-- SIDEBAR -->
-<div id="sidebar-container"></div>
+  <div id="sidebar-container"></div>
 
-<!-- MAIN -->
-<div class="main">
+  <div class="main">
 
-<!-- HEADER -->
-<div id="header-container"></div>
+    <div id="header-container"></div>
 
-<div class="card">
+    <div class="card">
+      <h1>Data Kelas</h1>
 
-<h1>Data Kelas</h1>
+      <button class="btn-add" onclick="openClassModal()">
+        ➕ Tambah Kelas
+      </button>
+      <button class="btn-export" onclick="exportClassesExcel()">💾 Export Excel</button>
+      <button class="btn-export" onclick="exportClassesPDF()">📄 Export PDF</button>
+      <input type="text" id="classSearch" placeholder="🔍 Cari kelas..." autocomplete="off">
 
-<button class="btn-add" onclick="openClassModal()">
-➕ Tambah Kelas
-</button>
-<button class="btn-export" onclick="exportClassesExcel()">💾 Export Excel</button>
-<button class="btn-export" onclick="exportClassesPDF()">📄 Export PDF</button>
-<input
-type="text"
-id="classSearch"
-placeholder="🔍 Cari kelas..."
-autocomplete="off">
+      <table>
+        <thead>
+          <tr>
+            <th>Nama Kelas</th>
+            <th>Jumlah Guru</th>
+            <th>Jumlah Siswa</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="classTable"></tbody>
+      </table>
+    </div>
 
-<table>
-
-<thead>
-<tr>
-<th>Nama Kelas</th>
-<th>Jumlah Guru</th>
-<th>Jumlah Siswa</th>
-<th>Aksi</th>
-</tr>
-</thead>
-
-<tbody id="classTable"></tbody>
-
-</table>
-
+  </div>
 </div>
-
-</div>
-
-</div>
-
-<!-- MODAL -->
 
 <div id="classModal" class="modal">
-
-<div class="modal-content">
-
-<h3 id="classModalTitle">Tambah Kelas</h3>
-<input type="hidden" id="classId">
-<input
-type="text"
-id="className"
-placeholder="Nama Kelas"
-/>
-
-<select id="teacherSelect" multiple>
-  <option value="">Pilih Guru</option>
-</select>
-
-<div class="modal-actions">
-
-<button class="primary"
-onclick="saveClass()">
-Simpan
-</button>
-
-<button class="danger"
-onclick="closeClassModal()">
-Batal
-</button>
-
-</div>
-
-</div>
-
-</div>
-<!-- MODAL VIEW STUDENTS -->
-
-<div id="studentModal" class="modal">
-
-<div class="modal-content">
-
-<h3 id="studentModalTitle">
-Daftar Siswa
-</h3>
-
-<div class="bulk-actions">
-
-<button class="btn-warning"
-onclick="removeSelectedStudents()">
-Keluarkan Terpilih
-</button>
-
-<button class="btn-delete"
-onclick="removeAllStudents()">
-Keluarkan Semua
-</button>
-
-</div>
-<input
-type="text"
-id="studentSearch"
-placeholder="🔍 Cari siswa..."
-onkeyup="filterStudents()">
-
-<ul id="studentList">
-<li>Memuat...</li>
-</ul>
-
-<div class="modal-actions">
-
-<button class="danger"
-onclick="closeStudentModal()">
-Tutup
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-<!-- 🔥 TAMBAH DI SINI -->
-<div id="addStudentModal" class="modal">
   <div class="modal-content">
-    <h3>Pilih Siswa</h3>
-    <div class="bulk-actions">
+    <h3 id="classModalTitle">Tambah Kelas</h3>
+    <input type="hidden" id="classId">
+    <input type="text" id="className" placeholder="Nama Kelas"/>
 
-<label>
-<input type="checkbox"
-onclick="toggleAllAddStudents(this)">
-Pilih Semua
-</label>
-
-<button class="primary"
-onclick="addSelectedStudents()">
-➕ Tambah Terpilih
-</button>
-
-</div>
-
-<input
-type="text"
-id="addStudentSearch"
-placeholder="🔍 Cari siswa..."
-onkeyup="filterAddStudents()">
-
-<ul id="addStudentList"></ul>
+    <select id="teacherSelect" multiple>
+      <option value="">Pilih Guru</option>
+    </select>
 
     <div class="modal-actions">
-      <button class="danger"
-        onclick="document.getElementById('addStudentModal').classList.remove('active')">
-        Tutup
-      </button>
+      <button class="primary" onclick="saveClass()">Simpan</button>
+      <button class="danger" onclick="closeClassModal()">Batal</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL VIEW TEACHERS -->
+<div id="studentModal" class="modal">
+  <div class="modal-content">
+    <h3 id="studentModalTitle">Daftar Siswa</h3>
+    <div class="bulk-actions">
+      <button class="btn-warning" onclick="removeSelectedStudents()">Keluarkan Terpilih</button>
+      <button class="btn-delete" onclick="removeAllStudents()">Keluarkan Semua</button>
+    </div>
+    <input type="text" id="studentSearch" placeholder="🔍 Cari siswa..." onkeyup="filterStudents()">
+    <ul id="studentList">
+      <li>Memuat...</li>
+    </ul>
+    <div class="modal-actions">
+      <button class="danger" onclick="closeStudentModal()">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div id="addStudentModal" class="modal">
+  <div class="modal-content">
+    <h3>Pilih Siswa</h3>
+    <div class="bulk-actions">
+      <label>
+        <input type="checkbox" onclick="toggleAllAddStudents(this)"> Pilih Semua
+      </label>
+      <button class="primary" onclick="addSelectedStudents()">➕ Tambah Terpilih</button>
+    </div>
+    <input type="text" id="addStudentSearch" placeholder="🔍 Cari siswa..." onkeyup="filterAddStudents()">
+    <ul id="addStudentList"></ul>
+    <div class="modal-actions">
+      <button class="danger" onclick="document.getElementById('addStudentModal').classList.remove('active')">Tutup</button>
+    </div>
+  </div>
+</div>
 
 <div id="teacherModal" class="modal">
-
-<div class="modal-content">
-
-<h3 id="teacherModalTitle">
-Daftar Guru
-</h3>
-
-<div class="bulk-actions">
-
-<button class="btn-warning"
-onclick="removeSelectedTeachers()">
-Keluarkan Terpilih
-</button>
-
-<button class="btn-delete"
-onclick="removeAllTeachers()">
-Keluarkan Semua
-</button>
-
+  <div class="modal-content">
+    <h3 id="teacherModalTitle">Daftar Guru</h3>
+    <div class="bulk-actions">
+      <button class="btn-warning" onclick="removeSelectedTeachers()">Keluarkan Terpilih</button>
+      <button class="btn-delete" onclick="removeAllTeachers()">Keluarkan Semua</button>
+    </div>
+    <input type="text" id="teacherSearch" placeholder="🔍 Cari guru..." onkeyup="filterTeachers()">
+    <ul id="teacherList">
+      <li>Memuat...</li>
+    </ul>
+    <div class="modal-actions">
+      <button class="danger" onclick="closeTeacherModal()">Tutup</button>
+    </div>
+  </div>
 </div>
-<input
-type="text"
-id="teacherSearch"
-placeholder="🔍 Cari guru..."
-onkeyup="filterTeachers()">
-
-<ul id="teacherList">
-<li>Memuat...</li>
-</ul>
-
-<div class="modal-actions">
-
-<button class="danger"
-onclick="closeTeacherModal()">
-Tutup
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-<!-- MODAL ADD TEACHER -->
 
 <div id="addTeacherModal" class="modal">
-
-<div class="modal-content">
-
-<h3>Pilih Guru</h3>
-
-<div class="bulk-actions">
-
-<label>
-<input type="checkbox"
-onclick="toggleAllAddTeachers(this)">
-Pilih Semua
-</label>
-
-<button class="primary"
-onclick="addSelectedTeachers()">
-➕ Tambah Terpilih
-</button>
-
-</div>
-
-<input
-type="text"
-id="addTeacherSearch"
-placeholder="🔍 Cari guru..."
-onkeyup="filterAddTeachers()">
-
-<ul id="addTeacherList"></ul>
-
-<div class="modal-actions">
-
-<button class="danger"
-onclick="closeAddTeacherModal()">
-Tutup
-</button>
-
-</div>
-
-</div>
-
+  <div class="modal-content">
+    <h3>Pilih Guru</h3>
+    <div class="bulk-actions">
+      <label>
+        <input type="checkbox" onclick="toggleAllAddTeachers(this)"> Pilih Semua
+      </label>
+      <button class="primary" onclick="addSelectedTeachers()">➕ Tambah Terpilih</button>
+    </div>
+    <input type="text" id="addTeacherSearch" placeholder="🔍 Cari guru..." onkeyup="filterAddTeachers()">
+    <ul id="addTeacherList"></ul>
+    <div class="modal-actions">
+      <button class="danger" onclick="closeAddTeacherModal()">Tutup</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast" class="toast"></div>
 
-<!-- LIBRARY -->
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<!-- MAIN JS -->
-<script type="module" src="./classes.js"></script></body>
+
+<script type="module">
+  import { loadLayout } from "/LMS/assets/js/components.js";
+  // Mengamankan loadLayout secara global agar bisa dipanggil dari classes.js tanpa salah path
+  window.loadLayout = loadLayout; 
+</script>
+
+<script type="module" src="./classes.js"></script>
+</body>
 </html>
