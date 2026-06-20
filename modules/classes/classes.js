@@ -1,7 +1,7 @@
 import { auth, db } from "/LMS/firebase/firebase-config.js";
-
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 let currentSchoolId = null;
 
 // ==========================
@@ -9,7 +9,8 @@ let currentSchoolId = null;
 // ==========================
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    window.location = "../login.html";
+    // FIX: Menggunakan path absolut root LMS agar tidak salah folder lagi
+    window.location = "/LMS/login.html";
     return;
   }
 
@@ -20,8 +21,10 @@ onAuthStateChanged(auth, async (user) => {
       currentSchoolId = userData.schoolId || null;
       window.role = userData.role;
       
-      // Ambil layout admin sekolah
-      await loadLayout(window.role);
+      // Ambil layout admin sekolah lewat window global yang dibuat di HTML
+      if (window.loadLayout) {
+        await window.loadLayout(window.role);
+      }
       
       // Load data utama kelas
       await loadClasses();
@@ -37,11 +40,16 @@ onAuthStateChanged(auth, async (user) => {
 async function loadClasses() {
   const tableBody = document.getElementById("classTable");
   if (!tableBody) return;
-  tableBody.innerHTML = "<tr><td colspan='4'>Memuat data kelas...</td></tr>";
+  tableBody.innerHTML = "<tr><td colspan='4'>⏳ Memuat data kelas...</td></tr>";
 
   try {
     const querySnapshot = await getDocs(collection(db, "classes"));
     tableBody.innerHTML = "";
+
+    if (querySnapshot.empty) {
+      tableBody.innerHTML = "<tr><td colspan='4'>📭 Belum ada data kelas</td></tr>";
+      return;
+    }
 
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
@@ -55,19 +63,19 @@ async function loadClasses() {
         <td>${data.teacherIds ? data.teacherIds.length : 0} Guru</td>
         <td>${data.studentIds ? data.studentIds.length : 0} Siswa</td>
         <td>
-          <button class="btn-edit" onclick="editClass('${docSnap.id}', '${data.name}')">✏️ Edit</button>
+          <button class="btn-warning" onclick="editClass('${docSnap.id}', '${data.name.replace(/'/g, "\\'")}')">✏️ Edit</button>
         </td>
       `;
       tableBody.appendChild(tr);
     });
   } catch (err) {
     console.error("Gagal mengambil data kelas:", err);
-    tableBody.innerHTML = "<tr><td colspan='4' style='color:red;'>Gagal memuat data!</td></tr>";
+    tableBody.innerHTML = "<tr><td colspan='4' style='color:red;'>❌ Gagal memuat data kelas</td></tr>";
   }
 }
 
 // ==========================
-// CONTROL MODAL (Fungsi yang hilang tadi)
+// CONTROL MODAL
 // ==========================
 function openClassModal() {
   document.getElementById("classId").value = "";
@@ -78,6 +86,13 @@ function openClassModal() {
 
 function closeClassModal() {
   document.getElementById("classModal").classList.remove("active");
+}
+
+function editClass(id, name) {
+  document.getElementById("classId").value = id;
+  document.getElementById("className").value = name;
+  document.getElementById("classModalTitle").innerText = "Edit Kelas";
+  document.getElementById("classModal").classList.add("active");
 }
 
 // ==========================
@@ -107,7 +122,7 @@ async function saveClass() {
     }
     
     closeClassModal();
-    loadClasses(); // Refresh tabel
+    await loadClasses(); // Refresh tabel setelah data tersimpan
   } catch (err) {
     console.error("Gagal menyimpan data kelas:", err);
   }
@@ -118,4 +133,5 @@ async function saveClass() {
 // ==========================
 window.openClassModal = openClassModal;
 window.closeClassModal = closeClassModal;
+window.editClass = editClass;
 window.saveClass = saveClass;
