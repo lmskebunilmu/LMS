@@ -58,10 +58,14 @@
   </div>
 </div>
 
+<!-- MODAL: LIHAT DAFTAR SISWA -->
 <div id="studentModal" class="modal">
   <div class="modal-content">
     <h3 id="studentModalTitle">Daftar Siswa</h3>
-    <div class="bulk-actions">
+    <div class="bulk-actions" style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+      <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
+        <input type="checkbox" id="selectAllStudents" onclick="toggleSelectAll('studentList', this)"> <b>Pilih Semua</b>
+      </label>
       <button class="btn-warning" onclick="removeSelectedStudents()">Keluarkan Terpilih</button>
       <button class="btn-delete" onclick="removeAllStudents()">Keluarkan Semua</button>
     </div>
@@ -77,10 +81,14 @@
   </div>
 </div>
 
+<!-- MODAL: LIHAT DAFTAR GURU -->
 <div id="teacherModal" class="modal">
   <div class="modal-content">
     <h3 id="teacherModalTitle">Daftar Guru</h3>
-    <div class="bulk-actions">
+    <div class="bulk-actions" style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+      <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
+        <input type="checkbox" id="selectAllTeachers" onclick="toggleSelectAll('teacherList', this)"> <b>Pilih Semua</b>
+      </label>
       <button class="btn-warning" onclick="removeSelectedTeachers()">Keluarkan Terpilih</button>
       <button class="btn-delete" onclick="removeAllTeachers()">Keluarkan Semua</button>
     </div>
