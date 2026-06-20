@@ -41,7 +41,6 @@ async function loadClasses() {
   tableBody.innerHTML = "<tr><td colspan='4'>⏳ Memuat data kelas...</td></tr>";
 
   try {
-    // Optimasi query: Langsung filter berdasarkan schoolId di Firestore jika ada
     let classesQuery = collection(db, "classes");
     if (currentSchoolId) {
       classesQuery = query(collection(db, "classes"), where("schoolId", "==", currentSchoolId));
@@ -57,14 +56,19 @@ async function loadClasses() {
 
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
+      
+      // FIX ERROR REPLACE: Ambil nama kelas, jika tidak ada ganti dengan string kosong "" atau "-"
+      const classNameClean = data.name ? data.name : "-";
+      // Ambil string aman untuk fungsi onclick di HTML
+      const classNameForAttribute = classNameClean.replace(/'/g, "\\'");
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><b>${data.name || "-"}</b></td>
+        <td><b>${classNameClean}</b></td>
         <td>${data.teacherIds ? data.teacherIds.length : 0} Guru</td>
         <td>${data.studentIds ? data.studentIds.length : 0} Siswa</td>
         <td>
-          <button class="btn-warning" onclick="editClass('${docSnap.id}', '${data.name.replace(/'/g, "\\'")}')">✏️ Edit</button>
+          <button class="btn-warning" onclick="editClass('${docSnap.id}', '${classNameForAttribute}')">✏️ Edit</button>
         </td>
       `;
       tableBody.appendChild(tr);
