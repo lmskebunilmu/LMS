@@ -714,9 +714,9 @@ async function loadClassWithStudents(user){
     if(!schoolId) return;
 
     const container = document.getElementById("classListContainer");
-    container.innerHTML = "Loading...";
+    container.innerHTML = "⏳ Memuat daftar kelas dan siswa...";
 
-    // Query semua kelas di sekolah ini yang di dalamnya terdapat ID guru ini
+    // 1. Query semua kelas yang diampu oleh guru ini
     const qClasses = query(
       collection(db, "classes"),
       where("teacherIds", "array-contains", user.uid),
@@ -726,53 +726,48 @@ async function loadClassWithStudents(user){
     const snapClasses = await getDocs(qClasses);
 
     if (snapClasses.empty) {
-      container.innerHTML = "<p>Tidak ada kelas yang diampu</p>";
+      container.innerHTML = "<p>📭 Anda belum mengampu kelas mana pun.</p>";
       return;
     }
 
     container.innerHTML = "";
 
-    // 🔥 LOOP KELAS
+    // 2. LOOP KELAS
     for (const classDoc of snapClasses.docs) {
       const classData = classDoc.data();
       const classId = classDoc.id;
-      const studentIds = classData.studentIds || [];
 
-      // 1. Cek Apakah Guru Ini Adalah Wali Kelas Di Sini
+      // Cek Status Wali Kelas & Mapel
       const isWaliKelas = classData.homeroomTeacherId === user.uid;
       const waliKelasBadge = isWaliKelas 
         ? `<span style="background-color: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px;">👑 Wali Kelas</span>` 
         : "";
 
-      // 2. Ambil Mata Pelajaran Yang Diajarkan Guru Ini Khusus Di Kelas Ini
-      // Mendukung struktur field 'teachers' (object map) maupun 'teacherMap'
       const classTeachersMapping = classData.teachers || classData.teacherMap || {};
       const mySubjects = classTeachersMapping[user.uid] || [];
       const subjectsText = mySubjects.length > 0 ? mySubjects.join(", ") : "-";
 
-      // 3. AMBIL DATA SISWA
-      const students = await Promise.all(
-        studentIds.map(async (id) => {
-          try {
-            const snap = await getDoc(doc(db, "users", id));
-            return snap.exists() ? snap.data() : null;
-          } catch {
-            return null;
-          }
-        })
+      // 🔄 PERBAIKAN UTAMA: Query langsung ke koleksi "students" berdasarkan classId
+      const qStudents = query(
+        collection(db, "students"), 
+        where("classId", "==", classId)
       );
+      const snapStudents = await getDocs(qStudents);
 
-      // Urutkan siswa A-Z
-      const cleanStudents = students
-        .filter(s => s !== null)
-        .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      const cleanStudents = [];
+      snapStudents.forEach(sDoc => {
+        cleanStudents.push(sDoc.data());
+      });
+
+      // Urutkan nama siswa A-Z
+      cleanStudents.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
       const div = document.createElement("div");
       div.className = "class-box";
       div.style.marginBottom = "15px";
 
       div.innerHTML = `
-        <button class="class-toggle" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center;">
+        <button class="class-toggle" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center; padding: 12px; cursor: pointer;">
           <span>📋 <b>${classData.name}</b> ${waliKelasBadge}</span>
           <span style="font-size:12px; color:#64748b;">📖 ${mySubjects.length} Mapel</span>
         </button>
@@ -790,11 +785,11 @@ async function loadClassWithStudents(user){
           </div>
 
           <strong style="font-size:13px; display:block; margin-bottom:5px; color:#1e293b;">Daftar Murid:</strong>
-          <ul style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto;">
+          <ul style="list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto;">
             ${
               cleanStudents.length > 0
-              ? cleanStudents.map((s, index) => `<li style="padding: 6px 0; border-bottom: 1px dashed #f1f5f9; font-size:13px;">${index + 1}. 👤 ${s.name}</li>`).join("")
-              : "<li style='color:#94a3b8; font-size:13px;'>Tidak ada siswa di kelas ini</li>"
+              ? cleanStudents.map((s, index) => `<li style="padding: 6px 0; border-bottom: 1px dashed #f1f5f9; font-size:13px;">${index + 1}. 👤 ${s.name} (${s.email || "-"})</li>`).join("")
+              : "<li style='color:#94a3b8; font-size:13px;'>📭 Tidak ada siswa terdaftar di kelas ini</li>"
             }
           </ul>
         </div>
@@ -820,6 +815,7 @@ async function loadClassWithStudents(user){
 
   } catch(err) {
     console.error("Gagal memuat detail kelas dan siswa:", err);
+    document.getElementById("classListContainer").innerHTML = "<p style='color:red;'>❌ Gagal memuat data siswa</p>";
   }
 }
 
