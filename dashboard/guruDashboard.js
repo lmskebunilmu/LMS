@@ -706,10 +706,8 @@ function lockDashboard() {
   `;
 }
 async function loadClassWithStudents(user){
-
-  try{
-
-    const userSnap = await getDoc(doc(db,"users",user.uid));
+  try {
+    const userSnap = await getDoc(doc(db, "users", user.uid));
     const userData = userSnap.data();
 
     const schoolId = userData.schoolId;
@@ -718,16 +716,17 @@ async function loadClassWithStudents(user){
     const container = document.getElementById("classListContainer");
     container.innerHTML = "Loading...";
 
+    // Query semua kelas di sekolah ini yang di dalamnya terdapat ID guru ini
     const qClasses = query(
-      collection(db,"classes"),
-      where("teacherIds","array-contains",user.uid),
-      where("schoolId","==",schoolId)
+      collection(db, "classes"),
+      where("teacherIds", "array-contains", user.uid),
+      where("schoolId", "==", schoolId)
     );
 
     const snapClasses = await getDocs(qClasses);
 
     if (snapClasses.empty) {
-      container.innerHTML = "<p>Tidak ada kelas</p>";
+      container.innerHTML = "<p>Tidak ada kelas yang diampu</p>";
       return;
     }
 
@@ -735,13 +734,23 @@ async function loadClassWithStudents(user){
 
     // 🔥 LOOP KELAS
     for (const classDoc of snapClasses.docs) {
-
       const classData = classDoc.data();
       const classId = classDoc.id;
-
       const studentIds = classData.studentIds || [];
 
-      // 🔥 AMBIL DATA SISWA
+      // 1. Cek Apakah Guru Ini Adalah Wali Kelas Di Sini
+      const isWaliKelas = classData.homeroomTeacherId === user.uid;
+      const waliKelasBadge = isWaliKelas 
+        ? `<span style="background-color: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px;">👑 Wali Kelas</span>` 
+        : "";
+
+      // 2. Ambil Mata Pelajaran Yang Diajarkan Guru Ini Khusus Di Kelas Ini
+      // Mendukung struktur field 'teachers' (object map) maupun 'teacherMap'
+      const classTeachersMapping = classData.teachers || classData.teacherMap || {};
+      const mySubjects = classTeachersMapping[user.uid] || [];
+      const subjectsText = mySubjects.length > 0 ? mySubjects.join(", ") : "-";
+
+      // 3. AMBIL DATA SISWA
       const students = await Promise.all(
         studentIds.map(async (id) => {
           try {
@@ -753,45 +762,51 @@ async function loadClassWithStudents(user){
         })
       );
 
-      // ✅ FIX NULL
+      // Urutkan siswa A-Z
       const cleanStudents = students
-  .filter(s => s !== null)
-  .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        .filter(s => s !== null)
+        .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
       const div = document.createElement("div");
       div.className = "class-box";
+      div.style.marginBottom = "15px";
 
       div.innerHTML = `
-        <button class="class-toggle">
-          📚 ${classData.name}
+        <button class="class-toggle" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center;">
+          <span>📋 <b>${classData.name}</b> ${waliKelasBadge}</span>
+          <span style="font-size:12px; color:#64748b;">📖 ${mySubjects.length} Mapel</span>
         </button>
 
-        <div class="class-detail" style="display:none;">
-          <p>Total siswa: ${cleanStudents.length}</p>
+        <div class="class-detail" style="display:none; padding: 15px; border: 1px solid #e2e8f0; border-top:none; border-radius:0 0 6px 6px; background:#fff;">
+          <div style="margin-bottom: 10px; font-size: 13px; color: #475569; line-height: 1.6;">
+            <div>• Status: <b>${isWaliKelas ? "Wali Kelas" : "Guru Pengampu"}</b></div>
+            <div>• Mengajar Mapel: <span style="color:#4f46e5; font-weight:600;">${subjectsText}</span></div>
+            <div>• Total Siswa: <b>${cleanStudents.length} Anak</b></div>
+          </div>
 
-          <div class="export-buttons">
+          <div class="export-buttons" style="margin-bottom:15px;">
             <button class="btn-export btn-csv">Export CSV</button>
             <button class="btn-export btn-pdf">Download PDF</button>
           </div>
 
-          <ul>
+          <strong style="font-size:13px; display:block; margin-bottom:5px; color:#1e293b;">Daftar Murid:</strong>
+          <ul style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto;">
             ${
               cleanStudents.length > 0
-              ? cleanStudents.map(s => `<li>👤 ${s.name}</li>`).join("")
-              : "<li>Tidak ada siswa</li>"
+              ? cleanStudents.map((s, index) => `<li style="padding: 6px 0; border-bottom: 1px dashed #f1f5f9; font-size:13px;">${index + 1}. 👤 ${s.name}</li>`).join("")
+              : "<li style='color:#94a3b8; font-size:13px;'>Tidak ada siswa di kelas ini</li>"
             }
           </ul>
         </div>
       `;
 
-      // toggle
+      // Fungsi Toggle Detail Tampilan Kelas
       div.querySelector(".class-toggle").onclick = () => {
         const detail = div.querySelector(".class-detail");
-        detail.style.display =
-          detail.style.display === "none" ? "block" : "none";
+        detail.style.display = detail.style.display === "none" ? "block" : "none";
       };
 
-      // ✅ FIX EXPORT
+      // Aksi Tombol Dokumen
       div.querySelector(".btn-csv").onclick = () => {
         exportCSV(cleanStudents, classData.name);
       };
@@ -803,8 +818,8 @@ async function loadClassWithStudents(user){
       container.appendChild(div);
     }
 
-  }catch(err){
-    console.error(err);
+  } catch(err) {
+    console.error("Gagal memuat detail kelas dan siswa:", err);
   }
 }
 
