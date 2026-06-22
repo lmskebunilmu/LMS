@@ -908,3 +908,108 @@ window.moveSelectedStudents = async () => {
     alert("Terjadi kesalahan sistem saat memindahkan siswa.");
   }
 };
+
+// ==================================================================
+// FITUR TAMBAH/MASUKKAN GURU KE KELAS VIA MODAL
+// ==================================================================
+
+// 1. Pemicu Buka Modal Tambah Guru (Menampilkan guru di sekolah yang BELUM mengajar kelas ini)
+window.openAddTeacherModal = async () => {
+  if (!activeClassIdInModal) return;
+  const addTeacherList = document.getElementById("addTeacherList");
+  addTeacherList.innerHTML = "<li>⏳ Memuat daftar guru sekolah...</li>";
+  
+  // Tampilkan modal tambah guru
+  document.getElementById("addTeacherModal").classList.add("active");
+
+  try {
+    // 1. Ambil data kelas saat ini untuk tahu siapa saja guru yang SUDAH ada di dalam kelas
+    const classSnap = await getDoc(doc(db, "classes", activeClassIdInModal));
+    let existingTeacherIds = [];
+    if (classSnap.exists()) {
+      existingTeacherIds = classSnap.data().teacherIds || [];
+    }
+
+    // 2. Ambil seluruh user dengan role "guru" di sekolah tersebut
+    const teacherQuery = query(
+      collection(db, "users"),
+      where("role", "==", "guru"),
+      where("schoolId", "==", currentSchoolId)
+    );
+    const snap = await getDocs(teacherQuery);
+    addTeacherList.innerHTML = "";
+
+    let count = 0;
+    snap.forEach(tDoc => {
+      // Filter: Hanya tampilkan guru yang BELUM terdaftar di kelas aktif ini
+      if (!existingTeacherIds.includes(tDoc.id)) {
+        count++;
+        const tData = tDoc.data();
+        const li = document.createElement("li");
+        li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+        li.innerHTML = `
+          <input type="checkbox" class="add-teacher-cb" value="${tDoc.id}" style="cursor:pointer;">
+          <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
+        `;
+        addTeacherList.appendChild(li);
+      }
+    });
+
+    if (count === 0) {
+      addTeacherList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Semua guru yang tersedia sudah mengajar di kelas ini.</li>";
+    }
+  } catch (err) {
+    console.error("Gagal memuat modal tambah guru:", err);
+    addTeacherList.innerHTML = "<li style='color:red;'>❌ Gagal memuat data guru.</li>";
+  }
+};
+
+// 2. Aksi menyimpan guru-guru terpilih ke dalam array Firestore kelas
+window.addSelectedTeachers = async () => {
+  if (!activeClassIdInModal) return;
+  const checkedBoxes = document.querySelectorAll(".add-teacher-cb:checked");
+  if (checkedBoxes.length === 0) {
+    alert("Silahkan pilih guru yang ingin dimasukkan terlebih dahulu!");
+    return;
+  }
+
+  try {
+    const classRef = doc(db, "classes", activeClassIdInModal);
+    const classSnap = await getDoc(classRef);
+    
+    if (classSnap.exists()) {
+      let currentTeachers = classSnap.data().teacherIds || [];
+      const newTeacherIds = Array.from(checkedBoxes).map(cb => cb.value);
+      
+      // Gabungkan guru lama dan guru baru yang dicentang (pastikan tidak duplikat)
+      const updatedTeachers = [...new Set([...currentTeachers, ...newTeacherIds])];
+      
+      // Update data array teacherIds di Firestore
+      await updateDoc(classRef, { teacherIds: updatedTeachers });
+      
+      // Tutup modal tambah dan modal detail utama untuk me-refresh data tampilan
+      document.getElementById("addTeacherModal").classList.remove("active");
+      document.getElementById("teacherModal").classList.remove("active");
+      
+      await loadClasses();
+      showToast(`${checkedBoxes.length} Guru berhasil ditambahkan ke kelas.`);
+    }
+  } catch (err) {
+    console.error("Gagal menambahkan guru terpilih:", err);
+    alert("Gagal menambahkan guru terpilih.");
+  }
+};
+
+// Toggle pilih semua pada modal tambah guru
+window.toggleAllAddTeachers = (masterCheckbox) => {
+  const checkboxes = document.querySelectorAll(".add-teacher-cb");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+};
+
+// Live Filter pencarian nama guru di modal tambah
+window.filterAddTeachers = () => {
+  const keyword = document.getElementById("addTeacherSearch").value.toLowerCase();
+  document.querySelectorAll("#addTeacherList li").forEach(li => {
+    li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
+  });
+};
