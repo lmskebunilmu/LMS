@@ -165,27 +165,27 @@ async function loadTeachersToSelect() {
   homeroomSelectEl.innerHTML = '<option value="">Pilih Wali Kelas (Opsional)</option>';
 
   try {
+    // 🔥 DISESUAIKAN: Mengambil dari koleksi "teachers" sesuai dengan teachers.js
     const teacherQuery = query(
-      collection(db, "users"),
-      where("role", "==", "guru"),
+      collection(db, "teachers"),
       where("schoolId", "==", currentSchoolId)
     );
 
     const snap = await getDocs(teacherQuery);
-    allTeachersData = {}; // reset
+    allTeachersData = {}; // Reset penampung data master
     
     snap.forEach(docSnap => {
       const teacherData = docSnap.data();
-      const teacherId = docSnap.id;
+      const teacherId = docSnap.id; // Ini adalah UID user guru tersebut
       allTeachersData[teacherId] = teacherData;
 
-      // Isi Opsi Wali Kelas
+      // Isi Dropdown Opsi Wali Kelas
       const optHome = document.createElement("option");
       optHome.value = teacherId;
       optHome.textContent = teacherData.name || "Tanpa Nama";
       homeroomSelectEl.appendChild(optHome);
 
-      // Isi Opsi Guru Pengampu
+      // Isi Dropdown Opsi Guru Pengampu
       const option = document.createElement("option");
       option.value = teacherId; 
       option.textContent = teacherData.name || "Tanpa Nama";
@@ -206,11 +206,11 @@ async function loadTeachersToSelect() {
     }
 
   } catch (err) {
-    console.error("Gagal memuat daftar guru:", err);
+    console.error("Gagal memuat daftar guru untuk opsi kelas:", err);
   }
 }
 
-// Fungsi Baru: Menampilkan checklist mapel berdasarkan guru yang dipilih di TomSelect
+// Fungsi pembentuk checklist mapel dinamis berdasarkan pilihan guru pengampu
 function renderTeacherSubjectsMapping(selectedTeacherIds, existingMapping = {}) {
   const container = document.getElementById("teacherSubjectsContainer");
   const listEl = document.getElementById("teacherSubjectsList");
@@ -227,15 +227,16 @@ function renderTeacherSubjectsMapping(selectedTeacherIds, existingMapping = {}) 
     const teacher = allTeachersData[tId];
     if (!teacher) return;
 
-    const teacherMapelMaster = teacher.subjects || []; // Misal: ["indo", "inggris", "mtk"]
-    const checkedMapels = existingMapping[tId] || []; // Mapel yang sudah terpilih sebelumnya di kelas ini
+    // Mengambil keahlian subjek bawaan yang diinput dari teachers.js
+    const teacherMapelMaster = teacher.subjects || []; 
+    const checkedMapels = existingMapping[tId] || []; // Data mapel yang sudah tersimpan di kelas ini sebelumnya
 
     const teacherDiv = document.createElement("div");
     teacherDiv.style.cssText = "margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #e2e8f0;";
     
     let checkboxesHtml = "";
     if (teacherMapelMaster.length === 0) {
-      checkboxesHtml = `<span style="color:#94a3b8; font-size:12px;">Guru ini belum memiliki master mapel profilnya.</span>`;
+      checkboxesHtml = `<span style="color:#94a3b8; font-size:12px;">Guru ini belum disetting memiliki keahlian mapel di data guru.</span>`;
     } else {
       teacherMapelMaster.forEach(mp => {
         const isChecked = checkedMapels.includes(mp) ? "checked" : "";
@@ -327,7 +328,10 @@ window.openTeacherDetailModal = async (id, className) => {
   try {
     const classSnap = await getDoc(doc(db, "classes", id));
     if (classSnap.exists()) {
-      const teacherIds = classSnap.data().teacherIds || [];
+      const classData = classSnap.data();
+      const teachersMapping = classData.teachers || {}; // Struktur Map baru kita
+      const teacherIds = Object.keys(teachersMapping);
+      
       teacherList.innerHTML = "";
       
       if(teacherIds.length === 0) {
@@ -336,13 +340,22 @@ window.openTeacherDetailModal = async (id, className) => {
       }
 
       for (const tId of teacherIds) {
-        const tSnap = await getDoc(doc(db, "users", tId));
+        // 🔥 DISESUAIKAN: Mengambil dari koleksi "teachers" agar sinkron
+        const tSnap = await getDoc(doc(db, "teachers", tId));
         if (tSnap.exists()) {
+          const tData = tSnap.data();
+          const mapelDiKelasIni = teachersMapping[tId] && teachersMapping[tId].length > 0 
+            ? teachersMapping[tId].join(", ") 
+            : "Tidak ada mapel yang dipilih";
+
           const li = document.createElement("li");
-          li.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+          li.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; flex-direction:column; gap: 2px;";
           li.innerHTML = `
-            <input type="checkbox" class="teacher-item-cb" value="${tId}" style="cursor:pointer;">
-            <span>👨‍🏫 <b>${tSnap.data().name || "Tanpa Nama"}</b> (${tSnap.data().email || "-"})</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <input type="checkbox" class="teacher-item-cb" value="${tId}" style="cursor:pointer;">
+              <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
+            </div>
+            <div style="font-size:12px; color:#6366f1; margin-left:25px;">Mengampu di kelas ini: <b>${mapelDiKelasIni}</b></div>
           `;
           teacherList.appendChild(li);
         }
