@@ -270,22 +270,45 @@ window.openClassModal = () => {
   document.getElementById("classModal").classList.add("active");
 };
 
-window.editClass = async (id, name) => {
-  document.getElementById("classId").value = id;
-  document.getElementById("className").value = name;
-  document.getElementById("classModalTitle").innerText = "Edit Kelas";
-
+window.editClass = async (id) => {
   try {
-    const classSnap = await getDoc(doc(db, "classes", id));
-    if (classSnap.exists()) {
-      const classData = classSnap.data();
-      const currentTeacherIds = classData.teacherIds || [];
-      if (teacherSelectInstance) teacherSelectInstance.setValue(currentTeacherIds);
+    const snap = await getDoc(doc(db, "classes", id));
+    if (!snap.exists()) {
+      showToast("Data kelas tidak ditemukan", "error");
+      return;
     }
+
+    const data = snap.data();
+
+    // 1. Isi input dasar form modal edit kelas
+    document.getElementById("classId").value = id;
+    document.getElementById("className").value = data.name || "";
+    
+    // Set dropdown wali kelas jika ada
+    const homeroomSelect = document.getElementById("homeroomTeacherSelect");
+    if (homeroomSelect) homeroomSelect.value = data.homeroomTeacherId || "";
+
+    // 2. Ambil data guru pengampu yang tersimpan (berupa Object Map: { UID_GURU: [mapel1, mapel2] })
+    const savedTeachersMapping = data.teachers || {};
+    const selectedTeacherIds = Object.keys(savedTeachersMapping);
+
+    // 3. Set nilai pada komponen TomSelect (Dropdown Multi-select Guru Pengampu)
+    if (teacherSelectInstance) {
+      // Menyetel ulang pilihan guru pengampu di dropdown tanpa memicu error
+      teacherSelectInstance.setValue(selectedTeacherIds);
+    }
+
+    // 4. 🔥 KUNCI UTAMA: Render ulang checklist mapel dan kirim data mapel yang sudah tersimpan
+    // Fungsi ini akan mencentang otomatis (checked) mapel yang sesuai
+    renderTeacherSubjectsMapping(selectedTeacherIds, savedTeachersMapping);
+
+    // 5. Tampilkan Modal Edit Kelas
+    document.getElementById("classModal").classList.add("active");
+
   } catch (err) {
-    console.error("Gagal memuat data guru pada edit kelas:", err);
+    console.error("Gagal memuat data edit kelas:", err);
+    showToast("Gagal memuat data kelas", "error");
   }
-  document.getElementById("classModal").classList.add("active");
 };
 
 // --- MODAL KONFIRMASI HAPUS KELAS ---
