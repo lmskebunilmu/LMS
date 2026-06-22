@@ -7,21 +7,17 @@ let currentSchoolRef = null;
 let currentSchoolName = "-";
 let currentSchoolLogo = "/LMS/assets/images/default-logo.png";
 
-// Variabel penampung fungsi hapus sementara dan modal aktif
 let classIdToDelete = null;
 let activeClassIdInModal = null;
+let teacherSelectInstance = null;
 
-// ==========================================
 // UTILITY: CHECKBOX PILIH SEMUA
-// ==========================================
 window.toggleSelectAll = (listId, masterCheckbox) => {
-  const checkboxes = document.querySelectorAll(`#${listId} input[type="checkbox"]`);
+  const checkboxes = document.querySelectorAll(`#${listId} input[type="checkbox"].main-item-cb`);
   checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
 };
 
-// ==========================
-// AUTH + LOAD LAYOUT
-// ==========================
+// AUTH + INITIALIZATION
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location = "/LMS/login.html";
@@ -49,9 +45,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// ==========================
-// LOAD PROFILE HEADER
-// ==========================
 async function loadProfileHeader(userData) {
   const name = userData.name || "Admin";
   const avatar = userData.avatarURL || "/LMS/assets/images/default-avatar.png";
@@ -79,9 +72,7 @@ async function loadProfileHeader(userData) {
   if (schoolLogoEl) schoolLogoEl.src = currentSchoolLogo;
 }
 
-// ==========================
 // LOAD DATA KELAS (FIRESTORE)
-// ==========================
 async function loadClasses() {
   const tableBody = document.getElementById("classTable");
   if (!tableBody) return;
@@ -112,19 +103,31 @@ async function loadClasses() {
       }
     });
 
-    querySnapshot.forEach((docSnap) => {
+    for (const docSnap of querySnapshot.docs) {
       const data = docSnap.data();
       const classId = docSnap.id;
       
       const classNameClean = data.name ? data.name : "-";
       const classNameForAttribute = classNameClean.replace(/'/g, "\\'");
       
-      const totalTeachers = data.teacherIds ? data.teacherIds.length : 0;
+      const totalTeachers = data.teachers ? data.teachers.length : 0;
       const totalStudents = studentCountMap[classId] || 0;
+
+      // Ambil Nama Wali Kelas
+      let homeroomName = "Belum ditentukan";
+      if (data.homeroomTeacherId) {
+        const hrSnap = await getDoc(doc(db, "users", data.homeroomTeacherId));
+        if (hrSnap.exists()) {
+          homeroomName = hrSnap.data().name || "Tanpa Nama";
+        }
+      }
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><b>${classNameClean}</b></td>
+        <td>
+          <b>${classNameClean}</b><br>
+          <small style="color: #64748b; font-size:11px;">👑 Wali Kelas: <b>${homeroomName}</b></small>
+        </td>
         <td><a href="#" onclick="openTeacherDetailModal('${classId}', '${classNameForAttribute}')" style="color: #4f46e5; font-weight: 600; text-decoration: none;"> ${totalTeachers} Guru</a></td>
         <td><a href="#" onclick="openStudentDetailModal('${classId}', '${classNameForAttribute}')" style="color: #4f46e5; font-weight: 600; text-decoration: none;"> ${totalStudents} Siswa</a></td>
         <td>
@@ -134,7 +137,7 @@ async function loadClasses() {
         </td>
       `;
       tableBody.appendChild(tr);
-    });
+    }
   } catch (err) {
     console.error("Gagal mengambil data kelas:", err);
     tableBody.innerHTML = "<tr><td colspan='4' style='color:red;'>❌ Gagal memuat data kelas</td></tr>";
@@ -153,13 +156,13 @@ function initClassSearch() {
   });
 }
 
-let teacherSelectInstance = null;
-
 async function loadTeachersToSelect() {
   const selectEl = document.getElementById("teacherSelect");
-  if (!selectEl) return;
+  const homeroomEl = document.getElementById("homeroomSelect");
+  if (!selectEl || !homeroomEl) return;
 
   selectEl.innerHTML = '<option value="">Pilih Guru</option>';
+  homeroomEl.innerHTML = '<option value="">Pilih Wali Kelas (Opsional)</option>';
 
   try {
     const teacherQuery = query(
@@ -172,10 +175,18 @@ async function loadTeachersToSelect() {
     
     snap.forEach(docSnap => {
       const teacherData = docSnap.data();
-      const option = document.createElement("option");
-      option.value = docSnap.id; 
-      option.textContent = teacherData.name || "Tanpa Nama";
-      selectEl.appendChild(option);
+      const tId = docSnap.id;
+      const tName = teacherData.name || "Tanpa Nama";
+
+      const option1 = document.createElement("option");
+      option1.value = tId; 
+      option1.textContent = tName;
+      selectEl.appendChild(option1);
+
+      const option2 = document.createElement("option");
+      option2.value = tId;
+      option2.textContent = tName;
+      homeroomEl.appendChild(option2);
     });
 
     if (window.TomSelect && !teacherSelectInstance) {
@@ -187,18 +198,16 @@ async function loadTeachersToSelect() {
     } else if (teacherSelectInstance) {
       teacherSelectInstance.sync();
     }
-
   } catch (err) {
     console.error("Gagal memuat daftar guru untuk opsi kelas:", err);
   }
 }
 
-// ==========================
 // CONTROL MODAL & ACTIONS
-// ==========================
 window.openClassModal = () => {
   document.getElementById("classId").value = "";
   document.getElementById("className").value = "";
+  document.getElementById("homeroomSelect").value = "";
   document.getElementById("classModalTitle").innerText = "Tambah Kelas";
   if (teacherSelectInstance) teacherSelectInstance.clear();
   document.getElementById("classModal").classList.add("active");
@@ -213,7 +222,11 @@ window.editClass = async (id, name) => {
     const classSnap = await getDoc(doc(db, "classes", id));
     if (classSnap.exists()) {
       const classData = classSnap.data();
-      const currentTeacherIds = classData.teacherIds || [];
+      document.getElementById("homeroomSelect").value = classData.homeroomTeacherId || "";
+
+      // Ekstrak list ID saja untuk dicocokkan ke TomSelect komponen lama
+      const currentTeachers = classData.teachers || [];
+      const currentTeacherIds = currentTeachers.map(item => item.teacherId);
       if (teacherSelectInstance) teacherSelectInstance.setValue(currentTeacherIds);
     }
   } catch (err) {
@@ -222,7 +235,6 @@ window.editClass = async (id, name) => {
   document.getElementById("classModal").classList.add("active");
 };
 
-// --- MODAL KONFIRMASI HAPUS KELAS ---
 window.deleteClass = (id, name) => {
   classIdToDelete = id;
   document.getElementById("deleteModalMessage").innerText = `Apakah Anda yakin ingin menghapus kelas "${name}"? Tindakan ini tidak dapat dibatalkan.`;
@@ -247,7 +259,7 @@ document.getElementById("confirmDeleteBtn").onclick = async () => {
   }
 };
 
-// --- MODAL: LIHAT DETAIL GURU (DENGAN CEKLIS) ---
+// --- MODAL: LIHAT DETAIL GURU (MENAMPILKAN MAPEL KHUSUS KELAS) ---
 window.openTeacherDetailModal = async (id, className) => {
   activeClassIdInModal = id; 
   const teacherList = document.getElementById("teacherList");
@@ -262,22 +274,24 @@ window.openTeacherDetailModal = async (id, className) => {
   try {
     const classSnap = await getDoc(doc(db, "classes", id));
     if (classSnap.exists()) {
-      const teacherIds = classSnap.data().teacherIds || [];
+      const classTeachers = classSnap.data().teachers || [];
       teacherList.innerHTML = "";
       
-      if(teacherIds.length === 0) {
+      if(classTeachers.length === 0) {
         teacherList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Belum ada guru pengampu di kelas ini.</li>";
         return;
       }
 
-      for (const tId of teacherIds) {
-        const tSnap = await getDoc(doc(db, "users", tId));
+      for (const item of classTeachers) {
+        const tSnap = await getDoc(doc(db, "users", item.teacherId));
         if (tSnap.exists()) {
+          const mapelDiKelas = item.subjects && item.subjects.length > 0 ? item.subjects.join(", ") : "Tidak mengajar mapel";
           const li = document.createElement("li");
           li.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
           li.innerHTML = `
-            <input type="checkbox" class="teacher-item-cb" value="${tId}" style="cursor:pointer;">
-            <span>👨‍🏫 <b>${tSnap.data().name || "Tanpa Nama"}</b> (${tSnap.data().email || "-"})</span>
+            <input type="checkbox" class="teacher-item-cb main-item-cb" value="${item.teacherId}" style="cursor:pointer;">
+            <span>👨‍🏫 <b>${tSnap.data().name || "Tanpa Nama"}</b> (${tSnap.data().email || "-"}) <br>
+            <small style="color:#4f46e5;">Mengajar Pelajaran: <b>${mapelDiKelas}</b></small></span>
           `;
           teacherList.appendChild(li);
         }
@@ -289,7 +303,7 @@ window.openTeacherDetailModal = async (id, className) => {
   }
 };
 
-// --- MODAL: LIHAT DETAIL SISWA (DENGAN CEKLIS) ---
+// --- MODAL: LIHAT DETAIL SISWA ---
 window.openStudentDetailModal = async (id, className) => {
   activeClassIdInModal = id; 
   const studentList = document.getElementById("studentList");
@@ -316,7 +330,7 @@ window.openStudentDetailModal = async (id, className) => {
       const li = document.createElement("li");
       li.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
       li.innerHTML = `
-        <input type="checkbox" class="student-item-cb" value="${sDoc.id}" style="cursor:pointer;">
+        <input type="checkbox" class="student-item-cb main-item-cb" value="${sDoc.id}" style="cursor:pointer;">
         <span>👶 <b>${sData.name || "Tanpa Nama"}</b> (${sData.email || "-"})</span>
       `;
       studentList.appendChild(li);
@@ -327,14 +341,11 @@ window.openStudentDetailModal = async (id, className) => {
   }
 };
 
-// Tombol Lihat Semua memicu detail siswa
 window.viewClass = (id, name) => {
   window.openStudentDetailModal(id, name);
 };
 
-// ==================================================================
 // AKSI BERKELOMPOK: KELUARKAN GURU
-// ==================================================================
 window.removeSelectedTeachers = async () => {
   if (!activeClassIdInModal) return;
   const checkedBoxes = document.querySelectorAll(".teacher-item-cb:checked");
@@ -348,11 +359,11 @@ window.removeSelectedTeachers = async () => {
       const classRef = doc(db, "classes", activeClassIdInModal);
       const classSnap = await getDoc(classRef);
       if (classSnap.exists()) {
-        let currentTeachers = classSnap.data().teacherIds || [];
+        let currentTeachers = classSnap.data().teachers || [];
         const idsToRemove = Array.from(checkedBoxes).map(cb => cb.value);
-        const updatedTeachers = currentTeachers.filter(id => !idsToRemove.includes(id));
+        const updatedTeachers = currentTeachers.filter(t => !idsToRemove.includes(t.teacherId));
         
-        await updateDoc(classRef, { teacherIds: updatedTeachers });
+        await updateDoc(classRef, { teachers: updatedTeachers });
         document.getElementById("teacherModal").classList.remove("active");
         await loadClasses();
         showToast("Guru terpilih berhasil dikeluarkan.");
@@ -368,7 +379,7 @@ window.removeAllTeachers = async () => {
   if (!activeClassIdInModal) return;
   if (confirm("Apakah Anda yakin ingin mengeluarkan SEMUA guru dari kelas ini?")) {
     try {
-      await updateDoc(doc(db, "classes", activeClassIdInModal), { teacherIds: [] });
+      await updateDoc(doc(db, "classes", activeClassIdInModal), { teachers: [] });
       document.getElementById("teacherModal").classList.remove("active");
       await loadClasses();
       showToast("Semua guru berhasil dikeluarkan.");
@@ -379,9 +390,7 @@ window.removeAllTeachers = async () => {
   }
 };
 
-// ==================================================================
 // AKSI BERKELOMPOK: KELUARKAN SISWA
-// ==================================================================
 window.removeSelectedStudents = async () => {
   if (!activeClassIdInModal) return;
   const checkedBoxes = document.querySelectorAll(".student-item-cb:checked");
@@ -438,12 +447,11 @@ function showToast(message) {
   }
 }
 
-// ==========================================
 // SAVE & EXPORT 
-// ==========================================
 window.saveClass = async () => {
   const classId = document.getElementById("classId").value;
   const className = document.getElementById("className").value.trim();
+  const homeroomTeacherId = document.getElementById("homeroomSelect").value;
 
   let selectedTeacherIds = [];
   if (teacherSelectInstance) {
@@ -459,17 +467,33 @@ window.saveClass = async () => {
   }
 
   try {
+    // Memformat ulang array 'teachers' agar sinkron dengan struktur objek mapel baru
+    let existingTeachersMap = {};
     if (classId) {
-      await updateDoc(doc(db, "classes", classId), { 
-        name: className,
-        teacherIds: selectedTeacherIds
-      });
+      const oldSnap = await getDoc(doc(db, "classes", classId));
+      if (oldSnap.exists() && oldSnap.data().teachers) {
+        oldSnap.data().teachers.forEach(t => { existingTeachersMap[t.teacherId] = t.subjects || []; });
+      }
+    }
+
+    const updatedTeachersArray = selectedTeacherIds.map(tId => {
+      return {
+        teacherId: tId,
+        subjects: existingTeachersMap[tId] || [] // default kosong jika diinput via Edit Kelas manual
+      };
+    });
+
+    const payload = {
+      name: className,
+      homeroomTeacherId: homeroomTeacherId,
+      teachers: updatedTeachersArray
+    };
+
+    if (classId) {
+      await updateDoc(doc(db, "classes", classId), payload);
     } else {
-      await addDoc(collection(db, "classes"), {
-        name: className,
-        schoolId: currentSchoolId,
-        teacherIds: selectedTeacherIds
-      });
+      payload.schoolId = currentSchoolId;
+      await addDoc(collection(db, "classes"), payload);
     }
     
     window.closeClassModal();
@@ -496,9 +520,7 @@ window.exportClassesExcel = () => {
   }
 };
 
-// ==========================
-// EXPORT PDF GABUNGAN (Ringkasan + Detail Sinkron Siswa)
-// ==========================
+// EXPORT PDF GABUNGAN
 window.exportClassesPDF = async () => {
   const btnEl = document.querySelector("button[onclick='exportClassesPDF()']");
   const originalBtnText = btnEl ? btnEl.innerText : "Export PDF";
@@ -509,7 +531,6 @@ window.exportClassesPDF = async () => {
     const schoolLogo = currentSchoolLogo || "/LMS/assets/images/default-logo.png";
     const date = new Date().toLocaleDateString("id-ID", { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // 1. Ambil data kelas
     let classesQuery = collection(db, "classes");
     if (currentSchoolId) {
       classesQuery = query(collection(db, "classes"), where("schoolId", "==", currentSchoolId));
@@ -522,11 +543,9 @@ window.exportClassesPDF = async () => {
       return;
     }
 
-    // 2. Ambil data seluruh siswa untuk dicocokkan berdasarkan classId (Real-time Sync)
     const studentsQuery = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
     const studentsSnap = await getDocs(studentsQuery);
     
-    // Kelompokkan data object siswa berdasarkan classId
     const studentsByClassMap = {};
     studentsSnap.forEach(sDoc => {
       const sData = sDoc.data();
@@ -541,34 +560,28 @@ window.exportClassesPDF = async () => {
     let summaryRowsHtml = "";
     let detailSectionsHtml = "";
 
-    // 3. Loop bangun Ringkasan dan Detail Breakdown
     for (const classDoc of classSnap.docs) {
       const classId = classDoc.id;
       const classData = classDoc.data();
       const className = classData.name || "-";
-      const teacherIds = classData.teacherIds || [];
-      
-      // Ambil data array siswa secara langsung dari map hasil query siswa
+      const classTeachers = classData.teachers || [];
       const classStudents = studentsByClassMap[classId] || [];
 
-      // Masukkan ke baris tabel ringkasan utama
       summaryRowsHtml += `
         <tr>
           <td><b>${className}</b></td>
-          <td><span class="badge blue">${teacherIds.length} Guru</span></td>
+          <td><span class="badge blue">${classTeachers.length} Guru</span></td>
           <td><span class="badge indigo">${classStudents.length} Siswa</span></td>
         </tr>
       `;
 
-      // --- BREAKDOWN DETAIL GURU ---
       let teacherRows = "";
-      if (teacherIds.length > 0) {
-        for (const tId of teacherIds) {
-          // Mengambil dari koleksi users karena drop-down mengambil dari users role guru
-          const tSnap = await getDoc(doc(db, "users", tId));
+      if (classTeachers.length > 0) {
+        for (const item of classTeachers) {
+          const tSnap = await getDoc(doc(db, "users", item.teacherId));
           if (tSnap.exists()) {
             const tData = tSnap.data();
-            const mapel = tData.subjects && tData.subjects.length > 0 ? tData.subjects.join(", ") : "-";
+            const mapel = item.subjects && item.subjects.length > 0 ? item.subjects.join(", ") : "-";
             const status = tData.status || "aktif";
             teacherRows += `
               <tr>
@@ -584,7 +597,6 @@ window.exportClassesPDF = async () => {
         teacherRows = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada guru pengampu.</td></tr>`;
       }
 
-      // --- BREAKDOWN DETAIL SISWA ---
       let studentRows = "";
       if (classStudents.length > 0) {
         classStudents.forEach(sData => {
@@ -601,18 +613,16 @@ window.exportClassesPDF = async () => {
         studentRows = `<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
       }
 
-      // Gabungkan struktur detail per ruang kelas
       detailSectionsHtml += `
         <div class="class-section">
           <div class="class-header">🏫 KELAS: ${className.toUpperCase()}</div>
-          
           <div class="sub-title-data">📋 Daftar Guru Pengampu</div>
           <table>
             <thead>
               <tr>
                 <th>Nama Guru</th>
                 <th>Email</th>
-                <th>Mata Pelajaran</th>
+                <th>Mata Pelajaran (Kelas Ini)</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -620,7 +630,6 @@ window.exportClassesPDF = async () => {
               ${teacherRows}
             </tbody>
           </table>
-
           <div class="sub-title-data" style="margin-top: 15px;">👶 Daftar Siswa</div>
           <table>
             <thead>
@@ -639,7 +648,6 @@ window.exportClassesPDF = async () => {
       `;
     }
 
-    // 4. INJEKSI TEMPLATE KE WINDOW PRINT BARU
     const win = window.open("", "_blank");
     win.document.write(`
     <html>
@@ -647,69 +655,36 @@ window.exportClassesPDF = async () => {
       <title>Laporan Laporan Lengkap - ${schoolName}</title>
       <style>
         * { box-sizing: border-box; }
-        body {
-          font-family: 'Inter', Arial, sans-serif;
-          background: linear-gradient(135deg, #eef2ff, #f8fafc);
-          padding: 40px; margin: 0; color: #0f172a;
-        }
+        body { font-family: 'Inter', Arial, sans-serif; background: linear-gradient(135deg, #eef2ff, #f8fafc); padding: 40px; margin: 0; color: #0f172a; }
         .container { max-width: 900px; margin: auto; }
-        .card {
-          background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
-          border-radius: 16px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-        }
-        .header {
-          display: flex; align-items: center; justify-content: space-between;
-          margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px;
-        }
+        .card { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); border-radius: 16px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; }
         .left { display: flex; align-items: center; gap: 12px; }
         .logo { width: 45px; height: 45px; border-radius: 10px; object-fit: cover; }
         .school-name { font-weight: 600; font-size: 16px; }
         .meta { font-size: 12px; color: #64748b; }
         .title { font-size: 24px; font-weight: 700; color: #1e3a8a; margin-bottom: 5px; }
         .subtitle { font-size: 13px; color: #64748b; margin-bottom: 25px; }
-        
-        .section-main-title {
-          font-size: 16px; font-weight: 700; color: #4f46e5;
-          margin: 30px 0 15px 0; border-left: 4px solid #6366f1; padding-left: 10px;
-        }
+        .section-main-title { font-size: 16px; font-weight: 700; color: #4f46e5; margin: 30px 0 15px 0; border-left: 4px solid #6366f1; padding-left: 10px; }
         .class-section { margin-bottom: 35px; page-break-inside: avoid; }
-        .class-header {
-          font-size: 14px; font-weight: 700; color: #ffffff;
-          background: #1e3a8a; padding: 8px 12px; border-radius: 6px; margin-bottom: 15px;
-        }
+        .class-header { font-size: 14px; font-weight: 700; color: #ffffff; background: #1e3a8a; padding: 8px 12px; border-radius: 6px; margin-bottom: 15px; }
         .sub-title-data { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; padding-left: 2px;}
-        
         table { width: 100%; border-collapse: separate; border-spacing: 0 6px; margin-bottom: 15px; }
-        th {
-          text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
-          padding: 10px; color: white; background: linear-gradient(135deg, #6366f1, #4f46e5);
-        }
+        th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px; color: white; background: linear-gradient(135deg, #6366f1, #4f46e5); }
         th:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
         th:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
         tr { background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
         td { padding: 10px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
-        
         .badge { padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; display: inline-block; }
         .blue { background: #e0f2fe; color: #0369a1; }
         .indigo { background: #e0e7ff; color: #4338ca; }
         .green { background: #dcfce7; color: #15803d; }
         .red { background: #fee2e2; color: #b91c1c; }
-        
         .class-divider { border: 0; height: 1px; background: #cbd5e1; margin: 30px 0; }
         .page-break { page-break-before: always; }
-        
-        .footer {
-          margin-top: 30px; display: flex; justify-content: space-between;
-          font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px;
-        }
+        .footer { margin-top: 30px; display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; }
         .chip { background: #e0e7ff; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 500; color: #3730a3; }
-        
-        @media print {
-          body { background: none; padding: 0; }
-          .card { box-shadow: none; padding: 0; }
-          .class-divider { page-break-after: always; visibility: hidden; height: 0; margin: 0; }
-          .page-break { page-break-before: always; }
-        }
+        @media print { body { background: none; padding: 0; } .card { box-shadow: none; padding: 0; } .class-divider { page-break-after: always; visibility: hidden; height: 0; margin: 0; } .page-break { page-break-before: always; } }
       </style>
     </head>
     <body>
@@ -725,10 +700,8 @@ window.exportClassesPDF = async () => {
             </div>
             <div class="chip">📅 ${date}</div>
           </div>
-
           <div class="title">Laporan Data Kelas & Anggota Akademik</div>
           <div class="subtitle">Menampilkan ringkasan seluruh kelas beserta breakdown informasi guru pengampu dan siswa.</div>
-
           <div class="section-main-title">I. RINGKASAN DATA KELAS</div>
           <table>
             <thead>
@@ -742,26 +715,20 @@ window.exportClassesPDF = async () => {
               ${summaryRowsHtml}
             </tbody>
           </table>
-
           <div class="page-break"></div>
-
           <div class="section-main-title">II. RINCIAN ANGGOTA PER KELAS</div>
           ${detailSectionsHtml}
-
           <div class="footer">
             <div>© ${schoolName}</div>
             <div>Generated automatically via LMS System</div>
           </div>
         </div>
       </div>
-      <script>
-        window.print();
-      </script>
+      <script>window.print();</script>
     </body>
     </html>
     `);
     win.document.close();
-
   } catch (err) {
     console.error("Gagal cetak laporan gabungan kelas:", err);
     alert("Terjadi kesalahan saat menarik data gabungan kelas.");
@@ -770,21 +737,14 @@ window.exportClassesPDF = async () => {
   }
 };
 
-// ==================================================================
 // FITUR TAMBAH/MASUKKAN SISWA KE KELAS
-// ==================================================================
-
-// 1. Pemicu Buka Modal Tambah Siswa (Bisa dipasang di dalam Modal Daftar Siswa)
 window.openAddStudentModal = async () => {
   if (!activeClassIdInModal) return;
   const addStudentList = document.getElementById("addStudentList");
   addStudentList.innerHTML = "<li>⏳ Memuat siswa yang belum punya kelas...</li>";
-  
-  // Tampilkan modal tambah siswa
   document.getElementById("addStudentModal").classList.add("active");
 
   try {
-    // Ambil siswa yang belum memiliki kelas (classId kosong atau tidak ada)
     const q = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
     const snap = await getDocs(q);
     addStudentList.innerHTML = "";
@@ -792,13 +752,12 @@ window.openAddStudentModal = async () => {
     let count = 0;
     snap.forEach(sDoc => {
       const sData = sDoc.data();
-      // Filter di sisi klien: hanya tampilkan yang belum masuk kelas mana pun
       if (!sData.classId) {
         count++;
         const li = document.createElement("li");
         li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
         li.innerHTML = `
-          <input type="checkbox" class="add-student-cb" value="${sDoc.id}" style="cursor:pointer;">
+          <input type="checkbox" class="add-student-cb main-item-cb" value="${sDoc.id}" style="cursor:pointer;">
           <span>👶 <b>${sData.name || "Tanpa Nama"}</b> (${sData.email || "-"})</span>
         `;
         addStudentList.appendChild(li);
@@ -814,7 +773,6 @@ window.openAddStudentModal = async () => {
   }
 };
 
-// 2. Aksi simpan siswa terpilih masuk ke kelas aktif
 window.addSelectedStudents = async () => {
   if (!activeClassIdInModal) return;
   const checkedBoxes = document.querySelectorAll(".add-student-cb:checked");
@@ -825,12 +783,10 @@ window.addSelectedStudents = async () => {
 
   try {
     for (const cb of checkedBoxes) {
-      // Update dokumen siswa agar mencatat classId kelas ini
       await updateDoc(doc(db, "students", cb.value), { classId: activeClassIdInModal });
     }
-    
     document.getElementById("addStudentModal").classList.remove("active");
-    document.getElementById("studentModal").classList.remove("active"); // Tutup modal utama untuk refresh
+    document.getElementById("studentModal").classList.remove("active");
     await loadClasses();
     showToast(`${checkedBoxes.length} Siswa berhasil dimasukkan ke kelas.`);
   } catch (err) {
@@ -839,13 +795,11 @@ window.addSelectedStudents = async () => {
   }
 };
 
-// Toggle pilih semua pada modal tambah siswa
 window.toggleAllAddStudents = (masterCheckbox) => {
   const checkboxes = document.querySelectorAll(".add-student-cb");
   checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
 };
 
-// Live Filter pencarian siswa di modal tambah
 window.filterAddStudents = () => {
   const keyword = document.getElementById("addStudentSearch").value.toLowerCase();
   document.querySelectorAll("#addStudentList li").forEach(li => {
@@ -853,12 +807,7 @@ window.filterAddStudents = () => {
   });
 };
 
-
-// ==================================================================
-// FITUR MEMINDAHKAN KELAS SISWA (DARI DAFTAR SISWA AKTIF)
-// ==================================================================
-
-// Fungsi memindahkan siswa terpilih ke kelas lain
+// FITUR MEMINDAHKAN KELAS SISWA
 window.moveSelectedStudents = async () => {
   if (!activeClassIdInModal) return;
   const checkedBoxes = document.querySelectorAll(".student-item-cb:checked");
@@ -867,12 +816,11 @@ window.moveSelectedStudents = async () => {
     return;
   }
 
-  // 1. Ambil daftar semua kelas untuk opsi tujuan pemindahan
   try {
     const classSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
     let classOptions = "";
     classSnap.forEach(cDoc => {
-      if (cDoc.id !== activeClassIdInModal) { // Jangan tampilkan kelas asal
+      if (cDoc.id !== activeClassIdInModal) {
         classOptions += `\n- ID: ${cDoc.id} | Nama: ${cDoc.data().name}`;
       }
     });
@@ -882,19 +830,15 @@ window.moveSelectedStudents = async () => {
       return;
     }
 
-    // 2. Meminta input target nama kelas / ID (Ganti dengan UI Dropdown jika ingin lebih rapi)
     const targetClassId = prompt(`Masukkan ID Kelas tujuan untuk memindahkan ${checkedBoxes.length} siswa terpilih:${classOptions}\n\n(Salin ID Kelas di atas dan tempel di bawah ini)`);
-    
     if (!targetClassId) return;
 
-    // Validasi apakah target kelas ada
     const targetSnap = await getDoc(doc(db, "classes", targetClassId));
     if (!targetSnap.exists()) {
       alert("ID Kelas tujuan tidak valid!");
       return;
     }
 
-    // 3. Eksekusi pemindahan
     for (const cb of checkedBoxes) {
       await updateDoc(doc(db, "students", cb.value), { classId: targetClassId });
     }
@@ -902,35 +846,27 @@ window.moveSelectedStudents = async () => {
     document.getElementById("studentModal").classList.remove("active");
     await loadClasses();
     showToast(`${checkedBoxes.length} Siswa berhasil dipindahkan ke kelas ${targetSnap.data().name}.`);
-
   } catch (err) {
     console.error("Gagal memindahkan siswa:", err);
     alert("Terjadi kesalahan sistem saat memindahkan siswa.");
   }
 };
 
-// ==================================================================
-// FITUR TAMBAH/MASUKKAN GURU KE KELAS VIA MODAL
-// ==================================================================
-
-// 1. Pemicu Buka Modal Tambah Guru (Menampilkan guru di sekolah yang BELUM mengajar kelas ini)
+// FITUR TAMBAH GURU MASAL BESERTA CHECKBOX MATA PELAJARAN KHUSUS KELAS INI
 window.openAddTeacherModal = async () => {
   if (!activeClassIdInModal) return;
   const addTeacherList = document.getElementById("addTeacherList");
   addTeacherList.innerHTML = "<li>⏳ Memuat daftar guru sekolah...</li>";
-  
-  // Tampilkan modal tambah guru
   document.getElementById("addTeacherModal").classList.add("active");
 
   try {
-    // 1. Ambil data kelas saat ini untuk tahu siapa saja guru yang SUDAH ada di dalam kelas
     const classSnap = await getDoc(doc(db, "classes", activeClassIdInModal));
     let existingTeacherIds = [];
     if (classSnap.exists()) {
-      existingTeacherIds = classSnap.data().teacherIds || [];
+      const classTeachers = classSnap.data().teachers || [];
+      existingTeacherIds = classTeachers.map(t => t.teacherId);
     }
 
-    // 2. Ambil seluruh user dengan role "guru" di sekolah tersebut
     const teacherQuery = query(
       collection(db, "users"),
       where("role", "==", "guru"),
@@ -941,15 +877,36 @@ window.openAddTeacherModal = async () => {
 
     let count = 0;
     snap.forEach(tDoc => {
-      // Filter: Hanya tampilkan guru yang BELUM terdaftar di kelas aktif ini
       if (!existingTeacherIds.includes(tDoc.id)) {
         count++;
         const tData = tDoc.data();
+        const masterSubjects = tData.subjects || []; // Array kompetensi dasar guru dari profilnya
+
         const li = document.createElement("li");
-        li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+        li.style.cssText = "padding: 12px; border-bottom: 1px solid #e2e8f0; display: block; margin-bottom:5px;";
+        
+        let subjectCheckboxesHtml = "";
+        if (masterSubjects.length > 0) {
+          masterSubjects.forEach(sub => {
+            subjectCheckboxesHtml += `
+              <label style="margin-right: 12px; font-size:12px; display:inline-flex; align-items:center; gap:3px; cursor:pointer; background:#f1f5f9; padding:2px 6px; border-radius:4px;">
+                <input type="checkbox" class="sub-checkbox-${tDoc.id}" value="${sub}"> ${sub}
+              </label>
+            `;
+          });
+        } else {
+          subjectCheckboxesHtml = `<span style="font-size:11px; color:#94a3b8;">Guru belum mengisi keahlian mapel di profilnya.</span>`;
+        }
+
         li.innerHTML = `
-          <input type="checkbox" class="add-teacher-cb" value="${tDoc.id}" style="cursor:pointer;">
-          <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+            <input type="checkbox" class="add-teacher-cb main-item-cb" value="${tDoc.id}" style="cursor:pointer;">
+            <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
+          </div>
+          <div style="padding-left:22px;">
+            <div style="font-size:11px; color:#64748b; margin-bottom:3px;">Mapel di Kelas Ini:</div>
+            ${subjectCheckboxesHtml}
+          </div>
         `;
         addTeacherList.appendChild(li);
       }
@@ -964,7 +921,6 @@ window.openAddTeacherModal = async () => {
   }
 };
 
-// 2. Aksi menyimpan guru-guru terpilih ke dalam array Firestore kelas
 window.addSelectedTeachers = async () => {
   if (!activeClassIdInModal) return;
   const checkedBoxes = document.querySelectorAll(".add-teacher-cb:checked");
@@ -978,21 +934,34 @@ window.addSelectedTeachers = async () => {
     const classSnap = await getDoc(classRef);
     
     if (classSnap.exists()) {
-      let currentTeachers = classSnap.data().teacherIds || [];
-      const newTeacherIds = Array.from(checkedBoxes).map(cb => cb.value);
+      let currentClassTeachers = classSnap.data().teachers || [];
       
-      // Gabungkan guru lama dan guru baru yang dicentang (pastikan tidak duplikat)
-      const updatedTeachers = [...new Set([...currentTeachers, ...newTeacherIds])];
+      const newTeachersObjects = Array.from(checkedBoxes).map(cb => {
+        const tId = cb.value;
+        // Ambil mapel apa saja yang dicentang khusus untuk guru ini
+        const selectedSubBoxes = document.querySelectorAll(`.sub-checkbox-${tId}:checked`);
+        const checkedSubjects = Array.from(selectedSubBoxes).map(box => box.value);
+        return {
+          teacherId: tId,
+          subjects: checkedSubjects // Hanya mengunci mapel pilihan di tingkat kelas
+        };
+      });
+
+      // Gabungkan data lama dan baru (pastikan ID guru unik)
+      const mergedMap = {};
+      currentClassTeachers.forEach(t => { mergedMap[t.teacherId] = t.subjects; });
+      newTeachersObjects.forEach(t => { mergedMap[t.teacherId] = t.subjects; });
+
+      const finalTeachersPayload = Object.keys(mergedMap).map(id => {
+        return { teacherId: id, subjects: mergedMap[id] };
+      });
+
+      await updateDoc(classRef, { teachers: finalTeachersPayload });
       
-      // Update data array teacherIds di Firestore
-      await updateDoc(classRef, { teacherIds: updatedTeachers });
-      
-      // Tutup modal tambah dan modal detail utama untuk me-refresh data tampilan
       document.getElementById("addTeacherModal").classList.remove("active");
       document.getElementById("teacherModal").classList.remove("active");
-      
       await loadClasses();
-      showToast(`${checkedBoxes.length} Guru berhasil ditambahkan ke kelas.`);
+      showToast(`${checkedBoxes.length} Guru berhasil ditambahkan dengan mata pelajaran spesifik.`);
     }
   } catch (err) {
     console.error("Gagal menambahkan guru terpilih:", err);
@@ -1000,16 +969,14 @@ window.addSelectedTeachers = async () => {
   }
 };
 
-// Toggle pilih semua pada modal tambah guru
 window.toggleAllAddTeachers = (masterCheckbox) => {
   const checkboxes = document.querySelectorAll(".add-teacher-cb");
   checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
 };
 
-// Live Filter pencarian nama guru di modal tambah
 window.filterAddTeachers = () => {
   const keyword = document.getElementById("addTeacherSearch").value.toLowerCase();
-  document.querySelectorAll("#addTeacherList li").forEach(li => {
+  document.querySelectorAll("#addTeacherList > li").forEach(li => {
     li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
   });
 };
