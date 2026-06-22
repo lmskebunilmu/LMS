@@ -42,16 +42,29 @@
 </div>
 
 <div id="classModal" class="modal">
-  <div class="modal-content">
+  <div class="modal-content" style="max-width: 500px;">
     <h3 id="classModalTitle">Tambah Kelas</h3>
     <input type="hidden" id="classId">
-    <input type="text" id="className" placeholder="Nama Kelas"/>
+    
+    <label style="display:block; margin-bottom:5px; font-weight:bold;">Nama Kelas</label>
+    <input type="text" id="className" placeholder="Nama Kelas" style="width:100%; margin-bottom:15px;"/>
 
+    <label style="display:block; margin-bottom:5px; font-weight:bold;">Wali Kelas</label>
+    <select id="homeroomTeacherSelect" style="width:100%; margin-bottom:15px; padding:8px; border-radius:4px;">
+      <option value="">Pilih Wali Kelas (Opsional)</option>
+    </select>
+
+    <label style="display:block; margin-bottom:5px; font-weight:bold;">Guru Pengampu</label>
     <select id="teacherSelect" multiple>
       <option value="">Pilih Guru</option>
     </select>
 
-    <div class="modal-actions">
+    <div id="teacherSubjectsContainer" style="margin-top: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; display:none;">
+      <h4 style="margin: 0 0 10px 0; font-size:14px; color:#475569;">Atur Mapel per Guru di Kelas Ini:</h4>
+      <div id="teacherSubjectsList"></div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:20px;">
       <button class="primary" onclick="saveClass()">Simpan</button>
       <button class="danger" onclick="closeClassModal()">Batal</button>
     </div>
