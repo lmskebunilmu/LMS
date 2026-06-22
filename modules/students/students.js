@@ -19,6 +19,7 @@ let currentSchoolId = null;
 let currentSchoolRef = null;
 let currentSchoolName = "-";
 let currentSchoolLogo = "../../assets/images/default-logo.png";
+let classMapGlobal = {}; // Untuk menampung pasangan ID_Kelas: Nama_Kelas
 
 // ==========================
 // AUTH CHECK
@@ -88,6 +89,7 @@ async function loadClasses() {
 
   select.innerHTML = `<option value="">Pilih Kelas</option>`;
   filterClass.innerHTML = `<option value="">Semua Kelas</option>`;
+  classMapGlobal = {}; // Reset data map
 
   let classesQuery = collection(db, "classes");
   if (currentSchoolId) {
@@ -97,12 +99,15 @@ async function loadClasses() {
   const snap = await getDocs(classesQuery);
   snap.forEach(docSnap => {
     const data = docSnap.data();
+    
+    // SIMPAN KE MAP GLOBAL
+    classMapGlobal[docSnap.id] = data.name;
+
     const option = document.createElement("option");
     option.value = docSnap.id;
     option.textContent = data.name;
     select.appendChild(option);
 
-    // juga untuk filter
     const filterOption = document.createElement("option");
     filterOption.value = docSnap.id;
     filterOption.textContent = data.name;
@@ -143,7 +148,7 @@ tr.innerHTML = `
   <td><input type="checkbox" class="studentCheckbox" value="${docSnap.id}"></td>
   <td>${data.name}</td>
   <td>${data.email}</td>
-  <td>${data.className || "-"}</td>
+  <td>${classMapGlobal[data.classId] || "-"}</td>
   <td><button class="btn-status ${statusClass}">${statusText}</button></td>
   <td>
     <button class="btn-warning" onclick="editStudent('${docSnap.id}','${data.name.replace(/'/g,"\\'")}','${data.classId}')">Edit</button>
