@@ -769,3 +769,142 @@ window.exportClassesPDF = async () => {
     if (btnEl) btnEl.innerText = originalBtnText;
   }
 };
+
+// ==================================================================
+// FITUR TAMBAH/MASUKKAN SISWA KE KELAS
+// ==================================================================
+
+// 1. Pemicu Buka Modal Tambah Siswa (Bisa dipasang di dalam Modal Daftar Siswa)
+window.openAddStudentModal = async () => {
+  if (!activeClassIdInModal) return;
+  const addStudentList = document.getElementById("addStudentList");
+  addStudentList.innerHTML = "<li>⏳ Memuat siswa yang belum punya kelas...</li>";
+  
+  // Tampilkan modal tambah siswa
+  document.getElementById("addStudentModal").classList.add("active");
+
+  try {
+    // Ambil siswa yang belum memiliki kelas (classId kosong atau tidak ada)
+    const q = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
+    const snap = await getDocs(q);
+    addStudentList.innerHTML = "";
+
+    let count = 0;
+    snap.forEach(sDoc => {
+      const sData = sDoc.data();
+      // Filter di sisi klien: hanya tampilkan yang belum masuk kelas mana pun
+      if (!sData.classId) {
+        count++;
+        const li = document.createElement("li");
+        li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+        li.innerHTML = `
+          <input type="checkbox" class="add-student-cb" value="${sDoc.id}" style="cursor:pointer;">
+          <span>👶 <b>${sData.name || "Tanpa Nama"}</b> (${sData.email || "-"})</span>
+        `;
+        addStudentList.appendChild(li);
+      }
+    });
+
+    if (count === 0) {
+      addStudentList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Semua siswa sekolah ini sudah memiliki kelas.</li>";
+    }
+  } catch (err) {
+    console.error(err);
+    addStudentList.innerHTML = "<li style='color:red;'>❌ Gagal memuat data siswa.</li>";
+  }
+};
+
+// 2. Aksi simpan siswa terpilih masuk ke kelas aktif
+window.addSelectedStudents = async () => {
+  if (!activeClassIdInModal) return;
+  const checkedBoxes = document.querySelectorAll(".add-student-cb:checked");
+  if (checkedBoxes.length === 0) {
+    alert("Silahkan pilih siswa yang ingin dimasukkan terlebih dahulu!");
+    return;
+  }
+
+  try {
+    for (const cb of checkedBoxes) {
+      // Update dokumen siswa agar mencatat classId kelas ini
+      await updateDoc(doc(db, "students", cb.value), { classId: activeClassIdInModal });
+    }
+    
+    document.getElementById("addStudentModal").classList.remove("active");
+    document.getElementById("studentModal").classList.remove("active"); // Tutup modal utama untuk refresh
+    await loadClasses();
+    showToast(`${checkedBoxes.length} Siswa berhasil dimasukkan ke kelas.`);
+  } catch (err) {
+    console.error(err);
+    alert("Gagal menambahkan siswa terpilih.");
+  }
+};
+
+// Toggle pilih semua pada modal tambah siswa
+window.toggleAllAddStudents = (masterCheckbox) => {
+  const checkboxes = document.querySelectorAll(".add-student-cb");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+};
+
+// Live Filter pencarian siswa di modal tambah
+window.filterAddStudents = () => {
+  const keyword = document.getElementById("addStudentSearch").value.toLowerCase();
+  document.querySelectorAll("#addStudentList li").forEach(li => {
+    li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
+  });
+};
+
+
+// ==================================================================
+// FITUR MEMINDAHKAN KELAS SISWA (DARI DAFTAR SISWA AKTIF)
+// ==================================================================
+
+// Fungsi memindahkan siswa terpilih ke kelas lain
+window.moveSelectedStudents = async () => {
+  if (!activeClassIdInModal) return;
+  const checkedBoxes = document.querySelectorAll(".student-item-cb:checked");
+  if (checkedBoxes.length === 0) {
+    alert("Silahkan pilih siswa yang ingin dipindahkan terlebih dahulu!");
+    return;
+  }
+
+  // 1. Ambil daftar semua kelas untuk opsi tujuan pemindahan
+  try {
+    const classSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
+    let classOptions = "";
+    classSnap.forEach(cDoc => {
+      if (cDoc.id !== activeClassIdInModal) { // Jangan tampilkan kelas asal
+        classOptions += `\n- ID: ${cDoc.id} | Nama: ${cDoc.data().name}`;
+      }
+    });
+
+    if (!classOptions) {
+      alert("Tidak ada kelas lain yang tersedia untuk tujuan pemindahan.");
+      return;
+    }
+
+    // 2. Meminta input target nama kelas / ID (Ganti dengan UI Dropdown jika ingin lebih rapi)
+    const targetClassId = prompt(`Masukkan ID Kelas tujuan untuk memindahkan ${checkedBoxes.length} siswa terpilih:${classOptions}\n\n(Salin ID Kelas di atas dan tempel di bawah ini)`);
+    
+    if (!targetClassId) return;
+
+    // Validasi apakah target kelas ada
+    const targetSnap = await getDoc(doc(db, "classes", targetClassId));
+    if (!targetSnap.exists()) {
+      alert("ID Kelas tujuan tidak valid!");
+      return;
+    }
+
+    // 3. Eksekusi pemindahan
+    for (const cb of checkedBoxes) {
+      await updateDoc(doc(db, "students", cb.value), { classId: targetClassId });
+    }
+
+    document.getElementById("studentModal").classList.remove("active");
+    await loadClasses();
+    showToast(`${checkedBoxes.length} Siswa berhasil dipindahkan ke kelas ${targetSnap.data().name}.`);
+
+  } catch (err) {
+    console.error("Gagal memindahkan siswa:", err);
+    alert("Terjadi kesalahan sistem saat memindahkan siswa.");
+  }
+};
