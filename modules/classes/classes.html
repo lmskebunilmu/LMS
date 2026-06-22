@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>Data Kelas</title>
+
   <link rel="stylesheet" href="../../assets/css/style.css">
   <link rel="stylesheet" href="../../assets/css/responsive.css">
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
 </head>
+
 <body>
 
 <div class="wrapper">
@@ -43,21 +45,11 @@
   <div class="modal-content">
     <h3 id="classModalTitle">Tambah Kelas</h3>
     <input type="hidden" id="classId">
-    <input type="text" id="className" placeholder="Nama Kelas" style="margin-bottom: 15px; width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #cbd5e1;"/>
+    <input type="text" id="className" placeholder="Nama Kelas"/>
 
-    <div style="margin-bottom: 15px; text-align: left;">
-      <label style="font-size: 13px; font-weight: bold; color: #475569;">Wali Kelas:</label>
-      <select id="homeroomSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #cbd5e1; margin-top: 5px;">
-        <option value="">Pilih Wali Kelas (Opsional)</option>
-      </select>
-    </div>
-
-    <div style="margin-bottom: 15px; text-align: left;">
-      <label style="font-size: 13px; font-weight: bold; color: #475569;">Guru Pengampu:</label>
-      <select id="teacherSelect" multiple style="margin-top: 5px;">
-        <option value="">Pilih Guru</option>
-      </select>
-    </div>
+    <select id="teacherSelect" multiple>
+      <option value="">Pilih Guru</option>
+    </select>
 
     <div class="modal-actions">
       <button class="primary" onclick="saveClass()">Simpan</button>
@@ -66,18 +58,19 @@
   </div>
 </div>
 
+<!-- MODAL: LIHAT DAFTAR SISWA -->
 <div id="studentModal" class="modal">
   <div class="modal-content">
     <h3 id="studentModalTitle">Daftar Siswa</h3>
     <div class="bulk-actions" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-      <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
-        <input type="checkbox" id="selectAllStudents" onclick="toggleSelectAll('studentList', this)"> <b>Pilih Semua</b>
-      </label>
-      <button class="btn-info" onclick="openAddStudentModal()" style="background-color: #10b981; color: white;">➕ Masukkan Siswa Baru</button>
-      <button class="btn-warning" onclick="moveSelectedStudents()" style="background-color: #6366f1; color: white;">🔄 Pindahkan Kelas</button>
-      <button class="btn-warning" onclick="removeSelectedStudents()">Keluarkan Terpilih</button>
-      <button class="btn-delete" onclick="removeAllStudents()">Keluarkan Semua</button>
-    </div>
+  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
+    <input type="checkbox" id="selectAllStudents" onclick="toggleSelectAll('studentList', this)"> <b>Pilih Semua</b>
+  </label>
+  <button class="btn-info" onclick="openAddStudentModal()" style="background-color: #10b981; color: white;">➕ Masukkan Siswa Baru</button>
+  <button class="btn-warning" onclick="moveSelectedStudents()" style="background-color: #6366f1; color: white;">🔄 Pindahkan Kelas</button>
+  <button class="btn-warning" onclick="removeSelectedStudents()">Keluarkan Terpilih</button>
+  <button class="btn-delete" onclick="removeAllStudents()">Keluarkan Semua</button>
+</div>
     <input type="text" id="studentSearch" placeholder="🔍 Cari siswa..." onkeyup="filterStudents()">
     
     <ul id="studentList" style="list-style: none; padding: 0; margin: 15px 0; max-height: 250px; overflow-y: auto;">
@@ -90,6 +83,7 @@
   </div>
 </div>
 
+<!-- MODAL: LIHAT DAFTAR GURU -->
 <div id="teacherModal" class="modal">
   <div class="modal-content">
     <h3 id="teacherModalTitle">Daftar Guru</h3>
@@ -98,6 +92,7 @@
         <input type="checkbox" id="selectAllTeachers" onclick="toggleSelectAll('teacherList', this)"> <b>Pilih Semua</b>
       </label>
       <button class="btn-info" onclick="openAddTeacherModal()" style="background-color: #10b981; color: white; border:none; padding: 6px 12px; border-radius:4px; cursor:pointer;">➕ Masukkan Guru Baru</button>
+      
       <button class="btn-warning" onclick="removeSelectedTeachers()">Keluarkan Terpilih</button>
       <button class="btn-delete" onclick="removeAllTeachers()">Keluarkan Semua</button>
     </div>
@@ -135,7 +130,7 @@
       <button class="primary" onclick="addSelectedStudents()">➕ Tambah Terpilih</button>
     </div>
     <input type="text" id="addStudentSearch" placeholder="🔍 Cari siswa..." onkeyup="filterAddStudents()">
-    <ul id="addStudentList" style="list-style: none; padding: 0; margin: 15px 0; max-height: 250px; overflow-y: auto;"></ul>
+    <ul id="addStudentList"></ul>
     <div class="modal-actions">
       <button class="danger" onclick="document.getElementById('addStudentModal').classList.remove('active')">Tutup</button>
     </div>
@@ -143,17 +138,17 @@
 </div>
 
 <div id="addTeacherModal" class="modal">
-  <div class="modal-content" style="max-width: 550px;">
-    <h3>Pilih Guru & Mata Pelajaran Kelas</h3>
-    <p style="font-size: 12px; color: #64748b; margin-bottom: 10px;">Pilih guru dan tentukan mata pelajaran apa saja yang diajarkan khusus di kelas ini.</p>
-    <input type="text" id="addTeacherSearch" placeholder="🔍 Cari guru..." onkeyup="filterAddTeachers()" style="margin-bottom: 10px; width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:4px;">
-    
-    <div id="addTeacherContainer" style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; text-align: left;">
-      <ul id="addTeacherList" style="list-style: none; padding: 0; margin: 0;"></ul>
-    </div>
-
-    <div class="modal-actions" style="margin-top: 15px;">
+  <div class="modal-content">
+    <h3>Pilih Guru</h3>
+    <div class="bulk-actions">
+      <label>
+        <input type="checkbox" onclick="toggleAllAddTeachers(this)"> Pilih Semua
+      </label>
       <button class="primary" onclick="addSelectedTeachers()">➕ Tambah Terpilih</button>
+    </div>
+    <input type="text" id="addTeacherSearch" placeholder="🔍 Cari guru..." onkeyup="filterAddTeachers()">
+    <ul id="addTeacherList"></ul>
+    <div class="modal-actions">
       <button class="danger" onclick="closeAddTeacherModal()">Tutup</button>
     </div>
   </div>
