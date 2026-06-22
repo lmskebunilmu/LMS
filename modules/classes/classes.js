@@ -595,10 +595,10 @@ window.saveClass = async () => {
 };
 
 window.exportClassesExcel = async () => {
-  // 1. Ambil tombol export untuk memberikan feedback loading ke user
+  // 1. Feedback loading ke tombol
   const btnEl = document.querySelector("button[onclick='exportClassesExcel()']");
   const originalBtnText = btnEl ? btnEl.innerText : "💾 Export Excel";
-  if (btnEl) btnEl.innerText = "⏳ Memproses Excel...";
+  if (btnEl) btnEl.innerText = "⏳ Memproses Multi-Sheet...";
 
   try {
     // 2. Ambil data kelas dari Firestore
@@ -614,90 +614,112 @@ window.exportClassesExcel = async () => {
       return;
     }
 
-    // 3. Ambil data jumlah siswa per kelas (Sinkronisasi Real-time)
+    // 3. Ambil data seluruh siswa (Real-time Sync)
     const studentsQuery = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
     const studentsSnap = await getDocs(studentsQuery);
-    const studentCountMap = {};
+    
+    // Kelompokkan data siswa berdasarkan classId untuk mempermudah perhitungan ringkasan
+    const studentsByClassMap = {};
     studentsSnap.forEach(sDoc => {
       const sData = sDoc.data();
       if (sData.classId) {
-        studentCountMap[sData.classId] = (studentCountMap[sData.classId] || 0) + 1;
+        if (!studentsByClassMap[sData.classId]) {
+          studentsByClassMap[sData.classId] = [];
+        }
+        studentsByClassMap[sData.classId].push(sData);
       }
     });
 
-    // 4. Buat elemen tabel virtual (hanya ada di memori kode, tidak muncul di layar HTML)
-    const virtualTable = document.createElement("table");
-    
-    // Susun Header Excel
-    virtualTable.innerHTML = `
-      <thead>
-        <tr>
-          <th>Nama Kelas</th>
-          <th>Wali Kelas</th>
-          <th>Guru Pengampu (Mapel Spesifik)</th>
-          <th>Jumlah Siswa</th>
-        </tr>
-      </thead>
-      <tbody id="virtualTableBody"></tbody>
-    `;
-    
-    const vBody = virtualTable.querySelector("#virtualTableBody");
+    // 4. Siapkan Array Data untuk masing-masing Sheet
+    const summaryData = [];
+    const teachersData = [];
+    const studentsData = [];
 
-    // 5. Looping data untuk mengisi baris tabel virtual
+    // 5. Looping data utama dari Firestore
     for (const classDoc of classSnap.docs) {
       const classId = classDoc.id;
       const classData = classDoc.data();
       const className = classData.name || "-";
-      const totalStudents = studentCountMap[classId] || 0;
+      
+      const classTeachersMapping = classData.teachers || {};
+      const classTeacherIds = Object.keys(classTeachersMapping);
+      const classStudents = studentsByClassMap[classId] || [];
 
-      // Ambil nama Wali Kelas
-      let homeroomName = "-";
+      // Ambil nama wali kelas jika ada
+      let homeroomTeacherName = "- Belum ditentukan";
       if (classData.homeroomTeacherId) {
         const hrSnap = await getDoc(doc(db, "teachers", classData.homeroomTeacherId));
         if (hrSnap.exists()) {
-          homeroomName = hrSnap.data().name || "-";
+          homeroomTeacherName = hrSnap.data().name || "-";
         }
       }
 
-      // Ambil daftar guru beserta mapel spesifiknya di kelas ini
-      const teachersMapping = classData.teachers || {};
-      const teacherIds = Object.keys(teachersMapping);
-      let teachersTextArr = [];
+      // --- SHEET 1: Isi Data Ringkasan Kelas ---
+      summaryData.push({
+        "Nama Kelas": className,
+        "Wali Kelas": homeroomTeacherName,
+        "Total Guru Pengampu": `${classTeacherIds.length} Guru`,
+        "Total Siswa Terdaftar": `${classStudents.length} Siswa`
+      });
 
-      for (const tId of teacherIds) {
-        const tSnap = await getDoc(doc(db, "teachers", tId));
-        if (tSnap.exists()) {
-          const tName = tSnap.data().name || "Tanpa Nama";
-          const mapelArr = teachersMapping[tId] || [];
-          const mapelText = mapelArr.length > 0 ? `(${mapelArr.join(", ")})` : "(Belum pilih mapel)";
-          teachersTextArr.push(`${tName} ${mapelText}`);
+      // --- SHEET 2: Isi Data Detail Guru ---
+      if (classTeacherIds.length > 0) {
+        for (const tId of classTeacherIds) {
+          const tSnap = await getDoc(doc(db, "teachers", tId));
+          if (tSnap.exists()) {
+            const tData = tSnap.data();
+            const mapelSpesifik = classTeachersMapping[tId] && classTeachersMapping[tId].length > 0 
+              ? classTeachersMapping[tId].join(", ") 
+              : "Tidak ada mapel terpilih";
+
+            teachersData.push({
+              "Kelas": className,
+              "Wali Kelas": homeroomTeacherName,
+              "Nama Guru": tData.name || "-",
+              "Email": tData.email || "-",
+              "Mata Pelajaran (Di Kelas Ini)": mapelSpesifik,
+              "Status": tData.status || "aktif"
+            });
+          }
         }
       }
-      
-      // Gabungkan nama guru dipisahkan oleh koma atau baris baru jika dalam satu sel Excel
-      const teachersColumnText = teachersTextArr.length > 0 ? teachersTextArr.join("; ") : "-";
 
-      // Masukkan baris data ke tabel virtual
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${className}</td>
-        <td>${homeroomName}</td>
-        <td>${teachersColumnText}</td>
-        <td>${totalStudents} Siswa</td>
-      `;
-      vBody.appendChild(tr);
+      // --- SHEET 3: Isi Data Detail Siswa ---
+      if (classStudents.length > 0) {
+        classStudents.forEach(sData => {
+          studentsData.push({
+            "Kelas": className,
+            "Wali Kelas": homeroomTeacherName,
+            "Nama Siswa": sData.name || "-",
+            "Email": sData.email || "-",
+            "Status": sData.status || "aktif"
+          });
+        });
+      }
     }
 
-    // 6. Jalankan proses convert SheetJS (XLSX) dari tabel virtual yang sudah kita bangun
-    const wb = XLSX.utils.table_to_book(virtualTable, { sheet: "Data Kelas" });
-    const fileName = `Data_Kelas_${(currentSchoolName || "Sekolah").replace(/\s+/g, '_')}.xlsx`;
+    // 6. Membuat Workbook Baru Menggunakan SheetJS (XLSX)
+    const wb = XLSX.utils.book_new();
+
+    // Convert array JSON di atas menjadi masing-masing Worksheet
+    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    const wsTeachers = XLSX.utils.json_to_sheet(teachersData);
+    const wsStudents = XLSX.utils.json_to_sheet(studentsData);
+
+    //Masukkan worksheet ke dalam workbook dengan memberikan nama sheet masing-masing
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan Kelas");
+    XLSX.utils.book_append_sheet(wb, wsTeachers, "Detail Guru Pengampu");
+    XLSX.utils.book_append_sheet(wb, wsStudents, "Detail Siswa");
+
+    // 7. Unduh File Excel (.xlsx)
+    const fileName = `Laporan_MultiSheet_Kelas_${(currentSchoolName || "Sekolah").replace(/\s+/g, '_')}.xlsx`;
     XLSX.writeFile(wb, fileName);
 
   } catch (err) {
-    console.error("Gagal mengekspor data ke Excel:", err);
+    console.error("Gagal mengekspor data ke Excel Multi-Sheet:", err);
     alert("Gagal mengekspor data ke Excel.");
   } finally {
-    // Kembalikan text tombol ke semula
+    // Kembalikan teks tombol ke kondisi awal
     if (btnEl) btnEl.innerText = originalBtnText;
   }
 };
