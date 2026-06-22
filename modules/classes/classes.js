@@ -154,12 +154,15 @@ function initClassSearch() {
 }
 
 let teacherSelectInstance = null;
+let allTeachersData = {}; // Menyimpan data master guru & mapelnya dari sekolah
 
 async function loadTeachersToSelect() {
   const selectEl = document.getElementById("teacherSelect");
-  if (!selectEl) return;
+  const homeroomSelectEl = document.getElementById("homeroomTeacherSelect");
+  if (!selectEl || !homeroomSelectEl) return;
 
   selectEl.innerHTML = '<option value="">Pilih Guru</option>';
+  homeroomSelectEl.innerHTML = '<option value="">Pilih Wali Kelas (Opsional)</option>';
 
   try {
     const teacherQuery = query(
@@ -169,11 +172,22 @@ async function loadTeachersToSelect() {
     );
 
     const snap = await getDocs(teacherQuery);
+    allTeachersData = {}; // reset
     
     snap.forEach(docSnap => {
       const teacherData = docSnap.data();
+      const teacherId = docSnap.id;
+      allTeachersData[teacherId] = teacherData;
+
+      // Isi Opsi Wali Kelas
+      const optHome = document.createElement("option");
+      optHome.value = teacherId;
+      optHome.textContent = teacherData.name || "Tanpa Nama";
+      homeroomSelectEl.appendChild(optHome);
+
+      // Isi Opsi Guru Pengampu
       const option = document.createElement("option");
-      option.value = docSnap.id; 
+      option.value = teacherId; 
       option.textContent = teacherData.name || "Tanpa Nama";
       selectEl.appendChild(option);
     });
@@ -182,15 +196,63 @@ async function loadTeachersToSelect() {
       teacherSelectInstance = new TomSelect("#teacherSelect", {
         plugins: ['remove_button'],
         placeholder: 'Pilih Guru Pengampu...',
-        create: false
+        create: false,
+        onChange: function(values) {
+          renderTeacherSubjectsMapping(values);
+        }
       });
     } else if (teacherSelectInstance) {
       teacherSelectInstance.sync();
     }
 
   } catch (err) {
-    console.error("Gagal memuat daftar guru untuk opsi kelas:", err);
+    console.error("Gagal memuat daftar guru:", err);
   }
+}
+
+// Fungsi Baru: Menampilkan checklist mapel berdasarkan guru yang dipilih di TomSelect
+function renderTeacherSubjectsMapping(selectedTeacherIds, existingMapping = {}) {
+  const container = document.getElementById("teacherSubjectsContainer");
+  const listEl = document.getElementById("teacherSubjectsList");
+  listEl.innerHTML = "";
+
+  if (!selectedTeacherIds || selectedTeacherIds.length === 0) {
+    container.style.display = "none";
+    return;
+  }
+
+  container.style.display = "block";
+
+  selectedTeacherIds.forEach(tId => {
+    const teacher = allTeachersData[tId];
+    if (!teacher) return;
+
+    const teacherMapelMaster = teacher.subjects || []; // Misal: ["indo", "inggris", "mtk"]
+    const checkedMapels = existingMapping[tId] || []; // Mapel yang sudah terpilih sebelumnya di kelas ini
+
+    const teacherDiv = document.createElement("div");
+    teacherDiv.style.cssText = "margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #e2e8f0;";
+    
+    let checkboxesHtml = "";
+    if (teacherMapelMaster.length === 0) {
+      checkboxesHtml = `<span style="color:#94a3b8; font-size:12px;">Guru ini belum memiliki master mapel profilnya.</span>`;
+    } else {
+      teacherMapelMaster.forEach(mp => {
+        const isChecked = checkedMapels.includes(mp) ? "checked" : "";
+        checkboxesHtml += `
+          <label style="margin-right: 10px; font-size:13px; cursor:pointer;">
+            <input type="checkbox" class="subject-cb-${tId}" value="${mp}" ${isChecked}> ${mp}
+          </label>
+        `;
+      });
+    }
+
+    teacherDiv.innerHTML = `
+      <div style="font-weight:600; font-size:13px; margin-bottom:4px; color:#1e293b;">👨‍🏫 ${teacher.name}</div>
+      <div style="display:flex; flex-wrap:wrap; gap:5px;">${checkboxesHtml}</div>
+    `;
+    listEl.appendChild(teacherDiv);
+  });
 }
 
 // ==========================
@@ -199,6 +261,9 @@ async function loadTeachersToSelect() {
 window.openClassModal = () => {
   document.getElementById("classId").value = "";
   document.getElementById("className").value = "";
+  document.getElementById("homeroomTeacherSelect").value = ""; // Reset Wali Kelas
+  document.getElementById("teacherSubjectsList").innerHTML = "";
+  document.getElementById("teacherSubjectsContainer").style.display = "none";
   document.getElementById("classModalTitle").innerText = "Tambah Kelas";
   if (teacherSelectInstance) teacherSelectInstance.clear();
   document.getElementById("classModal").classList.add("active");
@@ -444,6 +509,7 @@ function showToast(message) {
 window.saveClass = async () => {
   const classId = document.getElementById("classId").value;
   const className = document.getElementById("className").value.trim();
+  const homeroomTeacherId = document.getElementById("homeroomTeacherSelect").value;
 
   let selectedTeacherIds = [];
   if (teacherSelectInstance) {
@@ -458,18 +524,29 @@ window.saveClass = async () => {
     return;
   }
 
+  // BARU: Strukturkan data guru beserta mapel yang di-checklist di dalam modal kelas
+  const teachersObject = {};
+  selectedTeacherIds.forEach(tId => {
+    const checkboxes = document.querySelectorAll(`.subject-cb-${tId}:checked`);
+    const selectedSubjectsForThisClass = Array.from(checkboxes).map(cb => cb.value);
+    
+    // Simpan array mapel khusus untuk kelas ini
+    teachersObject[tId] = selectedSubjectsForThisClass; 
+  });
+
   try {
+    const payload = {
+      name: className,
+      schoolId: currentSchoolId,
+      homeroomTeacherId: homeroomTeacherId, // Wali kelas terpilih
+      teachers: teachersObject,             // Map guru -> mapel spesifik kelas
+      teacherIds: selectedTeacherIds        // Tetap simpan array ID untuk query kecocokan / hitung jumlah
+    };
+
     if (classId) {
-      await updateDoc(doc(db, "classes", classId), { 
-        name: className,
-        teacherIds: selectedTeacherIds
-      });
+      await updateDoc(doc(db, "classes", classId), payload);
     } else {
-      await addDoc(collection(db, "classes"), {
-        name: className,
-        schoolId: currentSchoolId,
-        teacherIds: selectedTeacherIds
-      });
+      await addDoc(collection(db, "classes"), payload);
     }
     
     window.closeClassModal();
