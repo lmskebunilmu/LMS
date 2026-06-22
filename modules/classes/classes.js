@@ -764,8 +764,9 @@ window.exportClassesExcel = async () => {
 };
 
 // ==========================
-// EXPORT PDF GABUNGAN (Ringkasan + Detail Sinkron Siswa) - FIX SINKRON DATA GURU
-// ==========================
+// ==========================================
+// EXPORT PDF GABUNGAN (Ringkasan + Detail Sinkron Siswa) - DATA TERURUT A-Z
+// ==========================================
 window.exportClassesPDF = async () => {
   const btnEl = document.querySelector("button[onclick='exportClassesPDF()']");
   const originalBtnText = btnEl ? btnEl.innerText : "Export PDF";
@@ -789,6 +790,13 @@ window.exportClassesPDF = async () => {
       return;
     }
 
+    // Urutkan data dokumen kelas berdasarkan nama kelas (A-Z)
+    const sortedClassDocs = classSnap.docs.sort((a, b) => {
+      const nameA = (a.data().name || "").toLowerCase();
+      const nameB = (b.data().name || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
     // 2. Ambil data seluruh siswa untuk dicocokkan berdasarkan classId (Real-time Sync)
     const studentsQuery = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
     const studentsSnap = await getDocs(studentsQuery);
@@ -805,11 +813,16 @@ window.exportClassesPDF = async () => {
       }
     });
 
+    // Urutkan siswa di dalam map internal berdasarkan nama (A-Z)
+    for (const id in studentsByClassMap) {
+      studentsByClassMap[id].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }
+
     let summaryRowsHtml = "";
     let detailSectionsHtml = "";
 
-    // 3. Loop bangun Ringkasan dan Detail Breakdown
-    for (const classDoc of classSnap.docs) {
+    // 3. Loop bangun Ringkasan dan Detail Breakdown (Data sudah terurut)
+    for (const classDoc of sortedClassDocs) {
       const classId = classDoc.id;
       const classData = classDoc.data();
       const className = classData.name || "-";
@@ -818,7 +831,7 @@ window.exportClassesPDF = async () => {
       const classTeachersMapping = classData.teachers || {};
       const classTeacherIds = Object.keys(classTeachersMapping);
       
-      // Ambil data array siswa secara langsung dari map hasil query siswa
+      // Ambil data array siswa yang sudah terurut
       const classStudents = studentsByClassMap[classId] || [];
 
       // Ambil nama wali kelas jika ada
@@ -830,7 +843,7 @@ window.exportClassesPDF = async () => {
         }
       }
 
-      // Masukkan ke baris tabel ringkasan utama
+      // Masukkan ke baris tabel ringkasan utama (Bagian I)
       summaryRowsHtml += `
         <tr>
           <td><b>${className}</b></td>
@@ -840,31 +853,42 @@ window.exportClassesPDF = async () => {
         </tr>
       `;
 
-      // --- BREAKDOWN DETAIL GURU ---
+      // --- BREAKDOWN DETAIL GURU (Ditarik dulu untuk diurutkan A-Z) ---
       let teacherRows = "";
       if (classTeacherIds.length > 0) {
+        const tempTeachers = [];
+        
         for (const tId of classTeacherIds) {
-          // Sinkronisasi: Mengambil profile guru dari koleksi "teachers"
           const tSnap = await getDoc(doc(db, "teachers", tId));
           if (tSnap.exists()) {
             const tData = tSnap.data();
-            
-            // Mengambil subjek yang dicentang khusus di kelas ini saja
             const mapelSpesifik = classTeachersMapping[tId] && classTeachersMapping[tId].length > 0 
               ? classTeachersMapping[tId].join(", ") 
               : "Tidak ada mapel terpilih";
 
-            const status = tData.status || "aktif";
-            teacherRows += `
-              <tr>
-                <td>${tData.name || "-"}</td>
-                <td>${tData.email || "-"}</td>
-                <td><b>${mapelSpesifik}</b></td>
-                <td><span class="badge ${status === 'aktif' ? 'green' : 'red'}">${status}</span></td>
-              </tr>
-            `;
+            tempTeachers.push({
+              name: tData.name || "-",
+              email: tData.email || "-",
+              subject: mapelSpesifik,
+              status: tData.status || "aktif"
+            });
           }
         }
+
+        // Urutkan guru berdasarkan nama (A-Z)
+        tempTeachers.sort((a, b) => a.name.localeCompare(b.name));
+
+        // Render baris HTML guru terurut
+        tempTeachers.forEach(t => {
+          teacherRows += `
+            <tr>
+              <td>${t.name}</td>
+              <td>${t.email}</td>
+              <td><b>${t.subject}</b></td>
+              <td><span class="badge ${t.status === 'aktif' ? 'green' : 'red'}">${t.status}</span></td>
+            </tr>
+          `;
+        });
       } else {
         teacherRows = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada guru pengampu.</td></tr>`;
       }
@@ -872,10 +896,11 @@ window.exportClassesPDF = async () => {
       // --- BREAKDOWN DETAIL SISWA ---
       let studentRows = "";
       if (classStudents.length > 0) {
-        classStudents.forEach(sData => {
+        classStudents.forEach((sData, index) => {
           const status = sData.status || "aktif";
           studentRows += `
             <tr>
+              <td style="width: 50px; text-align: center;">${index + 1}</td>
               <td>${sData.name || "-"}</td>
               <td>${sData.email || "-"}</td>
               <td><span class="badge ${status === 'aktif' ? 'green' : 'red'}">${status}</span></td>
@@ -883,7 +908,7 @@ window.exportClassesPDF = async () => {
           `;
         });
       } else {
-        studentRows = `<tr><td colspan="3" style="text-align:center; color:#94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
+        studentRows = `<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
       }
 
       // Gabungkan struktur detail per ruang kelas
@@ -913,6 +938,7 @@ window.exportClassesPDF = async () => {
           <table>
             <thead>
               <tr>
+                <th style="width: 50px; text-align: center;">No</th>
                 <th>Nama Siswa</th>
                 <th>Email</th>
                 <th>Status</th>
@@ -932,7 +958,7 @@ window.exportClassesPDF = async () => {
     win.document.write(`
     <html>
     <head>
-      <title>Laporan Laporan Lengkap - ${schoolName}</title>
+      <title>Laporan Lengkap - ${schoolName}</title>
       <style>
         * { box-sizing: border-box; }
         body {
@@ -1008,7 +1034,7 @@ window.exportClassesPDF = async () => {
               <img src="${schoolLogo}" class="logo">
               <div>
                 <div class="school-name">${schoolName}</div>
-                <div class="meta">Laporan Komprehensif Sistem Akademik</div>
+                <div class="meta">Laporan Komprehensif Sistem Academic</div>
               </div>
             </div>
             <div class="chip">📅 ${date}</div>
