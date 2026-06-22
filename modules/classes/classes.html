@@ -87,10 +87,12 @@
 <div id="teacherModal" class="modal">
   <div class="modal-content">
     <h3 id="teacherModalTitle">Daftar Guru</h3>
-    <div class="bulk-actions" style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+    <div class="bulk-actions" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
       <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
         <input type="checkbox" id="selectAllTeachers" onclick="toggleSelectAll('teacherList', this)"> <b>Pilih Semua</b>
       </label>
+      <button class="btn-info" onclick="openAddTeacherModal()" style="background-color: #10b981; color: white; border:none; padding: 6px 12px; border-radius:4px; cursor:pointer;">➕ Masukkan Guru Baru</button>
+      
       <button class="btn-warning" onclick="removeSelectedTeachers()">Keluarkan Terpilih</button>
       <button class="btn-delete" onclick="removeAllTeachers()">Keluarkan Semua</button>
     </div>
