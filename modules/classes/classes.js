@@ -598,7 +598,7 @@ window.exportClassesExcel = async () => {
   // 1. Feedback loading ke tombol
   const btnEl = document.querySelector("button[onclick='exportClassesExcel()']");
   const originalBtnText = btnEl ? btnEl.innerText : "💾 Export Excel";
-  if (btnEl) btnEl.innerText = "⏳ Memproses Multi-Sheet...";
+  if (btnEl) btnEl.innerText = "⏳ Memproses Per Kelas...";
 
   try {
     // 2. Ambil data kelas dari Firestore
@@ -614,11 +614,18 @@ window.exportClassesExcel = async () => {
       return;
     }
 
+    // Urutkan data kelas berdasarkan nama kelas (A-Z) agar rapi
+    const sortedClassDocs = classSnap.docs.sort((a, b) => {
+      const nameA = (a.data().name || "").toLowerCase();
+      const nameB = (b.data().name || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
     // 3. Ambil data seluruh siswa (Real-time Sync)
     const studentsQuery = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
     const studentsSnap = await getDocs(studentsQuery);
     
-    // Kelompokkan data siswa berdasarkan classId untuk mempermudah perhitungan ringkasan
+    // Kelompokkan data siswa berdasarkan classId dan urutkan namanya secara alfabet (A-Z)
     const studentsByClassMap = {};
     studentsSnap.forEach(sDoc => {
       const sData = sDoc.data();
@@ -630,13 +637,17 @@ window.exportClassesExcel = async () => {
       }
     });
 
-    // 4. Siapkan Array Data untuk masing-masing Sheet
-    const summaryData = [];
-    const teachersData = [];
-    const studentsData = [];
+    // Urutkan siswa di setiap kelas berdasarkan Nama
+    for (const id in studentsByClassMap) {
+      studentsByClassMap[id].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }
 
-    // 5. Looping data utama dari Firestore
-    for (const classDoc of classSnap.docs) {
+    // 4. Siapkan Workbook Baru
+    const wb = XLSX.utils.book_new();
+    const summaryData = [];
+
+    // 5. Looping data utama untuk membangun Sheet Ringkasan & Sheet per Kelas
+    for (const classDoc of sortedClassDocs) {
       const classId = classDoc.id;
       const classData = classDoc.data();
       const className = classData.name || "-";
@@ -654,7 +665,7 @@ window.exportClassesExcel = async () => {
         }
       }
 
-      // --- SHEET 1: Isi Data Ringkasan Kelas ---
+      // --- KUMPULKAN DATA UNTUK SHEET 1 (RINGKASAN) ---
       summaryData.push({
         "Nama Kelas": className,
         "Wali Kelas": homeroomTeacherName,
@@ -662,8 +673,21 @@ window.exportClassesExcel = async () => {
         "Total Siswa Terdaftar": `${classStudents.length} Siswa`
       });
 
-      // --- SHEET 2: Isi Data Detail Guru ---
+      // --- BANGUN STRUKTUR DATA BARIS PER BARIS UNTUK SHEET KELAS INDIVIDU ---
+      const classRows = [];
+
+      // Baris Informasi Wali Kelas
+      classRows.push(["INFORMASI KELAS"]);
+      classRows.push(["Nama Kelas", className]);
+      classRows.push(["Wali Kelas", homeroomTeacherName]);
+      classRows.push([]); // Baris kosong pembatas
+
+      // Baris Informasi Guru Pengampu
+      classRows.push(["👨‍🏫 DAFTAR GURU PENGAMPU"]);
+      classRows.push(["Nama Guru", "Email", "Mata Pelajaran (Di Kelas Ini)", "Status"]); // Header tabel guru
+
       if (classTeacherIds.length > 0) {
+        const tempTeachers = [];
         for (const tId of classTeacherIds) {
           const tSnap = await getDoc(doc(db, "teachers", tId));
           if (tSnap.exists()) {
@@ -672,51 +696,66 @@ window.exportClassesExcel = async () => {
               ? classTeachersMapping[tId].join(", ") 
               : "Tidak ada mapel terpilih";
 
-            teachersData.push({
-              "Kelas": className,
-              "Wali Kelas": homeroomTeacherName,
-              "Nama Guru": tData.name || "-",
-              "Email": tData.email || "-",
-              "Mata Pelajaran (Di Kelas Ini)": mapelSpesifik,
-              "Status": tData.status || "aktif"
+            tempTeachers.push({
+              name: tData.name || "-",
+              email: tData.email || "-",
+              subject: mapelSpesifik,
+              status: tData.status || "aktif"
             });
           }
         }
+        // Urutkan daftar guru berdasarkan nama (A-Z)
+        tempTeachers.sort((a, b) => a.name.localeCompare(b.name));
+        tempTeachers.forEach(t => {
+          classRows.push([t.name, t.email, t.subject, t.status]);
+        });
+      } else {
+        classRows.push(["Belum ada guru pengampu di kelas ini", "", "", ""]);
       }
 
-      // --- SHEET 3: Isi Data Detail Siswa ---
+      classRows.push([]); // Baris kosong pembatas
+
+      // Baris Informasi Siswa
+      classRows.push(["👶 DAFTAR SISWA TERDAFTAR"]);
+      classRows.push(["No", "Nama Siswa", "Email", "Status"]); // Header tabel siswa
+
       if (classStudents.length > 0) {
-        classStudents.forEach(sData => {
-          studentsData.push({
-            "Kelas": className,
-            "Wali Kelas": homeroomTeacherName,
-            "Nama Siswa": sData.name || "-",
-            "Email": sData.email || "-",
-            "Status": sData.status || "aktif"
-          });
+        classStudents.forEach((sData, index) => {
+          classRows.push([
+            index + 1,
+            sData.name || "-",
+            sData.email || "-",
+            sData.status || "aktif"
+          ]);
         });
+      } else {
+        classRows.push(["-", "Belum ada siswa terdaftar di kelas ini", "", ""]);
       }
+
+      // Saring nama sheet agar tidak mengandung karakter ilegal Excel (: , \ , / , ? , * , [ , ]) dan maks 31 karakter
+      const safeSheetName = className.replace(/[:\\/?*\[\]]/g, "").substring(0, 31);
+
+      // Convert array 2D menjadi worksheet dan masukkan ke workbook
+      const wsClass = XLSX.utils.aoa_to_sheet(classRows);
+      XLSX.utils.book_append_sheet(wb, wsClass, safeSheetName);
     }
 
-    // 6. Membuat Workbook Baru Menggunakan SheetJS (XLSX)
-    const wb = XLSX.utils.book_new();
-
-    // Convert array JSON di atas menjadi masing-masing Worksheet
+    // 6. Buat Sheet Pertama (Ringkasan) di paling depan
     const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-    const wsTeachers = XLSX.utils.json_to_sheet(teachersData);
-    const wsStudents = XLSX.utils.json_to_sheet(studentsData);
-
-    //Masukkan worksheet ke dalam workbook dengan memberikan nama sheet masing-masing
     XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan Kelas");
-    XLSX.utils.book_append_sheet(wb, wsTeachers, "Detail Guru Pengampu");
-    XLSX.utils.book_append_sheet(wb, wsStudents, "Detail Siswa");
+
+    // Pindahkan posisi sheet ringkasan menjadi yang pertama/paling kiri
+    const totalSheets = wb.SheetNames.length;
+    const lastSheetName = wb.SheetNames[totalSheets - 1];
+    wb.SheetNames.pop(); // Hapus dari akhir
+    wb.SheetNames.unshift(lastSheetName); // Masukkan ke paling depan
 
     // 7. Unduh File Excel (.xlsx)
-    const fileName = `Laporan_MultiSheet_Kelas_${(currentSchoolName || "Sekolah").replace(/\s+/g, '_')}.xlsx`;
+    const fileName = `Laporan_Kelas_Komprehensif_${(currentSchoolName || "Sekolah").replace(/\s+/g, '_')}.xlsx`;
     XLSX.writeFile(wb, fileName);
 
   } catch (err) {
-    console.error("Gagal mengekspor data ke Excel Multi-Sheet:", err);
+    console.error("Gagal mengekspor data ke Excel per Kelas:", err);
     alert("Gagal mengekspor data ke Excel.");
   } finally {
     // Kembalikan teks tombol ke kondisi awal
