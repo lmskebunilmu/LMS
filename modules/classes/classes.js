@@ -1,6 +1,6 @@
 import { auth, db } from "/LMS/firebase/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"; // Note: Pastikan import firestore sesuai versi Anda, biasanya dari .../firebase-firestore.js seperti kode awal Anda
 
 let currentSchoolId = null;
 let currentSchoolRef = null;
@@ -10,6 +10,7 @@ let currentSchoolLogo = "/LMS/assets/images/default-logo.png";
 let classIdToDelete = null;
 let activeClassIdInModal = null;
 let teacherSelectInstance = null;
+let isTeachersLoaded = false; // Flag untuk memastikan opsi dropdown guru siap
 
 // UTILITY: CHECKBOX PILIH SEMUA
 window.toggleSelectAll = (listId, masterCheckbox) => {
@@ -36,7 +37,7 @@ onAuthStateChanged(auth, async (user) => {
       }
       
       await loadProfileHeader(userData);
-      await loadTeachersToSelect();
+      await loadTeachersToSelect(); // Memuat daftar opsi guru terlebih dahulu
       await loadClasses();
       initClassSearch();
     }
@@ -198,6 +199,7 @@ async function loadTeachersToSelect() {
     } else if (teacherSelectInstance) {
       teacherSelectInstance.sync();
     }
+    isTeachersLoaded = true; // Menandakan opsi data sukses dirender ke DOM
   } catch (err) {
     console.error("Gagal memuat daftar guru untuk opsi kelas:", err);
   }
@@ -218,16 +220,25 @@ window.editClass = async (id, name) => {
   document.getElementById("className").value = name;
   document.getElementById("classModalTitle").innerText = "Edit Kelas";
 
+  // Pastikan data opsi guru di elemen select sudah ter-load sebelum men-set value
+  if (!isTeachersLoaded) {
+    await loadTeachersToSelect();
+  }
+
   try {
     const classSnap = await getDoc(doc(db, "classes", id));
     if (classSnap.exists()) {
       const classData = classSnap.data();
+      
+      // Mengisi kembali dropdown Wali Kelas yang sesuai dengan Database
       document.getElementById("homeroomSelect").value = classData.homeroomTeacherId || "";
 
       // Ekstrak list ID saja untuk dicocokkan ke TomSelect komponen lama
       const currentTeachers = classData.teachers || [];
       const currentTeacherIds = currentTeachers.map(item => item.teacherId);
-      if (teacherSelectInstance) teacherSelectInstance.setValue(currentTeacherIds);
+      if (teacherSelectInstance) {
+        teacherSelectInstance.setValue(currentTeacherIds);
+      }
     }
   } catch (err) {
     console.error("Gagal memuat data guru pada edit kelas:", err);
@@ -285,7 +296,7 @@ window.openTeacherDetailModal = async (id, className) => {
       for (const item of classTeachers) {
         const tSnap = await getDoc(doc(db, "users", item.teacherId));
         if (tSnap.exists()) {
-          const mapelDiKelas = item.subjects && item.subjects.length > 0 ? item.subjects.join(", ") : "Tidak mengajar mapel";
+          const mapelDiKelas = item.subjects && item.subjects.length > 0 ? item.subjects.join(", ") : "Tidak mengajar mapel (Klik 'Masukkan Guru Baru' untuk atur mapel)";
           const li = document.createElement("li");
           li.style.cssText = "padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
           li.innerHTML = `
@@ -467,19 +478,20 @@ window.saveClass = async () => {
   }
 
   try {
-    // Memformat ulang array 'teachers' agar sinkron dengan struktur objek mapel baru
     let existingTeachersMap = {};
     if (classId) {
       const oldSnap = await getDoc(doc(db, "classes", classId));
       if (oldSnap.exists() && oldSnap.data().teachers) {
-        oldSnap.data().teachers.forEach(t => { existingTeachersMap[t.teacherId] = t.subjects || []; });
+        oldSnap.data().teachers.forEach(t => { 
+          existingTeachersMap[t.teacherId] = t.subjects || []; 
+        });
       }
     }
 
     const updatedTeachersArray = selectedTeacherIds.map(tId => {
       return {
         teacherId: tId,
-        subjects: existingTeachersMap[tId] || [] // default kosong jika diinput via Edit Kelas manual
+        subjects: existingTeachersMap[tId] || [] // Mempertahankan mapel lama agar tidak ter-reset jadi array kosong saat simpan nama kelas
       };
     });
 
@@ -862,9 +874,10 @@ window.openAddTeacherModal = async () => {
   try {
     const classSnap = await getDoc(doc(db, "classes", activeClassIdInModal));
     let existingTeacherIds = [];
+    let currentClassTeachers = [];
     if (classSnap.exists()) {
-      const classTeachers = classSnap.data().teachers || [];
-      existingTeacherIds = classTeachers.map(t => t.teacherId);
+      currentClassTeachers = classSnap.data().teachers || [];
+      existingTeacherIds = currentClassTeachers.map(t => t.teacherId);
     }
 
     const teacherQuery = query(
@@ -877,43 +890,48 @@ window.openAddTeacherModal = async () => {
 
     let count = 0;
     snap.forEach(tDoc => {
-      if (!existingTeacherIds.includes(tDoc.id)) {
-        count++;
-        const tData = tDoc.data();
-        const masterSubjects = tData.subjects || []; // Array kompetensi dasar guru dari profilnya
+      // Izinkan tampil semua guru untuk memperbarui subjek kelas ATAU yang belum ada di kelas ini
+      count++;
+      const tData = tDoc.data();
+      const masterSubjects = tData.subjects || []; // Array dari Profil Guru
 
-        const li = document.createElement("li");
-        li.style.cssText = "padding: 12px; border-bottom: 1px solid #e2e8f0; display: block; margin-bottom:5px;";
-        
-        let subjectCheckboxesHtml = "";
-        if (masterSubjects.length > 0) {
-          masterSubjects.forEach(sub => {
-            subjectCheckboxesHtml += `
-              <label style="margin-right: 12px; font-size:12px; display:inline-flex; align-items:center; gap:3px; cursor:pointer; background:#f1f5f9; padding:2px 6px; border-radius:4px;">
-                <input type="checkbox" class="sub-checkbox-${tDoc.id}" value="${sub}"> ${sub}
-              </label>
-            `;
-          });
-        } else {
-          subjectCheckboxesHtml = `<span style="font-size:11px; color:#94a3b8;">Guru belum mengisi keahlian mapel di profilnya.</span>`;
-        }
+      // Cari tahu apakah guru ini sudah ada di kelas dan apa pelajaran yang sudah dicentang sebelumnya
+      const foundInClass = currentClassTeachers.find(t => t.teacherId === tDoc.id);
+      const activeSubjectsInClass = foundInClass ? foundInClass.subjects || [] : [];
+      const isTeacherChecked = foundInClass ? "checked" : "";
 
-        li.innerHTML = `
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-            <input type="checkbox" class="add-teacher-cb main-item-cb" value="${tDoc.id}" style="cursor:pointer;">
-            <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
-          </div>
-          <div style="padding-left:22px;">
-            <div style="font-size:11px; color:#64748b; margin-bottom:3px;">Mapel di Kelas Ini:</div>
-            ${subjectCheckboxesHtml}
-          </div>
-        `;
-        addTeacherList.appendChild(li);
+      const li = document.createElement("li");
+      li.style.cssText = "padding: 12px; border-bottom: 1px solid #e2e8f0; display: block; margin-bottom:5px;";
+      
+      let subjectCheckboxesHtml = "";
+      if (masterSubjects.length > 0) {
+        masterSubjects.forEach(sub => {
+          const isSubChecked = activeSubjectsInClass.includes(sub) ? "checked" : "";
+          subjectCheckboxesHtml += `
+            <label style="margin-right: 12px; font-size:12px; display:inline-flex; align-items:center; gap:3px; cursor:pointer; background:#f1f5f9; padding:2px 6px; border-radius:4px;">
+              <input type="checkbox" class="sub-checkbox-${tDoc.id}" value="${sub}" ${isSubChecked}> ${sub}
+            </label>
+          `;
+        });
+      } else {
+        subjectCheckboxesHtml = `<span style="font-size:11px; color:#94a3b8;">Guru belum mengisi kompetensi mata pelajaran di profilnya.</span>`;
       }
+
+      li.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <input type="checkbox" class="add-teacher-cb main-item-cb" value="${tDoc.id}" ${isTeacherChecked} style="cursor:pointer;">
+          <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
+        </div>
+        <div style="padding-left:22px;">
+          <div style="font-size:11px; color:#64748b; margin-bottom:3px;">Mapel khusus di kelas ini:</div>
+          ${subjectCheckboxesHtml}
+        </div>
+      `;
+      addTeacherList.appendChild(li);
     });
 
     if (count === 0) {
-      addTeacherList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Semua guru yang tersedia sudah mengajar di kelas ini.</li>";
+      addTeacherList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Tidak ada data guru yang terdaftar di sekolah ini.</li>";
     }
   } catch (err) {
     console.error("Gagal memuat modal tambah guru:", err);
@@ -925,44 +943,30 @@ window.addSelectedTeachers = async () => {
   if (!activeClassIdInModal) return;
   const checkedBoxes = document.querySelectorAll(".add-teacher-cb:checked");
   if (checkedBoxes.length === 0) {
-    alert("Silahkan pilih guru yang ingin dimasukkan terlebih dahulu!");
+    alert("Silahkan pilih minimal 1 guru untuk didaftarkan ke kelas!");
     return;
   }
 
   try {
     const classRef = doc(db, "classes", activeClassIdInModal);
-    const classSnap = await getDoc(classRef);
     
-    if (classSnap.exists()) {
-      let currentClassTeachers = classSnap.data().teachers || [];
-      
-      const newTeachersObjects = Array.from(checkedBoxes).map(cb => {
-        const tId = cb.value;
-        // Ambil mapel apa saja yang dicentang khusus untuk guru ini
-        const selectedSubBoxes = document.querySelectorAll(`.sub-checkbox-${tId}:checked`);
-        const checkedSubjects = Array.from(selectedSubBoxes).map(box => box.value);
-        return {
-          teacherId: tId,
-          subjects: checkedSubjects // Hanya mengunci mapel pilihan di tingkat kelas
-        };
-      });
+    const newTeachersObjects = Array.from(checkedBoxes).map(cb => {
+      const tId = cb.value;
+      const selectedSubBoxes = document.querySelectorAll(`.sub-checkbox-${tId}:checked`);
+      const checkedSubjects = Array.from(selectedSubBoxes).map(box => box.value);
+      return {
+        teacherId: tId,
+        subjects: checkedSubjects // Mengunci mapel pilihan di tingkat kelas ini
+      };
+    });
 
-      // Gabungkan data lama dan baru (pastikan ID guru unik)
-      const mergedMap = {};
-      currentClassTeachers.forEach(t => { mergedMap[t.teacherId] = t.subjects; });
-      newTeachersObjects.forEach(t => { mergedMap[t.teacherId] = t.subjects; });
-
-      const finalTeachersPayload = Object.keys(mergedMap).map(id => {
-        return { teacherId: id, subjects: mergedMap[id] };
-      });
-
-      await updateDoc(classRef, { teachers: finalTeachersPayload });
-      
-      document.getElementById("addTeacherModal").classList.remove("active");
-      document.getElementById("teacherModal").classList.remove("active");
-      await loadClasses();
-      showToast(`${checkedBoxes.length} Guru berhasil ditambahkan dengan mata pelajaran spesifik.`);
-    }
+    // Simpan langsung array final guru-guru yang tercentang ke Firestore
+    await updateDoc(classRef, { teachers: newTeachersObjects });
+    
+    document.getElementById("addTeacherModal").classList.remove("active");
+    document.getElementById("teacherModal").classList.remove("active");
+    await loadClasses();
+    showToast(`Daftar guru pengampu & mata pelajaran kelas berhasil diperbarui.`);
   } catch (err) {
     console.error("Gagal menambahkan guru terpilih:", err);
     alert("Gagal menambahkan guru terpilih.");
