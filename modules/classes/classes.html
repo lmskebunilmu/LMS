@@ -62,13 +62,15 @@
 <div id="studentModal" class="modal">
   <div class="modal-content">
     <h3 id="studentModalTitle">Daftar Siswa</h3>
-    <div class="bulk-actions" style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-      <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
-        <input type="checkbox" id="selectAllStudents" onclick="toggleSelectAll('studentList', this)"> <b>Pilih Semua</b>
-      </label>
-      <button class="btn-warning" onclick="removeSelectedStudents()">Keluarkan Terpilih</button>
-      <button class="btn-delete" onclick="removeAllStudents()">Keluarkan Semua</button>
-    </div>
+    <div class="bulk-actions" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+  <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px;">
+    <input type="checkbox" id="selectAllStudents" onclick="toggleSelectAll('studentList', this)"> <b>Pilih Semua</b>
+  </label>
+  <button class="btn-info" onclick="openAddStudentModal()" style="background-color: #10b981; color: white;">➕ Masukkan Siswa Baru</button>
+  <button class="btn-warning" onclick="moveSelectedStudents()" style="background-color: #6366f1; color: white;">🔄 Pindahkan Kelas</button>
+  <button class="btn-warning" onclick="removeSelectedStudents()">Keluarkan Terpilih</button>
+  <button class="btn-delete" onclick="removeAllStudents()">Keluarkan Semua</button>
+</div>
     <input type="text" id="studentSearch" placeholder="🔍 Cari siswa..." onkeyup="filterStudents()">
     
     <ul id="studentList" style="list-style: none; padding: 0; margin: 15px 0; max-height: 250px; overflow-y: auto;">
