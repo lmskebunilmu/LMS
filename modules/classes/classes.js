@@ -587,7 +587,7 @@ window.exportClassesExcel = () => {
 };
 
 // ==========================
-// EXPORT PDF GABUNGAN (Ringkasan + Detail Sinkron Siswa)
+// EXPORT PDF GABUNGAN (Ringkasan + Detail Sinkron Siswa) - FIX SINKRON DATA GURU
 // ==========================
 window.exportClassesPDF = async () => {
   const btnEl = document.querySelector("button[onclick='exportClassesPDF()']");
@@ -636,35 +636,53 @@ window.exportClassesPDF = async () => {
       const classId = classDoc.id;
       const classData = classDoc.data();
       const className = classData.name || "-";
-      const teacherIds = classData.teacherIds || [];
+      
+      // Ambil pemetaan guru dari field object `teachers` baru
+      const classTeachersMapping = classData.teachers || {};
+      const classTeacherIds = Object.keys(classTeachersMapping);
       
       // Ambil data array siswa secara langsung dari map hasil query siswa
       const classStudents = studentsByClassMap[classId] || [];
+
+      // Ambil nama wali kelas jika ada
+      let homeroomTeacherName = "- Belum ditentukan";
+      if (classData.homeroomTeacherId) {
+        const hrSnap = await getDoc(doc(db, "teachers", classData.homeroomTeacherId));
+        if (hrSnap.exists()) {
+          homeroomTeacherName = hrSnap.data().name || "-";
+        }
+      }
 
       // Masukkan ke baris tabel ringkasan utama
       summaryRowsHtml += `
         <tr>
           <td><b>${className}</b></td>
-          <td><span class="badge blue">${teacherIds.length} Guru</span></td>
+          <td>${homeroomTeacherName}</td>
+          <td><span class="badge blue">${classTeacherIds.length} Guru</span></td>
           <td><span class="badge indigo">${classStudents.length} Siswa</span></td>
         </tr>
       `;
 
       // --- BREAKDOWN DETAIL GURU ---
       let teacherRows = "";
-      if (teacherIds.length > 0) {
-        for (const tId of teacherIds) {
-          // Mengambil dari koleksi users karena drop-down mengambil dari users role guru
-          const tSnap = await getDoc(doc(db, "users", tId));
+      if (classTeacherIds.length > 0) {
+        for (const tId of classTeacherIds) {
+          // Sinkronisasi: Mengambil profile guru dari koleksi "teachers"
+          const tSnap = await getDoc(doc(db, "teachers", tId));
           if (tSnap.exists()) {
             const tData = tSnap.data();
-            const mapel = tData.subjects && tData.subjects.length > 0 ? tData.subjects.join(", ") : "-";
+            
+            // Mengambil subjek yang dicentang khusus di kelas ini saja
+            const mapelSpesifik = classTeachersMapping[tId] && classTeachersMapping[tId].length > 0 
+              ? classTeachersMapping[tId].join(", ") 
+              : "Tidak ada mapel terpilih";
+
             const status = tData.status || "aktif";
             teacherRows += `
               <tr>
                 <td>${tData.name || "-"}</td>
                 <td>${tData.email || "-"}</td>
-                <td>${mapel}</td>
+                <td><b>${mapelSpesifik}</b></td>
                 <td><span class="badge ${status === 'aktif' ? 'green' : 'red'}">${status}</span></td>
               </tr>
             `;
@@ -694,15 +712,18 @@ window.exportClassesPDF = async () => {
       // Gabungkan struktur detail per ruang kelas
       detailSectionsHtml += `
         <div class="class-section">
-          <div class="class-header">🏫 KELAS: ${className.toUpperCase()}</div>
+          <div class="class-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <span>🏫 KELAS: ${className.toUpperCase()}</span>
+            <span style="font-size:12px; font-weight:normal; background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:4px;">Wali Kelas: ${homeroomTeacherName}</span>
+          </div>
           
-          <div class="sub-title-data">📋 Daftar Guru Pengampu</div>
+          <div class="sub-title-data">📋 Daftar Guru Pengampu & Mata Pelajaran Diampu</div>
           <table>
             <thead>
               <tr>
                 <th>Nama Guru</th>
                 <th>Email</th>
-                <th>Mata Pelajaran</th>
+                <th>Mata Pelajaran (Di Kelas Ini)</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -824,6 +845,7 @@ window.exportClassesPDF = async () => {
             <thead>
               <tr>
                 <th>Nama Kelas</th>
+                <th>Wali Kelas</th>
                 <th>Total Guru Pengampu</th>
                 <th>Total Siswa Terdaftar</th>
               </tr>
@@ -858,248 +880,4 @@ window.exportClassesPDF = async () => {
   } finally {
     if (btnEl) btnEl.innerText = originalBtnText;
   }
-};
-
-// ==================================================================
-// FITUR TAMBAH/MASUKKAN SISWA KE KELAS
-// ==================================================================
-
-// 1. Pemicu Buka Modal Tambah Siswa (Bisa dipasang di dalam Modal Daftar Siswa)
-window.openAddStudentModal = async () => {
-  if (!activeClassIdInModal) return;
-  const addStudentList = document.getElementById("addStudentList");
-  addStudentList.innerHTML = "<li>⏳ Memuat siswa yang belum punya kelas...</li>";
-  
-  // Tampilkan modal tambah siswa
-  document.getElementById("addStudentModal").classList.add("active");
-
-  try {
-    // Ambil siswa yang belum memiliki kelas (classId kosong atau tidak ada)
-    const q = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
-    const snap = await getDocs(q);
-    addStudentList.innerHTML = "";
-
-    let count = 0;
-    snap.forEach(sDoc => {
-      const sData = sDoc.data();
-      // Filter di sisi klien: hanya tampilkan yang belum masuk kelas mana pun
-      if (!sData.classId) {
-        count++;
-        const li = document.createElement("li");
-        li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
-        li.innerHTML = `
-          <input type="checkbox" class="add-student-cb" value="${sDoc.id}" style="cursor:pointer;">
-          <span>👶 <b>${sData.name || "Tanpa Nama"}</b> (${sData.email || "-"})</span>
-        `;
-        addStudentList.appendChild(li);
-      }
-    });
-
-    if (count === 0) {
-      addStudentList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Semua siswa sekolah ini sudah memiliki kelas.</li>";
-    }
-  } catch (err) {
-    console.error(err);
-    addStudentList.innerHTML = "<li style='color:red;'>❌ Gagal memuat data siswa.</li>";
-  }
-};
-
-// 2. Aksi simpan siswa terpilih masuk ke kelas aktif
-window.addSelectedStudents = async () => {
-  if (!activeClassIdInModal) return;
-  const checkedBoxes = document.querySelectorAll(".add-student-cb:checked");
-  if (checkedBoxes.length === 0) {
-    alert("Silahkan pilih siswa yang ingin dimasukkan terlebih dahulu!");
-    return;
-  }
-
-  try {
-    for (const cb of checkedBoxes) {
-      // Update dokumen siswa agar mencatat classId kelas ini
-      await updateDoc(doc(db, "students", cb.value), { classId: activeClassIdInModal });
-    }
-    
-    document.getElementById("addStudentModal").classList.remove("active");
-    document.getElementById("studentModal").classList.remove("active"); // Tutup modal utama untuk refresh
-    await loadClasses();
-    showToast(`${checkedBoxes.length} Siswa berhasil dimasukkan ke kelas.`);
-  } catch (err) {
-    console.error(err);
-    alert("Gagal menambahkan siswa terpilih.");
-  }
-};
-
-// Toggle pilih semua pada modal tambah siswa
-window.toggleAllAddStudents = (masterCheckbox) => {
-  const checkboxes = document.querySelectorAll(".add-student-cb");
-  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
-};
-
-// Live Filter pencarian siswa di modal tambah
-window.filterAddStudents = () => {
-  const keyword = document.getElementById("addStudentSearch").value.toLowerCase();
-  document.querySelectorAll("#addStudentList li").forEach(li => {
-    li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
-  });
-};
-
-
-// ==================================================================
-// FITUR MEMINDAHKAN KELAS SISWA (DARI DAFTAR SISWA AKTIF)
-// ==================================================================
-
-// Fungsi memindahkan siswa terpilih ke kelas lain
-window.moveSelectedStudents = async () => {
-  if (!activeClassIdInModal) return;
-  const checkedBoxes = document.querySelectorAll(".student-item-cb:checked");
-  if (checkedBoxes.length === 0) {
-    alert("Silahkan pilih siswa yang ingin dipindahkan terlebih dahulu!");
-    return;
-  }
-
-  // 1. Ambil daftar semua kelas untuk opsi tujuan pemindahan
-  try {
-    const classSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
-    let classOptions = "";
-    classSnap.forEach(cDoc => {
-      if (cDoc.id !== activeClassIdInModal) { // Jangan tampilkan kelas asal
-        classOptions += `\n- ID: ${cDoc.id} | Nama: ${cDoc.data().name}`;
-      }
-    });
-
-    if (!classOptions) {
-      alert("Tidak ada kelas lain yang tersedia untuk tujuan pemindahan.");
-      return;
-    }
-
-    // 2. Meminta input target nama kelas / ID (Ganti dengan UI Dropdown jika ingin lebih rapi)
-    const targetClassId = prompt(`Masukkan ID Kelas tujuan untuk memindahkan ${checkedBoxes.length} siswa terpilih:${classOptions}\n\n(Salin ID Kelas di atas dan tempel di bawah ini)`);
-    
-    if (!targetClassId) return;
-
-    // Validasi apakah target kelas ada
-    const targetSnap = await getDoc(doc(db, "classes", targetClassId));
-    if (!targetSnap.exists()) {
-      alert("ID Kelas tujuan tidak valid!");
-      return;
-    }
-
-    // 3. Eksekusi pemindahan
-    for (const cb of checkedBoxes) {
-      await updateDoc(doc(db, "students", cb.value), { classId: targetClassId });
-    }
-
-    document.getElementById("studentModal").classList.remove("active");
-    await loadClasses();
-    showToast(`${checkedBoxes.length} Siswa berhasil dipindahkan ke kelas ${targetSnap.data().name}.`);
-
-  } catch (err) {
-    console.error("Gagal memindahkan siswa:", err);
-    alert("Terjadi kesalahan sistem saat memindahkan siswa.");
-  }
-};
-
-// ==================================================================
-// FITUR TAMBAH/MASUKKAN GURU KE KELAS VIA MODAL
-// ==================================================================
-
-// 1. Pemicu Buka Modal Tambah Guru (Menampilkan guru di sekolah yang BELUM mengajar kelas ini)
-window.openAddTeacherModal = async () => {
-  if (!activeClassIdInModal) return;
-  const addTeacherList = document.getElementById("addTeacherList");
-  addTeacherList.innerHTML = "<li>⏳ Memuat daftar guru sekolah...</li>";
-  
-  // Tampilkan modal tambah guru
-  document.getElementById("addTeacherModal").classList.add("active");
-
-  try {
-    // 1. Ambil data kelas saat ini untuk tahu siapa saja guru yang SUDAH ada di dalam kelas
-    const classSnap = await getDoc(doc(db, "classes", activeClassIdInModal));
-    let existingTeacherIds = [];
-    if (classSnap.exists()) {
-      existingTeacherIds = classSnap.data().teacherIds || [];
-    }
-
-    // 2. Ambil seluruh user dengan role "guru" di sekolah tersebut
-    const teacherQuery = query(
-      collection(db, "users"),
-      where("role", "==", "guru"),
-      where("schoolId", "==", currentSchoolId)
-    );
-    const snap = await getDocs(teacherQuery);
-    addTeacherList.innerHTML = "";
-
-    let count = 0;
-    snap.forEach(tDoc => {
-      // Filter: Hanya tampilkan guru yang BELUM terdaftar di kelas aktif ini
-      if (!existingTeacherIds.includes(tDoc.id)) {
-        count++;
-        const tData = tDoc.data();
-        const li = document.createElement("li");
-        li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
-        li.innerHTML = `
-          <input type="checkbox" class="add-teacher-cb" value="${tDoc.id}" style="cursor:pointer;">
-          <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
-        `;
-        addTeacherList.appendChild(li);
-      }
-    });
-
-    if (count === 0) {
-      addTeacherList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Semua guru yang tersedia sudah mengajar di kelas ini.</li>";
-    }
-  } catch (err) {
-    console.error("Gagal memuat modal tambah guru:", err);
-    addTeacherList.innerHTML = "<li style='color:red;'>❌ Gagal memuat data guru.</li>";
-  }
-};
-
-// 2. Aksi menyimpan guru-guru terpilih ke dalam array Firestore kelas
-window.addSelectedTeachers = async () => {
-  if (!activeClassIdInModal) return;
-  const checkedBoxes = document.querySelectorAll(".add-teacher-cb:checked");
-  if (checkedBoxes.length === 0) {
-    alert("Silahkan pilih guru yang ingin dimasukkan terlebih dahulu!");
-    return;
-  }
-
-  try {
-    const classRef = doc(db, "classes", activeClassIdInModal);
-    const classSnap = await getDoc(classRef);
-    
-    if (classSnap.exists()) {
-      let currentTeachers = classSnap.data().teacherIds || [];
-      const newTeacherIds = Array.from(checkedBoxes).map(cb => cb.value);
-      
-      // Gabungkan guru lama dan guru baru yang dicentang (pastikan tidak duplikat)
-      const updatedTeachers = [...new Set([...currentTeachers, ...newTeacherIds])];
-      
-      // Update data array teacherIds di Firestore
-      await updateDoc(classRef, { teacherIds: updatedTeachers });
-      
-      // Tutup modal tambah dan modal detail utama untuk me-refresh data tampilan
-      document.getElementById("addTeacherModal").classList.remove("active");
-      document.getElementById("teacherModal").classList.remove("active");
-      
-      await loadClasses();
-      showToast(`${checkedBoxes.length} Guru berhasil ditambahkan ke kelas.`);
-    }
-  } catch (err) {
-    console.error("Gagal menambahkan guru terpilih:", err);
-    alert("Gagal menambahkan guru terpilih.");
-  }
-};
-
-// Toggle pilih semua pada modal tambah guru
-window.toggleAllAddTeachers = (masterCheckbox) => {
-  const checkboxes = document.querySelectorAll(".add-teacher-cb");
-  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
-};
-
-// Live Filter pencarian nama guru di modal tambah
-window.filterAddTeachers = () => {
-  const keyword = document.getElementById("addTeacherSearch").value.toLowerCase();
-  document.querySelectorAll("#addTeacherList li").forEach(li => {
-    li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
-  });
 };
