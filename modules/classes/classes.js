@@ -1019,3 +1019,38 @@ window.exportClassesPDF = async () => {
     if (btnEl) btnEl.innerText = originalBtnText;
   }
 };
+// ==========================================
+// FILTER / PENCARIAN DI DALAM MODAL-MODAL
+// ==========================================
+
+// 1. Menyaring daftar siswa yang ada di dalam kelas
+window.filterStudents = () => {
+  const keyword = document.getElementById("studentSearch").value.toLowerCase();
+  document.querySelectorAll("#studentList li").forEach(li => {
+    li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
+  });
+};
+
+// 2. Menyaring daftar guru yang ada di dalam kelas
+window.filterTeachers = () => {
+  const keyword = document.getElementById("teacherSearch").value.toLowerCase();
+  document.querySelectorAll("#teacherList li").forEach(li => {
+    li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
+  });
+};
+
+// 3. Menyaring daftar siswa saat mau menambahkan siswa baru ke kelas
+window.filterAddStudents = () => {
+  const keyword = document.getElementById("addStudentSearch").value.toLowerCase();
+  document.querySelectorAll("#addStudentList li").forEach(li => {
+    li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
+  });
+};
+
+// 4. Menyaring daftar guru saat mau menambahkan guru baru ke kelas
+window.filterAddTeachers = () => {
+  const keyword = document.getElementById("addTeacherSearch").value.toLowerCase();
+  document.querySelectorAll("#addTeacherList li").forEach(li => {
+    li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
+  });
+};
