@@ -151,8 +151,6 @@ async function loadMaterials() {
   if (!classSnap.exists()) return;
 
   const classData = classSnap.data();
-  
-  // SINKRONISASI ADMIN: Menggunakan field 'teachers' (Object Map hasil set admin)
   const classTeachersMapping = classData.teachers || {};
   const teacherSubjects = classTeachersMapping[auth.currentUser.uid] || [];
   
@@ -164,12 +162,12 @@ async function loadMaterials() {
     return;
   }
 
-  // 2. Ambil parameter kurikulum, level, dan persetujuan dari data sekolah
+  // 2. Ambil parameter pengunci dari data sekolah (SD Kebun Ilmu)
   const approved = schoolData.approvedSubjects || [];
   const schoolLevel = (schoolData.level || "").trim().toLowerCase();          // Hasilnya: "sd"
   const schoolCurriculum = (schoolData.curriculum || "").trim().toLowerCase();  // Hasilnya: "nasional"
 
-  // 3. Tarik seluruh bank materi master dari Superadmin berdasarkan mapel si guru
+  // 3. Tarik bank materi master dari Superadmin berdasarkan mapel si guru
   const q = query(
     collection(db, "materials"),
     where("subject", "in", teacherSubjects)
@@ -181,18 +179,17 @@ async function loadMaterials() {
   snap.forEach(doc => {
     const m = { id: doc.id, ...doc.data() };
 
-    // 🔒 FILTER 1: Kunci per Sekolah (Mapel harus terdaftar di approvedSubjects sekolah)
+    // 🔒 FILTER 1: Kunci per Sekolah (Mapel harus ada di approvedSubjects sekolah)
     if (approved.length > 0 && !approved.includes(m.subject)) return;
 
-    // 🔒 FILTER 2: Kunci Berdasarkan Level Jenjang (Materi harus bertuliskan level "SD")
+    // 🔒 FILTER 2: Kunci Berdasarkan Level Jenjang (SD harus ketemu SD)
     const materialLevel = (m.level || "").trim().toLowerCase();
     if (schoolLevel && materialLevel !== schoolLevel) return;
 
-    // 🔒 FILTER 3: Kunci Berdasarkan Kurikulum (Materi harus bertuliskan curriculum "Nasional")
+    // 🔒 FILTER 3: Kunci Berdasarkan Kurikulum (Nasional harus ketemu Nasional)
     const materialCurriculum = (m.curriculum || "").trim().toLowerCase();
     if (schoolCurriculum && materialCurriculum !== schoolCurriculum) return;
 
-    // Jika lolos semua sensor pelindung di atas, masukkan ke daftar materi guru
     materialsGuru.push(m);
   });
 
