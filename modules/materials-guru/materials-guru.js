@@ -140,54 +140,59 @@ async function loadSchoolData(schoolId) {
 }
 
 // ==========================
-// LOAD MATERIALS (SUDAH SINKRON DENGAN CLASSES.JS)
+// LOAD MATERIALS (DENGAN RE-QUERY FALLBACK JIKA KOSONG)
 // ==========================
 async function loadMaterials() {
   const classId = getSelectedClassId();
   if (!classId) return;
 
-  // 🔥 Ambil data class terbaru dari firestore
+  // 1. Ambil data class terbaru dari firestore
   const classSnap = await getDoc(doc(db, "classes", classId));
   if (!classSnap.exists()) return;
 
   const classData = classSnap.data();
 
-  // 🔄 PERBAIKAN UTAMA SINKRONISASI: Mengubah 'teacherMap' menjadi 'teachers'
+  // Ambil pemetaan mapel ter-plot khusus guru ini dari field object `teachers` Admin
   const classTeachersMapping = classData.teachers || {};
   const teacherSubjects = classTeachersMapping[auth.currentUser.uid] || [];
   
-  // Tampilkan opsi filter mapel di UI
+  // Tampilkan opsi filter mapel di UI dropdown
   loadSubjectFilter(teacherSubjects);
 
-  const approved = schoolData.approvedSubjects || [];
-  let q;
-
-  if (teacherSubjects.length > 0) {
-    q = query(
-      collection(db, "materials"),
-      where("level", "==", schoolData.level),
-      where("curriculum", "==", schoolData.curriculum),
-      where("subject", "in", teacherSubjects)
-    );
-  } else {
-    q = query(
-      collection(db, "materials"),
-      where("level", "==", schoolData.level),
-      where("curriculum", "==", schoolData.curriculum)
-    );
+  if (teacherSubjects.length === 0) {
+    document.getElementById("materialGuruList").innerHTML = `<p style="color:#64748b;">📭 Anda belum memplot mata pelajaran khusus untuk kelas ini di panel Admin Kelas.</p>`;
+    return;
   }
 
-  const snap = await getDocs(q);
+  const approved = schoolData.approvedSubjects || [];
+  
+  // --- STRATEGI QUERY 1: Filter Ketat (Kurikulum + Level + Mapel) ---
+  let q = query(
+    collection(db, "materials"),
+    where("level", "==", schoolData.level),
+    where("curriculum", "==", schoolData.curriculum),
+    where("subject", "in", teacherSubjects)
+  );
+
+  let snap = await getDocs(q);
+
+  // --- STRATEGI QUERY 2 (FALLBACK): Jika Query 1 Kosong, cari murni berdasarkan Mapel saja ---
+  if (snap.empty) {
+    console.warn("Materi kosong dengan filter Kurikulum/Level. Mencoba memuat data murni berdasarkan nama Mapel...");
+    q = query(
+      collection(db, "materials"),
+      where("subject", "in", teacherSubjects)
+    );
+    snap = await getDocs(q);
+  }
+
   materialsGuru = [];
 
   snap.forEach(doc => {
     const m = { id: doc.id, ...doc.data() };
 
-    // ✅ Filter validasi persetujuan subjek sekolah
-    if (!approved.includes(m.subject)) return;
-
-    // ✅ Filter kecocokan berdasarkan kelas + guru pengampu
-    if (teacherSubjects.length && !teacherSubjects.includes(m.subject)) return;
+    // ✅ Filter validasi persetujuan subjek sekolah (jika sistem sekolah membatasi)
+    if (approved.length > 0 && !approved.includes(m.subject)) return;
 
     materialsGuru.push(m);
   });
