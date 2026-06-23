@@ -433,66 +433,52 @@ for(const d of exSnap.docs){
 }
 
  // ==========================
-// 🔥 2. INSERT MATERIAL
+// ==========================
+// 🔥 2. INSERT MATERIAL & EXERCISE YANG DICENTANG
 // ==========================
 for (const cb of checked) {
-
   const materialId = cb.value;
-
-  const selectedMaterial =
-    materialsGuru.find(m => m.id === materialId);
+  const selectedMaterial = materialsGuru.find(m => m.id === materialId);
 
   if (!selectedMaterial) continue;
 
-  // ==========================
-  // SIMPAN MATERIAL
-  // ==========================
-  await addDoc(collection(db,"materialGuru"), {
+  // 1. Simpan Materi yang dicentang
+  await addDoc(collection(db, "materialGuru"), {
     materialId,
     classId,
     teacherId: user.uid,
     schoolId: userData.schoolId,
-
     title: selectedMaterial.title,
     subject: selectedMaterial.subject,
-
     createdAt: new Date()
   });
 
-  // ==========================
-  // 🔥 AMBIL EXERCISE MATERIAL INI
-  // ==========================
-  const relatedExercises =
-    exercisesData.filter(
-      ex => ex.materialId === materialId
-    );
+  // 2. AMBIL HANYA EXERCISE YANG DICENTANG UNTUK MATERIAL INI
+  // Kita cari checkbox exercise yang dicentang DAN memiliki data-material yang cocok
+  const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
 
-  // ==========================
-  // 🔥 SIMPAN EXERCISE
-  // ==========================
-  for (const ex of relatedExercises) {
+  for (const exCb of checkedExercises) {
+    const exerciseId = exCb.value;
+    
+    // Cari data lengkap exercise dari array exercisesData
+    const ex = exercisesData.find(e => e.id === exerciseId);
+    if (!ex) continue;
 
-    await addDoc(collection(db,"exerciseGuru"), {
-
+    // Simpan ke Firestore
+    await addDoc(collection(db, "exerciseGuru"), {
       exerciseId: ex.id,
       materialId: materialId,
-
       classId,
       teacherId: user.uid,
       schoolId: userData.schoolId,
-
       title: ex.title,
       subject: ex.subject || "",
-
       createdAt: new Date()
-
     });
-
   }
-
 }
 
-  showToast("Materi berhasil disimpan (update)");
+  showToast("Materi dan latihan berhasil disimpan (update)");
 };
 
 // ==========================
