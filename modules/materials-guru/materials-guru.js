@@ -146,55 +146,32 @@ async function loadMaterials() {
   const classId = getSelectedClassId();
   if (!classId) return;
 
-  // 1. Ambil data class terbaru dari firestore
   const classSnap = await getDoc(doc(db, "classes", classId));
   if (!classSnap.exists()) return;
 
   const classData = classSnap.data();
-
-  // Ambil pemetaan mapel ter-plot khusus guru ini dari field object `teachers` Admin
   const classTeachersMapping = classData.teachers || {};
   const teacherSubjects = classTeachersMapping[auth.currentUser.uid] || [];
   
-  // Tampilkan opsi filter mapel di UI dropdown
   loadSubjectFilter(teacherSubjects);
 
   if (teacherSubjects.length === 0) {
-    document.getElementById("materialGuruList").innerHTML = `<p style="color:#64748b;">📭 Anda belum memplot mata pelajaran khusus untuk kelas ini di panel Admin Kelas.</p>`;
+    document.getElementById("materialGuruList").innerHTML = `<p>📭 Mapel Anda belum diplot di kelas ini oleh Admin.</p>`;
     return;
   }
 
-  const approved = schoolData.approvedSubjects || [];
-  
-  // --- STRATEGI QUERY 1: Filter Ketat (Kurikulum + Level + Mapel) ---
-  let q = query(
+  // 🔓 KUNCI BEBAS: Ambil semua materi di mana field 'subject'-nya cocok dengan mapel guru,
+  // tanpa peduli kurikulum sekolahnya apa atau levelnya apa.
+  const q = query(
     collection(db, "materials"),
-    where("level", "==", schoolData.level),
-    where("curriculum", "==", schoolData.curriculum),
     where("subject", "in", teacherSubjects)
   );
 
-  let snap = await getDocs(q);
-
-  // --- STRATEGI QUERY 2 (FALLBACK): Jika Query 1 Kosong, cari murni berdasarkan Mapel saja ---
-  if (snap.empty) {
-    console.warn("Materi kosong dengan filter Kurikulum/Level. Mencoba memuat data murni berdasarkan nama Mapel...");
-    q = query(
-      collection(db, "materials"),
-      where("subject", "in", teacherSubjects)
-    );
-    snap = await getDocs(q);
-  }
-
+  const snap = await getDocs(q);
   materialsGuru = [];
 
   snap.forEach(doc => {
-    const m = { id: doc.id, ...doc.data() };
-
-    // ✅ Filter validasi persetujuan subjek sekolah (jika sistem sekolah membatasi)
-    if (approved.length > 0 && !approved.includes(m.subject)) return;
-
-    materialsGuru.push(m);
+    materialsGuru.push({ id: doc.id, ...doc.data() });
   });
 
   filteredMaterials = materialsGuru;
