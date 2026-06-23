@@ -225,7 +225,7 @@ async function loadClassWithStudents(user) {
       div.innerHTML = `
         <button class="class-toggle" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center; padding:12px; cursor:pointer;">
           <span>📋 <b>${classData.name}</b> ${waliKelasBadge}</span>
-          <span style="font-size:12px; color:#64748b;">📖 ${mySubjects.length} Mapel</span>
+          <span style="font-size:12px; color:#FFFFFF;">📖 ${mySubjects.length} Mapel</span>
         </button>
 
         <div class="class-detail" style="display:none; padding:15px; border:1px solid #e2e8f0; border-top:none; border-radius:0 0 6px 6px; background:#fff;">
