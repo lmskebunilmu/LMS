@@ -1,4 +1,4 @@
-import { auth, db } from "/LMS/firebase/firebase-config.js";
+import { auth, db } from "../../firebase/firebase-config.js";
 
 import {
   collection,
@@ -13,7 +13,7 @@ import {
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-import { loadLayout } from "/LMS/assets/js/components.js";
+import { loadLayout } from "../../assets/js/components.js";
 
 // ==========================
 let materialsGuru = [];
@@ -21,16 +21,16 @@ let filteredMaterials = [];
 let schoolData = null;
 let exercisesData = [];
 
+
 function getSelectedClassId() {
   return document.getElementById("classSelect").value;
 }
-
 // ==========================
 // AUTH
 // ==========================
 onAuthStateChanged(auth, async (user) => {
 
-  if (!user) return window.location = "/LMS/login.html";
+  if (!user) return window.location = "../../login.html";
 
   console.log("AUTH UID:", user.uid);
 
@@ -39,7 +39,7 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!userSnap.exists()) {
     alert("Data user tidak ditemukan!");
-    return window.location = "/LMS/login.html";
+    return window.location = "../../login.html";
   }
 
   const userData = userSnap.data();
@@ -48,62 +48,66 @@ onAuthStateChanged(auth, async (user) => {
 
   if (userData.role !== "guru") {
     alert("Akses hanya guru!");
-    return window.location = "/LMS/login.html";
+    return window.location = "../../login.html";
   }
 
   // 🔒 CEK STATUS GURU
-  const teacherSnap = await getDoc(doc(db, "teachers", user.uid));
+const teacherSnap = await getDoc(doc(db, "teachers", user.uid));
 
-  if (teacherSnap.exists()) {
-    const teacherData = teacherSnap.data();
+if (teacherSnap.exists()) {
+  const teacherData = teacherSnap.data();
 
-    if (teacherData.status === "nonaktif") {
-      showToast("Akun kamu dinonaktifkan!", "error");
+  if (teacherData.status === "nonaktif") {
+    showToast("Akun kamu dinonaktifkan!", "error");
 
-      document.querySelector(".main").innerHTML = `
-        <div style="text-align:center;margin-top:100px;">
-          <h1 style="color:red;">🚫 Akun Dinonaktifkan</h1>
-          <p>Hubungi admin sekolah</p>
-          <button onclick="window.location='/LMS/login.html'">Logout</button>
-        </div>
-      `;
-      return;
-    }
+    document.querySelector(".main").innerHTML = `
+      <div style="text-align:center;margin-top:100px;">
+        <h1 style="color:red;">🚫 Akun Dinonaktifkan</h1>
+        <p>Hubungi admin sekolah</p>
+        <button onclick="window.location='../../login.html'">Logout</button>
+      </div>
+    `;
+
+    return;
   }
+}
 
   await loadLayout("guru");
 
-  // 🔥 TUNGGU COMPONENT HEADER SIAP
-  await waitForHeader();
-  await loadProfileHeader(user); 
+// 🔥 WAJIB TAMBAH INI
+await waitForHeader();
+await loadProfileHeader(user); // 🔥 TAMBAH INI
 
-  await loadClasses(user);
-  await loadSchoolData(userData.schoolId);
-  await loadExercises();
+await loadClasses(user);
+await loadSchoolData(userData.schoolId);
+await loadExercises();
+// 🔥 TAMBAH INI
+const classSelect = document.getElementById("classSelect");
 
-  const classSelect = document.getElementById("classSelect");
+classSelect.addEventListener("change", async () => {
 
-  classSelect.addEventListener("change", async () => {
-    // 🔥 RESET FILTER MAPEL
-    document.getElementById("subjectFilter").value = "";
-    await loadMaterials();
-  });
+  // 🔥 RESET FILTER MAPEL
+  document.getElementById("subjectFilter").value = "";
 
-  // load pertama kali
   await loadMaterials();
+});
+
+// load pertama
+await loadMaterials();
 });
 
 // ==========================
 // LOAD KELAS
 // ==========================
 async function loadClasses(user) {
+
   const userSnap = await getDoc(doc(db, "users", user.uid));
   const userData = userSnap.data();
 
   const q = query(
-    collection(db, "classes"),
-    where("teacherIds", "array-contains", user.uid),
-    where("schoolId", "==", userData.schoolId)
+    collection(db,"classes"),
+    where("teacherIds","array-contains",user.uid),
+    where("schoolId","==",userData.schoolId)
   );
 
   const snap = await getDocs(q);
@@ -117,20 +121,22 @@ async function loadClasses(user) {
     opt.textContent = doc.data().name;
     select.appendChild(opt);
   });
+
 }
 
 // ==========================
 // LOAD SCHOOL
 // ==========================
 async function loadSchoolData(schoolId) {
-  const snap = await getDoc(doc(db, "schools", schoolId));
 
-  if (!snap.exists()) return;
+  const snap = await getDoc(doc(db,"schools",schoolId));
+
+  if(!snap.exists()) return;
 
   const data = snap.data();
 
   // 🚨 VALIDASI STATUS SEKOLAH
-  if (data.status !== "aktif") {
+  if(data.status !== "aktif"){
     showToast("Sekolah tidak aktif", "error");
     lockPage();
     return;
@@ -139,258 +145,352 @@ async function loadSchoolData(schoolId) {
   schoolData = data;
 }
 
-// =========================================================================
-// LOAD MATERIALS - SINKRON 100% DENGAN KURIKULUM & LEVEL SD KEBUN ILMU
-// =========================================================================
+// ==========================
+// LOAD MATERIALS
+// ==========================
 async function loadMaterials() {
+
   const classId = getSelectedClassId();
   if (!classId) return;
 
-  // 1. Ambil data kelas untuk melihat mapel guru di kelas ini
+  // 🔥 ambil data class
   const classSnap = await getDoc(doc(db, "classes", classId));
   if (!classSnap.exists()) return;
 
   const classData = classSnap.data();
-  const classTeachersMapping = classData.teachers || {};
-  const teacherSubjects = classTeachersMapping[auth.currentUser.uid] || [];
-  
-  // Render dropdown filter mapel di UI Guru
-  loadSubjectFilter(teacherSubjects);
 
-  if (teacherSubjects.length === 0) {
-    document.getElementById("materialGuruList").innerHTML = `<p style="color:#64748b;">📭 Anda belum diplot memegang mata pelajaran di kelas ini oleh Admin Sekolah.</p>`;
-    return;
-  }
+  // 🔥 ambil mapel guru di class ini
+  const teacherSubjects =
+  classData.teacherMap?.[auth.currentUser.uid] || [];
+    loadSubjectFilter(teacherSubjects);
 
-  // 2. Ambil parameter pengunci dari data sekolah (SD Kebun Ilmu)
+
   const approved = schoolData.approvedSubjects || [];
-  const schoolLevel = (schoolData.level || "").trim().toLowerCase();          // Hasilnya: "sd"
-  const schoolCurriculum = (schoolData.curriculum || "").trim().toLowerCase();  // Hasilnya: "nasional"
 
-  // 3. Tarik bank materi master dari Superadmin berdasarkan mapel si guru
-  const q = query(
-    collection(db, "materials"),
-    where("subject", "in", teacherSubjects)
+  let q;
+
+if (teacherSubjects.length > 0) {
+  q = query(
+    collection(db,"materials"),
+    where("level","==",schoolData.level),
+    where("curriculum","==",schoolData.curriculum),
+    where("subject","in", teacherSubjects)
   );
+} else {
+  q = query(
+    collection(db,"materials"),
+    where("level","==",schoolData.level),
+    where("curriculum","==",schoolData.curriculum)
+  );
+}
 
   const snap = await getDocs(q);
+
   materialsGuru = [];
 
   snap.forEach(doc => {
+
     const m = { id: doc.id, ...doc.data() };
 
-    // 🔒 FILTER 1: Kunci per Sekolah (Mapel harus ada di approvedSubjects sekolah)
-    if (approved.length > 0 && !approved.includes(m.subject)) return;
+    // ✅ filter sekolah
+    if (!approved.includes(m.subject)) return;
 
-    // 🔒 FILTER 2: Kunci Berdasarkan Level Jenjang (SD harus ketemu SD)
-    const materialLevel = (m.level || "").trim().toLowerCase();
-    if (schoolLevel && materialLevel !== schoolLevel) return;
-
-    // 🔒 FILTER 3: Kunci Berdasarkan Kurikulum (Nasional harus ketemu Nasional)
-    const materialCurriculum = (m.curriculum || "").trim().toLowerCase();
-    if (schoolCurriculum && materialCurriculum !== schoolCurriculum) return;
+    // ✅ filter berdasarkan kelas + guru
+    if (teacherSubjects.length && !teacherSubjects.includes(m.subject)) return;
 
     materialsGuru.push(m);
+
   });
 
   filteredMaterials = materialsGuru;
+
   renderMaterials(filteredMaterials);
 }
 
-async function loadExercises() {
-  const snap = await getDocs(collection(db, "exercises"));
+async function loadExercises(){
+
+  const snap = await getDocs(
+    collection(db,"exercises")
+  );
+
   exercisesData = [];
 
   snap.forEach(doc => {
+
     exercisesData.push({
       id: doc.id,
       ...doc.data()
     });
-  });
-}
 
+  });
+
+}
 // ==========================
 // RENDER
 // ==========================
-function renderMaterials(data) {
+function renderMaterials(data){
+
   const container = document.getElementById("materialGuruList");
   container.innerHTML = "";
 
-  if (data.length === 0) {
+  if(data.length === 0){
     container.innerHTML = `<p>Tidak ada materi</p>`;
     return;
   }
 
+  // ==========================
   // GROUP BY CHAPTER
+  // ==========================
   const grouped = {};
+
   data.forEach(m => {
+
     const bab = m.chapter || "Bab Umum";
-    if (!grouped[bab]) grouped[bab] = [];
+
+    if(!grouped[bab]) grouped[bab] = [];
+
     grouped[bab].push(m);
+
   });
 
+  // ==========================
   // RENDER PER BAB
+  // ==========================
   Object.keys(grouped).forEach(bab => {
+
     const babDiv = document.createElement("div");
     babDiv.className = "bab-box";
 
     babDiv.innerHTML = `
       <h3 class="bab-title">
-        <span>📘 ${bab}</span>
-        <button class="toggle-btn">Lihat Materi</button>
-      </h3>
+  <span>📘 ${bab}</span>
+  <button class="toggle-btn">Lihat Materi</button>
+</h3>
 
       <div class="subbab-list">
         ${grouped[bab].map(m => {
-          // Ambil exercise sesuai materialId relasinya
-          const materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
 
-          return `
-            <div class="subbab-item">
-              <label>
-                <input
-                  type="checkbox"
-                  class="subbab-check"
-                  value="${m.id}"
-                >
-                ${m.subChapter || m.title}
-              </label>
+  // 🔥 ambil exercise sesuai material
+  const materialExercises =
+    exercisesData.filter(
+      ex => ex.materialId === m.id
+    );
 
-              <button onclick="previewMaterial('${m.id}')">👁</button>
+  return `
 
-              <div class="exercise-list">
-                ${materialExercises.map(ex => `
-                  <label class="exercise-item">
-                    <input
-                      type="checkbox"
-                      class="exercise-check"
-                      data-material="${m.id}"
-                      value="${ex.id}"
-                    >
-                    📝 ${ex.title}
-                  </label>
-                `).join("")}
-              </div>
-            </div>
-          `;
-        }).join("")}
+    <div class="subbab-item">
+
+      <label>
+        <input
+          type="checkbox"
+          class="subbab-check"
+          value="${m.id}"
+        >
+
+        ${m.subChapter || m.title}
+      </label>
+
+      <button onclick="previewMaterial('${m.id}')">
+        👁
+      </button>
+
+      <!-- 🔥 LIST EXERCISE -->
+      <div class="exercise-list">
+
+        ${materialExercises.map(ex => `
+
+          <label class="exercise-item">
+
+            <input
+              type="checkbox"
+              class="exercise-check"
+              data-material="${m.id}"
+              value="${ex.id}"
+            >
+
+            📝 ${ex.title}
+
+          </label>
+
+        `).join("")}
+
       </div>
 
-      <button onclick="assignSelected('${bab.replace(/'/g, "\\'")}')">
+    </div>
+
+  `;
+}).join("")}
+      </div>
+
+      <button onclick="assignSelected('${bab}')">
         ➕ Pakai Materi Ini
       </button>
     `;
 
+    // ==========================
     // ACCORDION CLICK
+    // ==========================
     const btn = babDiv.querySelector(".toggle-btn");
-    btn.onclick = () => {
-      document.querySelectorAll(".bab-box").forEach(b => {
-        if (b !== babDiv) b.classList.remove("active");
-      });
 
-      babDiv.classList.toggle("active");
-      btn.textContent = babDiv.classList.contains("active") ? "Tutup" : "Lihat Materi";
-    };
+btn.onclick = () => {
+
+  document.querySelectorAll(".bab-box").forEach(b => {
+    if (b !== babDiv) b.classList.remove("active");
+  });
+
+  babDiv.classList.toggle("active");
+
+  // 🔥 ganti teks tombol
+  btn.textContent = babDiv.classList.contains("active")
+    ? "Tutup"
+    : "Lihat Materi";
+};
 
     container.appendChild(babDiv);
+
   });
+
 }
 
 // ==========================
 // FILTER
 // ==========================
 window.filterMaterialsGuru = () => {
-  const search = document.getElementById("searchMaterialGuru").value.toLowerCase();
-  const selectedSubject = document.getElementById("subjectFilter").value;
+
+  const search = document
+    .getElementById("searchMaterialGuru")
+    .value.toLowerCase();
+
+  const selectedSubject =
+    document.getElementById("subjectFilter").value;
 
   filteredMaterials = materialsGuru.filter(m => {
-    const matchSearch = m.title.toLowerCase().includes(search) || m.subject.toLowerCase().includes(search);
-    const matchSubject = !selectedSubject || m.subject === selectedSubject;
+
+    const matchSearch =
+      m.title.toLowerCase().includes(search) ||
+      m.subject.toLowerCase().includes(search);
+
+    const matchSubject =
+      !selectedSubject || m.subject === selectedSubject;
+
     return matchSearch && matchSubject;
   });
 
   renderMaterials(filteredMaterials);
 };
-
 // ==========================
-// ASSIGN / PAKAI MATERI
+// ASSIGN
 // ==========================
 window.assignSelected = async (bab) => {
+
   const classId = document.getElementById("classSelect").value;
 
-  if (!classId) {
+  if(!classId){
     showToast("Pilih kelas dulu", "error");
     return;
   }
 
   const checked = document.querySelectorAll(".subbab-check:checked");
 
-  if (checked.length === 0) {
+  if(checked.length === 0){
     showToast("Pilih minimal 1 subbab", "error");
     return;
   }
 
   const user = auth.currentUser;
-  const userSnap = await getDoc(doc(db, "users", user.uid));
+
+  const userSnap = await getDoc(doc(db,"users",user.uid));
   const userData = userSnap.data();
 
-  // 1. HAPUS MATERIAL LAMA DI BAB INI (Supaya update tidak menumpuk duplikat data)
-  const q = query(
-    collection(db, "materialGuru"),
-    where("classId", "==", classId),
-    where("teacherId", "==", user.uid)
-  );
+ // ==========================
+// 🔥 HAPUS MATERIAL LAMA
+// ==========================
+const q = query(
+  collection(db,"materialGuru"),
+  where("classId","==",classId),
+  where("teacherId","==",user.uid)
+);
 
-  const oldSnap = await getDocs(q);
-  for (const d of oldSnap.docs) {
-    await deleteDoc(d.ref);
-  }
+const oldSnap = await getDocs(q);
 
-  // 2. HAPUS EXERCISE LAMA
-  const eq = query(
-    collection(db, "exerciseGuru"),
-    where("classId", "==", classId),
-    where("teacherId", "==", user.uid)
-  );
+for(const d of oldSnap.docs){
+  await deleteDoc(d.ref);
+}
 
-  const exSnap = await getDocs(eq);
-  for (const d of exSnap.docs) {
-    await deleteDoc(d.ref);
-  }
+// ==========================
+// 🔥 HAPUS EXERCISE LAMA
+// ==========================
+const eq = query(
+  collection(db,"exerciseGuru"),
+  where("classId","==",classId),
+  where("teacherId","==",user.uid)
+);
 
-  // 3. INSERT MATERIAL BARU Yg TERCENTANG
-  for (const cb of checked) {
-    const materialId = cb.value;
-    const selectedMaterial = materialsGuru.find(m => m.id === materialId);
+const exSnap = await getDocs(eq);
 
-    if (!selectedMaterial) continue;
+for(const d of exSnap.docs){
+  await deleteDoc(d.ref);
+}
 
-    await addDoc(collection(db, "materialGuru"), {
-      materialId,
+ // ==========================
+// 🔥 2. INSERT MATERIAL
+// ==========================
+for (const cb of checked) {
+
+  const materialId = cb.value;
+
+  const selectedMaterial =
+    materialsGuru.find(m => m.id === materialId);
+
+  if (!selectedMaterial) continue;
+
+  // ==========================
+  // SIMPAN MATERIAL
+  // ==========================
+  await addDoc(collection(db,"materialGuru"), {
+    materialId,
+    classId,
+    teacherId: user.uid,
+    schoolId: userData.schoolId,
+
+    title: selectedMaterial.title,
+    subject: selectedMaterial.subject,
+
+    createdAt: new Date()
+  });
+
+  // ==========================
+  // 🔥 AMBIL EXERCISE MATERIAL INI
+  // ==========================
+  const relatedExercises =
+    exercisesData.filter(
+      ex => ex.materialId === materialId
+    );
+
+  // ==========================
+  // 🔥 SIMPAN EXERCISE
+  // ==========================
+  for (const ex of relatedExercises) {
+
+    await addDoc(collection(db,"exerciseGuru"), {
+
+      exerciseId: ex.id,
+      materialId: materialId,
+
       classId,
       teacherId: user.uid,
       schoolId: userData.schoolId,
-      title: selectedMaterial.title,
-      subject: selectedMaterial.subject,
+
+      title: ex.title,
+      subject: ex.subject || "",
+
       createdAt: new Date()
+
     });
 
-    // AMBIL EXERCISE MATERIAL INI UNTUK DISIMPAN
-    const relatedExercises = exercisesData.filter(ex => ex.materialId === materialId);
-
-    for (const ex of relatedExercises) {
-      await addDoc(collection(db, "exerciseGuru"), {
-        exerciseId: ex.id,
-        materialId: materialId,
-        classId,
-        teacherId: user.uid,
-        schoolId: userData.schoolId,
-        title: ex.title,
-        subject: ex.subject || "",
-        createdAt: new Date()
-      });
-    }
   }
+
+}
 
   showToast("Materi berhasil disimpan (update)");
 };
@@ -405,47 +505,67 @@ window.previewMaterial = (id) => {
 // ==========================
 // TOAST
 // ==========================
-function showToast(msg, type = "success") {
+function showToast(msg, type="success"){
+
   const t = document.getElementById("toast");
+
   t.innerText = msg;
-  t.className = type === "error" ? "toast error active" : "toast active";
+
+  t.className =
+    type === "error"
+    ? "toast error active"
+    : "toast active";
 
   setTimeout(() => {
     t.classList.remove("active");
   }, 3000);
+
 }
 
-function waitForHeader() {
-  return new Promise(resolve => {
-    const interval = setInterval(() => {
+function waitForHeader(){
+  return new Promise(resolve=>{
+    const interval = setInterval(()=>{
       const el = document.getElementById("headerAvatarHeader");
-      if (el) {
+      if(el){
         clearInterval(interval);
         resolve();
       }
-    }, 50);
+    },50);
   });
 }
 
-async function loadProfileHeader(user) {
-  const userSnap = await getDoc(doc(db, "users", user.uid));
-  if (!userSnap.exists()) return;
+async function loadProfileHeader(user){
+
+  const userSnap = await getDoc(doc(db,"users",user.uid));
+  if(!userSnap.exists()) return;
 
   const data = userSnap.data();
-  const name = data.name || user.displayName || "Guru";
-  const avatar = data.avatarURL || user.photoURL || "/LMS/assets/images/default-avatar.png";
+
+  const name =
+    data.name ||
+    user.displayName ||
+    "Guru";
+
+  const avatar =
+    data.avatarURL ||
+    user.photoURL ||
+    "../assets/images/default-avatar.png";
+
   const schoolId = data.schoolId;
 
   let schoolName = "-";
-  let schoolLogo = "/LMS/assets/images/default-logo.png";
+  let schoolLogo = "../assets/images/default-logo.png";
 
-  if (schoolId) {
-    const schoolSnap = await getDoc(doc(db, "schools", schoolId));
-    if (schoolSnap.exists()) {
+  if(schoolId){
+
+    const schoolSnap = await getDoc(doc(db,"schools",schoolId));
+
+    if(schoolSnap.exists()){
+
       const schoolData = schoolSnap.data();
 
       // 🚨 CEK STATUS SEKOLAH
-      if (schoolData.status !== "aktif") {
+      if(schoolData.status !== "aktif"){
         showToast("Sekolah kamu nonaktif!", "error");
         lockPage();
         return;
@@ -462,21 +582,51 @@ async function loadProfileHeader(user) {
   document.getElementById("headerSchoolLogo").src = schoolLogo;
 }
 
-function lockPage() {
+function lockPage(){
+
   const main = document.querySelector(".main");
-  if (!main) return;
+
+  if(!main) return;
 
   main.innerHTML = `
-    <div style="display:flex; justify-content:center; align-items:center; height:80vh; flex-direction:column; text-align:center;">
+    <div style="
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:80vh;
+      flex-direction:column;
+      text-align:center;
+    ">
       <h1 style="color:red;">🚫 Akses Ditolak</h1>
       <p>Sekolah kamu sedang <b>nonaktif</b></p>
-      <button onclick="window.location='/LMS/login.html'">Logout</button>
+      <button onclick="window.location='../../login.html'">
+        Logout
+      </button>
     </div>
   `;
 }
 
+
+
+async function getTeacherData(userId){
+
+  const q = query(
+    collection(db,"teachers"),
+    where("userId","==",userId)
+  );
+
+  const snap = await getDocs(q);
+
+  if(snap.empty) return null;
+
+  return snap.docs[0].data();
+
+}
+
 function loadSubjectFilter(teacherSubjects) {
+
   const select = document.getElementById("subjectFilter");
+
   select.innerHTML = `<option value="">Semua Mapel</option>`;
 
   teacherSubjects.forEach(sub => {
@@ -485,8 +635,68 @@ function loadSubjectFilter(teacherSubjects) {
     opt.textContent = sub;
     select.appendChild(opt);
   });
+
 }
 
 window.filterBySubject = () => {
   filterMaterialsGuru();
 };
+
+function generateContent(input) {
+  let output = input;
+
+  // YouTube
+  output = output.replace(
+    /(https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s<]+)/g,
+    (url) => {
+      let videoId = "";
+      if (url.includes("watch?v=")) videoId = url.split("watch?v=")[1].split("&")[0];
+      else if (url.includes("youtu.be/")) videoId = url.split("youtu.be/")[1].split("?")[0];
+
+      return `<iframe width="100%" height="315"
+        src="https://www.youtube.com/embed/${videoId}"
+        allowfullscreen>
+      </iframe>`;
+    }
+  );
+
+  // PDF
+  output = output.replace(
+    /(https?:\/\/[^\s<]+\.pdf)/g,
+    (url) => `<iframe src="${url}" width="100%" height="500px"></iframe>`
+  );
+
+  // remove script
+  output = output.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
+
+  return output;
+}
+
+async function loadAssignments() {
+
+  const classId = getSelectedClassId();
+  const user = auth.currentUser;
+
+  // MATERIAL
+  const mq = query(
+    collection(db,"materialGuru"),
+    where("classId","==",classId),
+    where("teacherId","==",user.uid)
+  );
+
+  const msnap = await getDocs(mq);
+
+  assignedMaterials = msnap.docs.map(d => d.data().materialId);
+
+  // EXERCISE
+  const eq = query(
+    collection(db,"exerciseGuru"),
+    where("classId","==",classId),
+    where("teacherId","==",user.uid)
+  );
+
+  const esnap = await getDocs(eq);
+
+  assignedExercises = esnap.docs.map(d => d.data().exerciseId);
+
+}
