@@ -378,42 +378,14 @@ window.toggle = (el) => {
 // OPEN MATERIAL
 // ==========================
 window.openMaterial = async (id) => {
-
   const snap = await getDoc(doc(db, "materials", id));
   if (!snap.exists()) return;
 
   const data = snap.data();
-
   const win = window.open("", "_blank");
 
-  win.document.write(`
-    <html>
-    <head>
-      <title>${data.title}</title>
-
-      <script>
-        window.MathJax = {
-          tex: {
-            inlineMath: [['\\\\(', '\\\\)']],
-            displayMath: [['\\\\[', '\\\\]']]
-          }
-        };
-      </script>
-
-      <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
-      <style>
-        body{font-family:Arial;padding:20px;line-height:1.8}
-      </style>
-    </head>
-
-    <body>
-      <h2>${data.title}</h2>
-      <div>${generateContent(data.content)}</div>
-    </body>
-    </html>
-  `);
-
+  // Langsung panggil generateContent karena fungsi tersebut sudah membungkus HTML lengkap beserta judulnya
+  win.document.write(generateContent(`<h2>${data.title}</h2>` + data.content));
   win.document.close();
 };
 
@@ -1196,12 +1168,11 @@ function drawConnection(leftEl, rightEl){
 // ==========================
 function saveAnswer(index, value){
 
-  const key =
-    "exercise_" + "${id}";
+  const key = "exercise_" + "${id}";
 
   const data =
     JSON.parse(
-      localStorage.getItem(key) || "{}"
+      localStorage.getItem("exercise_" + "${id}")
     );
 
   data[index] = value;
