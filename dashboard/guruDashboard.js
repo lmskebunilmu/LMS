@@ -2,6 +2,9 @@ import { auth, db } from "/LMS/firebase/firebase-config.js";
 import { onAuthStateChanged, updateProfile, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, doc, getDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+// 🔌 TAMBAHKAN BARIS INI AGAR SIDEBAR & HEADER BISA MUNCUL:
+import { loadLayout } from "/LMS/assets/js/components.js";
+window.loadLayout = loadLayout;
 let currentSchoolId = null;
 let currentSchoolRef = null;
 let currentSchoolName = "-";
