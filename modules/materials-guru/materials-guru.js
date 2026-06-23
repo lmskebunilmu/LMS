@@ -140,21 +140,23 @@ async function loadSchoolData(schoolId) {
 }
 
 // =========================================================================
-// LOAD MATERIALS - SINKRON 100% (SEKOLAH + LEVEL JENJANG + KURIKULUM + MAPEL)
+// LOAD MATERIALS - SINKRON 100% DENGAN KURIKULUM & LEVEL SD KEBUN ILMU
 // =========================================================================
 async function loadMaterials() {
   const classId = getSelectedClassId();
   if (!classId) return;
 
-  // 1. Ambil data kelas untuk melihat mapel guru
+  // 1. Ambil data kelas untuk melihat mapel guru di kelas ini
   const classSnap = await getDoc(doc(db, "classes", classId));
   if (!classSnap.exists()) return;
 
   const classData = classSnap.data();
+  
+  // SINKRONISASI ADMIN: Menggunakan field 'teachers' (Object Map hasil set admin)
   const classTeachersMapping = classData.teachers || {};
   const teacherSubjects = classTeachersMapping[auth.currentUser.uid] || [];
   
-  // Render dropdown filter mapel di UI
+  // Render dropdown filter mapel di UI Guru
   loadSubjectFilter(teacherSubjects);
 
   if (teacherSubjects.length === 0) {
@@ -162,12 +164,12 @@ async function loadMaterials() {
     return;
   }
 
-  // 2. Ambil parameter pengunci dari data sekolah guru
+  // 2. Ambil parameter kurikulum, level, dan persetujuan dari data sekolah
   const approved = schoolData.approvedSubjects || [];
-  const schoolLevel = (schoolData.level || "").trim().toLowerCase();
-  const schoolCurriculum = (schoolData.curriculum || "").trim().toLowerCase();
+  const schoolLevel = (schoolData.level || "").trim().toLowerCase();          // Hasilnya: "sd"
+  const schoolCurriculum = (schoolData.curriculum || "").trim().toLowerCase();  // Hasilnya: "nasional"
 
-  // 3. Ambil data dari bank materi pusat berdasarkan mapel guru
+  // 3. Tarik seluruh bank materi master dari Superadmin berdasarkan mapel si guru
   const q = query(
     collection(db, "materials"),
     where("subject", "in", teacherSubjects)
@@ -179,17 +181,18 @@ async function loadMaterials() {
   snap.forEach(doc => {
     const m = { id: doc.id, ...doc.data() };
 
-    // 🔒 FILTER 1: Kunci per Sekolah (Abaikan jika mapel tidak diaktifkan di sekolah ini)
+    // 🔒 FILTER 1: Kunci per Sekolah (Mapel harus terdaftar di approvedSubjects sekolah)
     if (approved.length > 0 && !approved.includes(m.subject)) return;
 
-    // 🔒 FILTER 2: Kunci berdasarkan Level Jenjang (Misal: sma harus ketemu sma)
+    // 🔒 FILTER 2: Kunci Berdasarkan Level Jenjang (Materi harus bertuliskan level "SD")
     const materialLevel = (m.level || "").trim().toLowerCase();
     if (schoolLevel && materialLevel !== schoolLevel) return;
 
-    // 🔒 FILTER 3: Kunci berdasarkan Kurikulum (Misal: merdeka harus ketemu merdeka)
+    // 🔒 FILTER 3: Kunci Berdasarkan Kurikulum (Materi harus bertuliskan curriculum "Nasional")
     const materialCurriculum = (m.curriculum || "").trim().toLowerCase();
     if (schoolCurriculum && materialCurriculum !== schoolCurriculum) return;
 
+    // Jika lolos semua sensor pelindung di atas, masukkan ke daftar materi guru
     materialsGuru.push(m);
   });
 
