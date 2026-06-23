@@ -139,13 +139,14 @@ async function loadSchoolData(schoolId) {
   schoolData = data;
 }
 
-// ==========================
-// LOAD MATERIALS (DENGAN RE-QUERY FALLBACK JIKA KOSONG)
-// ==========================
+// =========================================================================
+// LOAD MATERIALS - SINKRON 100% (SEKOLAH + LEVEL JENJANG + KURIKULUM + MAPEL)
+// =========================================================================
 async function loadMaterials() {
   const classId = getSelectedClassId();
   if (!classId) return;
 
+  // 1. Ambil data kelas untuk melihat mapel guru
   const classSnap = await getDoc(doc(db, "classes", classId));
   if (!classSnap.exists()) return;
 
@@ -153,15 +154,20 @@ async function loadMaterials() {
   const classTeachersMapping = classData.teachers || {};
   const teacherSubjects = classTeachersMapping[auth.currentUser.uid] || [];
   
+  // Render dropdown filter mapel di UI
   loadSubjectFilter(teacherSubjects);
 
   if (teacherSubjects.length === 0) {
-    document.getElementById("materialGuruList").innerHTML = `<p>📭 Mapel Anda belum diplot di kelas ini oleh Admin.</p>`;
+    document.getElementById("materialGuruList").innerHTML = `<p style="color:#64748b;">📭 Anda belum diplot memegang mata pelajaran di kelas ini oleh Admin Sekolah.</p>`;
     return;
   }
 
-  // 🔓 KUNCI BEBAS: Ambil semua materi di mana field 'subject'-nya cocok dengan mapel guru,
-  // tanpa peduli kurikulum sekolahnya apa atau levelnya apa.
+  // 2. Ambil parameter pengunci dari data sekolah guru
+  const approved = schoolData.approvedSubjects || [];
+  const schoolLevel = (schoolData.level || "").trim().toLowerCase();
+  const schoolCurriculum = (schoolData.curriculum || "").trim().toLowerCase();
+
+  // 3. Ambil data dari bank materi pusat berdasarkan mapel guru
   const q = query(
     collection(db, "materials"),
     where("subject", "in", teacherSubjects)
@@ -171,7 +177,20 @@ async function loadMaterials() {
   materialsGuru = [];
 
   snap.forEach(doc => {
-    materialsGuru.push({ id: doc.id, ...doc.data() });
+    const m = { id: doc.id, ...doc.data() };
+
+    // 🔒 FILTER 1: Kunci per Sekolah (Abaikan jika mapel tidak diaktifkan di sekolah ini)
+    if (approved.length > 0 && !approved.includes(m.subject)) return;
+
+    // 🔒 FILTER 2: Kunci berdasarkan Level Jenjang (Misal: sma harus ketemu sma)
+    const materialLevel = (m.level || "").trim().toLowerCase();
+    if (schoolLevel && materialLevel !== schoolLevel) return;
+
+    // 🔒 FILTER 3: Kunci berdasarkan Kurikulum (Misal: merdeka harus ketemu merdeka)
+    const materialCurriculum = (m.curriculum || "").trim().toLowerCase();
+    if (schoolCurriculum && materialCurriculum !== schoolCurriculum) return;
+
+    materialsGuru.push(m);
   });
 
   filteredMaterials = materialsGuru;
