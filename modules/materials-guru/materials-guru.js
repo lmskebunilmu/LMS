@@ -160,8 +160,8 @@ async function loadMaterials() {
   const classData = classSnap.data();
 
   // 🔥 ambil mapel guru di class ini
-  const teacherSubjects =
-  classData.teacherMap?.[auth.currentUser.uid] || [];
+ //  KODE BARU (Sudah sesuai dengan Firestore kamu)
+const teacherSubjects = classData.teachers?.[auth.currentUser.uid] || [];
     loadSubjectFilter(teacherSubjects);
 
 
