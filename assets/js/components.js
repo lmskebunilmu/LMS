@@ -98,7 +98,11 @@ function goSchools() {
   if (window.role === "admin") navigate("modules/students/students.html");
   else navigate("modules/schools/schools.html");
 }
-
+function goAssignments() {
+  if (window.role === "guru") {
+    navigate("modules/assignments/assignments-guru.html");
+  }
+}
 function goTeachers() {
   if (window.role === "admin") navigate("modules/teachers/teachers.html");
 }
@@ -251,6 +255,10 @@ function setActiveMenu() {
       btn.classList.add("active");
     }
 
+    if (onclickAttr.includes("goAssignments") && currentPath.includes("assignments-guru")) {
+  btn.classList.add("active");
+}
+
     if (onclickAttr.includes("goMaterialsSiswa") && currentPath.includes("materials")) {
       btn.classList.add("active");
     }
@@ -298,5 +306,6 @@ window.goAssignmentsSiswa = goAssignmentsSiswa;
 window.goAttendance = goAttendance;
 window.goClassSuperAdmin = goClassSuperAdmin;
 window.goTeachersSuperAdmin = goTeachersSuperAdmin;
+window.goAssignments = goAssignments;
 window.goBookingManagement = goBookingManagement;
 window.goBookingStudent = goBookingStudent;
