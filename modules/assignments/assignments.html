@@ -1,113 +1,58 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-  <meta charset="UTF-8">
-  <title>Kelola Tugas</title>
+    <meta charset="UTF-8">
+    <title>Penugasan Siswa - Guru</title>
 
-  <!-- CSS Dashboard -->
-  <link rel="stylesheet" href="../../assets/css/style.css">
-  <link rel="stylesheet" href="../../assets/css/responsive.css">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="stylesheet" href="../../assets/css/responsive.css">
 </head>
 
 <body>
-
 <div class="wrapper">
 
-  <!-- SIDEBAR -->
-  <div id="sidebar-container"></div>
+    <div id="sidebar-container"></div>
 
-  <!-- MAIN -->
-  <div class="main">
+    <div class="main">
 
-    <!-- HEADER -->
-    <div id="header-container"></div>
+        <div id="header-container"></div>
 
-    <h1>Kelola Tugas</h1>
+        <div class="card">
+            <h3>Panel Penugasan Materi & Latihan Siswa</h3>
+            <p style="font-size: 13px; color: gray; margin-bottom: 20px;">
+                Centang materi dan latihan yang ingin diaktifkan untuk kelas terpilih, lalu klik tombol simpan di setiap bab.
+            </p>
 
-    <!-- ==========================
-         BUAT TUGAS (GURU)
-    ========================== -->
-    <div class="card" id="assignmentSection">
+            <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Kelas:</label>
+                    <select id="classSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc;"></select>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 5px;">Filter Mata Pelajaran:</label>
+                    <select id="subjectFilter" onchange="filterBySubject()" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="">Semua Mapel</option>
+                    </select>
+                </div>
+            </div>
 
-      <h3>Buat Tugas</h3>
+            <input 
+                type="text"
+                id="searchAssignmentGuru"
+                placeholder="Cari bab atau materi tugas..."
+                oninput="filterAssignmentsGuru()"
+                style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px;"
+            >
 
-      <input type="text" id="assignmentTitle" placeholder="Judul Tugas">
-      <input type="text" id="subjectName" placeholder="Mata Pelajaran">
-      <input type="text" id="className" placeholder="Kelas">
+            <div id="assignmentGuruList" class="material-container"></div>
 
-      <textarea id="assignmentDescription" placeholder="Deskripsi Tugas"></textarea>
-
-      <button class="btn-edit" onclick="addAssignment()">
-        Buat Tugas
-      </button>
-
-    </div>
-
-    
-    <!-- ==========================
-         DAFTAR TUGAS
-    ========================== -->
-    <div class="card">
-
-      <h3>Daftar Tugas</h3>
-
-      <ul id="assignmentList"></ul>
+        </div>
 
     </div>
-
-    <!-- ==========================
-         SUBMISSION SISWA
-    ========================== -->
-    <div class="card" id="submissionSectionStudent">
-  <h3>Kirim Jawaban</h3>
-
-  <input type="text" id="studentNameStudent" placeholder="Nama Siswa">
-  <input type="text" id="assignmentTitleInputStudent" placeholder="Judul Tugas">
-  <textarea id="submissionTextStudent" placeholder="Jawaban Anda"></textarea>
-
-  <button class="primary" onclick="submitAssignment()">
-    Kirim Jawaban
-  </button>
 </div>
 
-    <!-- ==========================
-         NILAI SISWA
-    ========================== -->
-    <div class="card" id="studentGradeSection">
+<div id="toast" class="toast"></div>
 
-      <h3>Nilai Saya</h3>
-
-      <ul id="gradeList"></ul>
-
-    </div>
-
-    <!-- ==========================
-         JAWABAN UNTUK GURU
-    ========================== -->
-    <div class="card" id="teacherSubmissionSection">
-
-      <h3>Jawaban Siswa</h3>
-
-      <ul id="submissionList"></ul>
-
-    </div>
-
-    <!-- ==========================
-         BACK BUTTON
-    ========================== -->
-    <div style="margin-top:20px;">
-      <button class="btn-edit" onclick="backDashboard()">
-        Kembali Dashboard
-      </button>
-    </div>
-
-  </div>
-
-</div>
-
-<!-- JS -->
-<script type="module" src="assignments.js"></script>
-
+<script type="module" src="./assignments-guru.js"></script>
 </body>
 </html>
