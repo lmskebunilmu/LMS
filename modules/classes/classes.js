@@ -1136,20 +1136,19 @@ window.openAddStudentModal = async () => {
     addStudentList.innerHTML = "";
 
     let count = 0;
-    snap.forEach(sDoc => {
-      const sData = sDoc.data();
-      // Filter mandiri untuk mencari siswa yang belum punya kelas atau bukan di kelas aktif ini
-      if (!sData.classId || sData.classId === "") {
-        count++;
-        const li = document.createElement("li");
-        li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
-        li.innerHTML = `
-          <input type="checkbox" class="add-student-cb" value="${sDoc.id}" style="cursor:pointer;">
-          <span>👶 <b>${sData.name || "Tanpa Nama"}</b> (${sData.email || "-"})</span>
-        `;
-        addStudentList.appendChild(li);
-      }
-    });
+   snap.forEach(sDoc => {
+  const sData = sDoc.data();
+  if (!sData.classId || sData.classId === "") {
+    count++;
+    const li = document.createElement("li");
+    li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+    li.innerHTML = `
+      <input type="checkbox" class="add-student-cb" value="${sDoc.id}" style="cursor:pointer;">
+      <span>👶 <b>${sData.name || "Tanpa Nama"}</b> (${sData.email || "-"})</span>
+    `;
+    addStudentList.appendChild(li);
+  }
+});
 
     if (count === 0) {
       addStudentList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Semua siswa sekolah sudah memiliki kelas.</li>";
@@ -1289,19 +1288,18 @@ window.openAddTeacherModal = async () => {
 
     let count = 0;
     snap.forEach(tDoc => {
-      // Hanya tampilkan guru yang belum terdaftar di kelas ini
-      if (!currentTeacherIds.includes(tDoc.id)) {
-        count++;
-        const tData = tDoc.data();
-        const li = document.createElement("li");
-        li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
-        li.innerHTML = `
-          <input type="checkbox" class="add-teacher-cb" value="${tDoc.id}" style="cursor:pointer;">
-          <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
-        `;
-        addTeacherList.appendChild(li);
-      }
-    });
+  if (!currentTeacherIds.includes(tDoc.id)) {
+    count++;
+    const tData = tDoc.data();
+    const li = document.createElement("li");
+    li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+    li.innerHTML = `
+      <input type="checkbox" class="add-teacher-cb" value="${tDoc.id}" style="cursor:pointer;">
+      <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
+    `;
+    addTeacherList.appendChild(li);
+  }
+});
 
     if (count === 0) {
       addTeacherList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Semua guru sudah mengajar di kelas ini.</li>";
