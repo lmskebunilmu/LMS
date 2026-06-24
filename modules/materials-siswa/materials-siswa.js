@@ -195,16 +195,17 @@ async function loadExercises(schoolId, classId) {
 
     const ex = exSnap.data();
     temp.push({
-      exerciseId: assign.exerciseId,
-      classId: assign.classId,
-      subject: ex.subject,
-      chapter: ex.chapter || "Umum",
-      subChapter: ex.subChapter || "Umum",
-      title: ex.title,
-      isAssigned: assign.isAssigned ?? false, // 🔥 Ambil flag status aktif dari guru
-      duration: assign.duration || 0,        // 🔥 Ambil durasi waktu pengerjaan
-      questions: ex.questions || []
-    });
+  exerciseId: assign.exerciseId,
+  classId: assign.classId,
+  subject: ex.subject,
+  chapter: ex.chapter || "Umum",
+  subChapter: ex.subChapter || "Umum",
+  title: ex.title,
+  isAssigned: assign.isAssigned ?? false,
+  deadlineDate: assign.deadlineDate || "", // 🔥 Tanggal batas
+  deadlineTime: assign.deadlineTime || "", // 🔥 Jam menit batas
+  questions: ex.questions || []
+});
   }
 
   const map = new Map();
@@ -284,26 +285,67 @@ function renderMaterials(data) {
 
         // 🔥 RENDER LATIHAN DENGAN SISTEM CEK KONDISI AKTIF DAN WAKTU DURASI
         currentBab.exercises.forEach(ex => {
-          const item = document.createElement("div");
-          item.className = "materi-item";
+  const item = document.createElement("div");
+  item.className = "materi-item";
 
-          if (ex.isAssigned) {
-            // JIKA SUDAH DITUGASKAN OLEH GURU
-            item.style.borderLeft = "4px solid #16a34a"; // Garis Hijau
-            item.style.cursor = "pointer";
-            item.innerHTML = `📝 ${ex.title} <span style="color:#16a34a; font-size:11px; font-weight:bold; margin-left:8px;">⏱ Waktu: ${ex.duration} Menit (Tugas Aktif)</span>`;
-            item.onclick = () => openExercise(ex.exerciseId);
-          } else {
-            // JIKA BELUM DITUGASKAN OLEH GURU (TAMPIL TAPI TERKUNCI)
-            item.style.borderLeft = "4px solid #dc2626"; // Garis Merah
-            item.style.opacity = "0.6";
-            item.style.cursor = "not-allowed";
-            item.innerHTML = `🔒 <s>📝 ${ex.title}</s> <span style="color:#dc2626; font-size:11px; font-style:italic; margin-left:8px;">(Belum Ditugaskan / Terkunci)</span>`;
-            item.onclick = () => alert("Latihan tugas ini terkunci. Tunggu instruksi atau penugasan aktif dari guru kamu!");
-          }
-          
-          babContent.appendChild(item);
-        });
+  // LOGIKA VALIDASI APAKAH DEADLINE SUDAH LEWAT ATAU BELUM
+  let isExpired = false;
+  let deadlineString = "Tidak ditentukan";
+
+  if (ex.deadlineDate && ex.deadlineTime) {
+    const deadlineTarget = new Date(`${ex.deadlineDate}T${ex.deadlineTime}:00`);
+    const sekarang = new Date();
+    
+    // Bandingkan waktu sekarang dengan target dari guru
+    if (sekarang > deadlineTarget) {
+      isExpired = true;
+    }
+    
+    // Format tampilan info rapi untuk siswa
+    const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
+    const tanggalRapi = new Date(ex.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
+    deadlineString = `${tanggalRapi} - Pukul ${ex.deadlineTime} WIB`;
+  }
+
+  // VALIDASI KONDISI TAMPILAN
+  if (ex.isAssigned && !isExpired) {
+    // TUGAS AKTIF BISA DIKERJAKAN
+    item.style.borderLeft = "4px solid #16a34a"; 
+    item.style.cursor = "pointer";
+    item.innerHTML = `
+      📝 ${ex.title} 
+      <span style="color:#16a34a; font-size:11px; font-weight:bold; margin-left:8px;">
+        ⏱ Batas: ${deadlineString} (Tugas Aktif)
+      </span>`;
+    item.onclick = () => openExercise(ex.exerciseId);
+
+  } else if (ex.isAssigned && isExpired) {
+    // TUGAS SUDAH LEWAt BATAS (TERKUNCI OTOMATIS)
+    item.style.borderLeft = "4px solid #ef4444"; 
+    item.style.opacity = "0.5";
+    item.style.cursor = "not-allowed";
+    item.innerHTML = `
+      🔒 <s>📝 ${ex.title}</s> 
+      <span style="color:#ef4444; font-size:11px; font-weight:bold; margin-left:8px;">
+        ❌ Batas Waktu Habis (${deadlineString})
+      </span>`;
+    item.onclick = () => alert("Maaf, waktu pengerjaan latihan ini sudah habis/melewati batas pengumpulan!");
+
+  } else {
+    // BELUM DIAKTIFKAN OLEH GURU
+    item.style.borderLeft = "4px solid #9ca3af"; 
+    item.style.opacity = "0.6";
+    item.style.cursor = "not-allowed";
+    item.innerHTML = `
+      🔒 <s>📝 ${ex.title}</s> 
+      <span style="color:#6b7280; font-size:11px; font-style:italic; margin-left:8px;">
+        (Belum Ditugaskan / Terkunci)
+      </span>`;
+    item.onclick = () => alert("Latihan ini belum dibuka/ditugaskan aktif oleh gurumu.");
+  }
+  
+  babContent.appendChild(item);
+});
 
         mapelContent.appendChild(babDiv);
       });
