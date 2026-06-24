@@ -62,7 +62,8 @@
   
   <label style="font-size: 13px; font-weight: bold;">1. Pilih Mata Pelajaran:</label>
   <select id="newExerciseSubject" onchange="window.updateExerciseChapters()" style="width:100%; margin-bottom:10px; padding:8px;">
-    </select><br><br>
+    <option value="">-- Pilih Mapel --</option>
+  </select><br><br>
 
   <label style="font-size: 13px; font-weight: bold;">2. Pilih Bab:</label>
   <select id="newExerciseChapter" onchange="window.updateExerciseMaterials()" style="width:100%; margin-bottom:10px; padding:8px;" disabled>
@@ -76,6 +77,8 @@
 
   <label style="font-size: 13px; font-weight: bold;">4. Nama / Judul Latihan:</label>
   <input type="text" id="newExerciseTitle" placeholder="Contoh: Kuis Harian 1, Ulangan Bab 1" style="width:100%; margin-bottom:15px; padding:8px;"><br><br>
+  
+  <p style="font-size:12px; color:gray;">*Catatan: Isian soal dan sistem kuis detailnya bisa diarahkan ke halaman pembuatan soal terpisah seperti milik superadmin.</p>
   
   <button onclick="saveNewExercise()" style="background-color: #007bff; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Latihan</button>
   <button onclick="toggleForm('formExercise')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
