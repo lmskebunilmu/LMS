@@ -447,7 +447,3 @@ function showToast(message, type = "success") {
   }
 }
 
-// Navigasi Tautan Pintas Menu Cepat Dashboard Guru
-window.goMaterials = () => window.location = "../modules/materials/materials.html";
-window.goAssignments = () => window.location = "../modules/assignments/assignments.html";
-window.goAttendance = () => window.location = "../modules/attendance/attendance.html";
