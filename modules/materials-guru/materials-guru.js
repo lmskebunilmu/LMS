@@ -118,7 +118,7 @@ async function loadClasses(user) {
   snap.forEach(doc => {
     const opt = document.createElement("option");
     opt.value = doc.id;
-    opt.textContent = doc.data().name;
+    opt.textContent = doc.data().className || "Kelas Tanpa Nama";
     select.appendChild(opt);
   });
 
