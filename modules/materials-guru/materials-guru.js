@@ -228,8 +228,8 @@ async function loadExercises(){
 // ==========================
 // RENDER
 // ==========================
+// Gantilah fungsi RENDER lama dengan yang ini agar checkbox exercise muncul kembali
 function renderMaterials(data){
-
   const container = document.getElementById("materialGuruList");
   container.innerHTML = "";
 
@@ -238,22 +238,14 @@ function renderMaterials(data){
     return;
   }
 
-  // ==========================
-  // GROUP BY CHAPTER
-  // ==========================
   const grouped = {};
-
   data.forEach(m => {
     const bab = m.chapter || "Bab Umum";
     if(!grouped[bab]) grouped[bab] = [];
     grouped[bab].push(m);
   });
 
-  // ==========================
-  // RENDER PER BAB
-  // ==========================
   Object.keys(grouped).forEach(bab => {
-
     const babDiv = document.createElement("div");
     babDiv.className = "bab-box";
 
@@ -265,11 +257,7 @@ function renderMaterials(data){
 
       <div class="subbab-list">
         ${grouped[bab].map(m => {
-
-          // ambil exercise sesuai material
           const materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
-
-          // 🔥 1. CEK APAKAH MATERI INI SUDAH DITUGASKAN (UNTUK CEKLIS MATERI)
           const isMaterialChecked = assignedMaterials.includes(m.id) ? "checked" : "";
 
           return `
@@ -283,18 +271,13 @@ function renderMaterials(data){
                 ${m.subChapter || m.title}
               </label>
 
-              <button onclick="previewMaterial('${m.id}')">
-                👁
-              </button>
+              <button onclick="previewMaterial('${m.id}')">👁</button>
 
-              <div class="exercise-list">
+              <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 5px;">
                 ${materialExercises.map(ex => {
-                  
-                  // 🔥 3. CEK APAKAH EXERCISE INI SUDAH DITUGASKAN (UNTUK CEKLIS EXERCISE)
                   const isExerciseChecked = assignedExercises.includes(ex.id) ? "checked" : "";
-
                   return `
-                    <label class="exercise-item">
+                    <label class="exercise-item" style="display:block; margin: 3px 0;">
                       <input
                         type="checkbox"
                         class="exercise-check"
@@ -306,7 +289,6 @@ function renderMaterials(data){
                   `;
                 }).join("")}
               </div>
-
             </div>
           `;
         }).join("")}
@@ -317,28 +299,17 @@ function renderMaterials(data){
       </button>
     `;
 
-    // ==========================
-    // ACCORDION CLICK
-    // ==========================
     const btn = babDiv.querySelector(".toggle-btn");
-
     btn.onclick = () => {
       document.querySelectorAll(".bab-box").forEach(b => {
         if (b !== babDiv) b.classList.remove("active");
       });
-
       babDiv.classList.toggle("active");
-
-      // ganti teks tombol
-      btn.textContent = babDiv.classList.contains("active")
-        ? "Tutup"
-        : "Lihat Materi";
+      btn.textContent = babDiv.classList.contains("active") ? "Tutup" : "Lihat Materi";
     };
 
     container.appendChild(babDiv);
-
   });
-
 }
 
 // ==========================
@@ -370,6 +341,7 @@ window.filterMaterialsGuru = () => {
 // ==========================
 // ASSIGN
 // ==========================
+// Gantilah fungsi ASSIGNSelected dengan yang ini
 window.assignSelected = async (bab) => {
   const classId = document.getElementById("classSelect").value;
   if(!classId){
@@ -377,8 +349,8 @@ window.assignSelected = async (bab) => {
     return;
   }
 
-  const checked = document.querySelectorAll(".subbab-check:checked");
-  if(checked.length === 0){
+  const checkedMaterials = document.querySelectorAll(".subbab-check:checked");
+  if(checkedMaterials.length === 0){
     showToast("Pilih minimal 1 subbab", "error");
     return;
   }
@@ -387,35 +359,48 @@ window.assignSelected = async (bab) => {
   const userSnap = await getDoc(doc(db,"users",user.uid));
   const userData = userSnap.data();
 
-  // Bersihkan MATERIAL lama saja
-  const q = query(
-    collection(db,"materialGuru"),
-    where("classId","==",classId),
-    where("teacherId","==",user.uid)
-  );
+  // Bersihkan Master Alokasi lama kelas ini
+  const q = query(collection(db,"materialGuru"), where("classId","==",classId), where("teacherId","==",user.uid));
   const oldSnap = await getDocs(q);
-  for(const d of oldSnap.docs){
-    await deleteDoc(d.ref);
-  }
+  for(const d of oldSnap.docs) await deleteDoc(d.ref);
 
-  // 🔥 SIMPAN MATERINYA SAJA (Latihan/Exercise dikosongkan agar diatur di halaman Penugasan)
-  for (const cb of checked) {
+  const eq = query(collection(db,"exerciseGuru"), where("classId","==",classId), where("teacherId","==",user.uid));
+  const exSnap = await getDocs(eq);
+  for(const d of exSnap.docs) await deleteDoc(d.ref);
+
+  // Simpan data baru ke Master Siswa (Dibuat Default isAssigned: false)
+  for (const cb of checkedMaterials) {
     const materialId = cb.value;
     const selectedMaterial = materialsGuru.find(m => m.id === materialId);
     if (!selectedMaterial) continue;
 
     await addDoc(collection(db, "materialGuru"), {
-      materialId,
-      classId,
-      teacherId: user.uid,
-      schoolId: userData.schoolId,
-      title: selectedMaterial.title,
-      subject: selectedMaterial.subject,
-      createdAt: new Date()
+      materialId, classId, teacherId: user.uid, schoolId: userData.schoolId,
+      title: selectedMaterial.title, subject: selectedMaterial.subject, createdAt: new Date()
     });
+
+    const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
+    for (const exCb of checkedExercises) {
+      const exerciseId = exCb.value;
+      const ex = exercisesData.find(e => e.id === exerciseId);
+      if (!ex) continue;
+
+      await addDoc(collection(db, "exerciseGuru"), {
+        exerciseId: ex.id,
+        materialId: materialId,
+        classId,
+        teacherId: user.uid,
+        schoolId: userData.schoolId,
+        title: ex.title,
+        subject: ex.subject || "",
+        isAssigned: false, // 🔥 Tampil di siswa namun BELUM aktif
+        duration: 0,       // 🔥 Belum ditentukan waktu durasinya
+        createdAt: new Date()
+      });
+    }
   }
 
-  showToast("Materi berhasil diterapkan! Silakan buka menu 'Tugas' untuk mengaktifkan latihan siswa.");
+  showToast("Tugas berhasil ditandai! Buka menu Tugas untuk mengaktifkan durasi.");
   await loadMaterials();
 };
 // ==========================
