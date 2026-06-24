@@ -731,36 +731,43 @@ function populateNewExerciseMaterials() {
 }
 window.saveNewMaterial = async () => {
   const title = document.getElementById("newMaterialTitle").value;
-  const chapter = document.getElementById("newMaterialChapter").value;
   const subject = document.getElementById("newMaterialSubject").value;
   const content = document.getElementById("newMaterialContent").value;
   
+  // 📜 Logika Pilihan Bab: Ambil dari Select, jika kosong ambil dari Input Teks
+  const selectedChapter = document.getElementById("newMaterialChapterSelect").value;
+  const inputtedChapter = document.getElementById("newMaterialChapterInput").value;
+  
+  const chapter = selectedChapter || inputtedChapter; // Jika select terisi pakai select, jika tidak pakai input teks
+
   if(!title || !chapter || !subject) {
-    showToast("Judul, Bab, dan Mapel wajib diisi!", "error");
+    showToast("Judul, Bab, dan Mapel wajib diisi/dipilih!", "error");
     return;
   }
   
   try {
     const user = auth.currentUser;
-    // Tambahkan data materi baru ke koleksi 'materials' pusat
+    
     await addDoc(collection(db, "materials"), {
       title: title,
-      subChapter: title, // samakan atau sesuaikan
-      chapter: chapter,
+      subChapter: title, 
+      chapter: chapter, // Masuk ke Firestore dengan nama bab yang dipilih/diketik
       subject: subject,
       content: content,
-      level: schoolData.level,         // disamakan dengan level sekolah guru saat ini
-      curriculum: schoolData.curriculum, // disamakan dengan kurikulum sekolah guru saat ini
-      createdBy: user.uid,             // Penanda bahwa ini dibuat oleh guru tersebut
+      level: schoolData.level,         
+      curriculum: schoolData.curriculum, 
+      createdBy: user.uid,             
       isCustomTeacher: true,
       createdAt: new Date()
     });
     
     showToast("Materi baru berhasil dibuat!");
     
-    // Reset & tutup form
+    // Reset Form secara total
     document.getElementById("newMaterialTitle").value = "";
-    document.getElementById("newMaterialChapter").value = "";
+    document.getElementById("newMaterialChapterInput").value = "";
+    document.getElementById("newMaterialChapterInput").disabled = false;
+    document.getElementById("newMaterialChapterInput").style.backgroundColor = "#fff";
     document.getElementById("newMaterialContent").value = "";
     toggleForm('formMateri');
     
