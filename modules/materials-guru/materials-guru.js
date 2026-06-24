@@ -20,6 +20,8 @@ let materialsGuru = [];
 let filteredMaterials = [];
 let schoolData = null;
 let exercisesData = [];
+let assignedMaterials = [];
+let assignedExercises = [];
 
 
 function getSelectedClassId() {
@@ -201,7 +203,7 @@ if (teacherSubjects.length > 0) {
   });
 
   filteredMaterials = materialsGuru;
-
+await loadAssignments();
   renderMaterials(filteredMaterials);
 }
 
@@ -242,13 +244,9 @@ function renderMaterials(data){
   const grouped = {};
 
   data.forEach(m => {
-
     const bab = m.chapter || "Bab Umum";
-
     if(!grouped[bab]) grouped[bab] = [];
-
     grouped[bab].push(m);
-
   });
 
   // ==========================
@@ -261,63 +259,57 @@ function renderMaterials(data){
 
     babDiv.innerHTML = `
       <h3 class="bab-title">
-  <span>📘 ${bab}</span>
-  <button class="toggle-btn">Lihat Materi</button>
-</h3>
+        <span>📘 ${bab}</span>
+        <button class="toggle-btn">Lihat Materi</button>
+      </h3>
 
       <div class="subbab-list">
         ${grouped[bab].map(m => {
 
-  // 🔥 ambil exercise sesuai material
-  const materialExercises =
-    exercisesData.filter(
-      ex => ex.materialId === m.id
-    );
+          // ambil exercise sesuai material
+          const materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
 
-  return `
+          // 🔥 1. CEK APAKAH MATERI INI SUDAH DITUGASKAN (UNTUK CEKLIS MATERI)
+          const isMaterialChecked = assignedMaterials.includes(m.id) ? "checked" : "";
 
-    <div class="subbab-item">
+          return `
+            <div class="subbab-item">
+              <label>
+                <input
+                  type="checkbox"
+                  class="subbab-check"
+                  value="${m.id}"
+                  ${isMaterialChecked} >
+                ${m.subChapter || m.title}
+              </label>
 
-      <label>
-        <input
-          type="checkbox"
-          class="subbab-check"
-          value="${m.id}"
-        >
+              <button onclick="previewMaterial('${m.id}')">
+                👁
+              </button>
 
-        ${m.subChapter || m.title}
-      </label>
+              <div class="exercise-list">
+                ${materialExercises.map(ex => {
+                  
+                  // 🔥 3. CEK APAKAH EXERCISE INI SUDAH DITUGASKAN (UNTUK CEKLIS EXERCISE)
+                  const isExerciseChecked = assignedExercises.includes(ex.id) ? "checked" : "";
 
-      <button onclick="previewMaterial('${m.id}')">
-        👁
-      </button>
+                  return `
+                    <label class="exercise-item">
+                      <input
+                        type="checkbox"
+                        class="exercise-check"
+                        data-material="${m.id}"
+                        value="${ex.id}"
+                        ${isExerciseChecked} >
+                      📝 ${ex.title}
+                    </label>
+                  `;
+                }).join("")}
+              </div>
 
-      <!-- 🔥 LIST EXERCISE -->
-      <div class="exercise-list">
-
-        ${materialExercises.map(ex => `
-
-          <label class="exercise-item">
-
-            <input
-              type="checkbox"
-              class="exercise-check"
-              data-material="${m.id}"
-              value="${ex.id}"
-            >
-
-            📝 ${ex.title}
-
-          </label>
-
-        `).join("")}
-
-      </div>
-
-    </div>
-
-  `;
-}).join("")}
+            </div>
+          `;
+        }).join("")}
       </div>
 
       <button onclick="assignSelected('${bab}')">
@@ -330,19 +322,18 @@ function renderMaterials(data){
     // ==========================
     const btn = babDiv.querySelector(".toggle-btn");
 
-btn.onclick = () => {
+    btn.onclick = () => {
+      document.querySelectorAll(".bab-box").forEach(b => {
+        if (b !== babDiv) b.classList.remove("active");
+      });
 
-  document.querySelectorAll(".bab-box").forEach(b => {
-    if (b !== babDiv) b.classList.remove("active");
-  });
+      babDiv.classList.toggle("active");
 
-  babDiv.classList.toggle("active");
-
-  // 🔥 ganti teks tombol
-  btn.textContent = babDiv.classList.contains("active")
-    ? "Tutup"
-    : "Lihat Materi";
-};
+      // ganti teks tombol
+      btn.textContent = babDiv.classList.contains("active")
+        ? "Tutup"
+        : "Lihat Materi";
+    };
 
     container.appendChild(babDiv);
 
@@ -660,6 +651,7 @@ async function loadAssignments() {
 
   const classId = getSelectedClassId();
   const user = auth.currentUser;
+  if(!classId || !user) return;
 
   // MATERIAL
   const mq = query(
