@@ -166,31 +166,34 @@ async function loadMaterialsData() {
   renderAssignmentPanel(filteredMaterials);
 }
 
+// Ambil status rincian dari exerciseGuru pusat agar ter-load di state lokal
+let assignedExercisesDetail = [];
+
 async function loadAssignments() {
   const classId = getSelectedClassId();
   const user = auth.currentUser;
   if(!classId || !user) return;
 
-  const mq = query(
-    collection(db,"materialGuru"),
-    where("classId","==",classId),
-    where("teacherId","==",user.uid)
-  );
+  const mq = query(collection(db,"materialGuru"), where("classId","==",classId), where("teacherId","==",user.uid));
   const msnap = await getDocs(mq);
   assignedMaterials = msnap.docs.map(d => d.data().materialId);
 
-  const eq = query(
-    collection(db,"exerciseGuru"),
-    where("classId","==",classId),
-    where("teacherId","==",user.uid)
-  );
+  const eq = query(collection(db,"exerciseGuru"), where("classId","==",classId), where("teacherId","==",user.uid));
   const esnap = await getDocs(eq);
-  assignedExercises = esnap.docs.map(d => d.data().exerciseId);
+  
+  assignedExercises = [];
+  assignedExercisesDetail = [];
+  
+  esnap.forEach(d => {
+    const data = d.data();
+    assignedExercisesDetail.push({ docId: d.id, ...data });
+    if(data.isAssigned) {
+      assignedExercises.push(data.exerciseId); // Hanya ditandai aktif jika isAssigned true
+    }
+  });
 }
 
-// ==========================
-// RENDER PENUGASAN (DASHBOARD KONTROL)
-// ==========================
+// Update fungsi RENDER PANEL agar memuat Form Input Waktu Durasi
 function renderAssignmentPanel(data){
   const container = document.getElementById("assignmentGuruList");
   container.innerHTML = "";
@@ -225,29 +228,42 @@ function renderAssignmentPanel(data){
           return `
             <div class="subbab-item">
               <label style="font-weight: bold;">
-                <input
-                  type="checkbox"
-                  class="subbab-check"
-                  value="${m.id}"
-                  ${isMaterialChecked} 
-                >
+                <input type="checkbox" class="subbab-check" value="${m.id}" ${isMaterialChecked} disabled>
                 📄 Sub-Bab: ${m.subChapter || m.title}
               </label>
 
-              <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 5px; border-radius: 4px;">
+              <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 10px; border-radius: 4px;">
                 ${materialExercises.map(ex => {
-                  const isExerciseChecked = assignedExercises.includes(ex.id) ? "checked" : "";
+                  const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
+                  const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
+                  const savedDuration = dbAssign ? dbAssign.duration || 0 : 0;
+
                   return `
-                    <label class="exercise-item" style="display: block; margin: 5px 0;">
-                      <input
-                        type="checkbox"
-                        class="exercise-check"
-                        data-material="${m.id}"
-                        value="${ex.id}"
-                        ${isExerciseChecked} 
-                      >
-                      📝 Latihan: ${ex.title}
-                    </label>
+                    <div class="exercise-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0; background: #fff; padding: 5px; border-radius:4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                      <label class="exercise-item" style="margin: 0; cursor:pointer;">
+                        <input
+                          type="checkbox"
+                          class="exercise-check"
+                          data-material="${m.id}"
+                          value="${ex.id}"
+                          ${isChecked} 
+                        >
+                        📝 Latihan: ${ex.title}
+                      </label>
+                      
+                      <div style="display:flex; align-items:center; gap:5px;">
+                        <span style="font-size:12px; color:gray;">Durasi:</span>
+                        <input 
+                          type="number" 
+                          class="exercise-duration" 
+                          data-id="${ex.id}" 
+                          value="${savedDuration}" 
+                          placeholder="Menit" 
+                          style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;"
+                        >
+                        <span style="font-size:12px; color:gray;">menit</span>
+                      </div>
+                    </div>
                   `;
                 }).join("")}
                 ${materialExercises.length === 0 ? '<p style="font-size:12px; color:gray; margin:0;">Tidak ada latihan di sub-bab ini</p>' : ''}
@@ -258,7 +274,7 @@ function renderAssignmentPanel(data){
       </div>
 
       <button onclick="saveAssignmentStructure('${bab}')">
-        ➕ Pakai Materi Ini
+        💾 Tugaskan & Aktifkan Latihan Durasi
       </button>
     `;
 
@@ -311,57 +327,40 @@ window.filterBySubject = () => {
 // ==========================
 window.saveAssignmentStructure = async (bab) => {
   const classId = document.getElementById("classSelect").value;
+  if(!classId) return showToast("Pilih kelas dulu", "error");
 
-  if(!classId){
-    showToast("Pilih kelas dulu", "error");
-    return;
-  }
-
-  // 🔥 1. AMBIL HANYA KUIS/EXERCISE YANG SEDANG DICENTANG OLEH GURU SAAT INI
-  const checkedExercises = document.querySelectorAll(".exercise-check:checked");
-
-  const user = auth.currentUser;
-  const userSnap = await getDoc(doc(db,"users",user.uid));
-  const userData = userSnap.data();
-
+  const exerciseRows = document.querySelectorAll(".exercise-check");
+  
   try {
-    // 2. Bersihkan kuis (exerciseGuru) lama khusus untuk kelas & guru ini
-    const eq = query(
-      collection(db,"exerciseGuru"), 
-      where("classId","==",classId), 
-      where("teacherId","==",user.uid)
-    );
-    const exSnap = await getDocs(eq);
-    for(const d of exSnap.docs) {
-      await deleteDoc(d.ref);
+    for(const el of exerciseRows) {
+      const exerciseId = el.value;
+      const isChecked = el.checked;
+      
+      // Ambil inputan durasi kuis yang bersangkutan
+      const durationInput = document.querySelector(`.exercise-duration[data-id="${exerciseId}"]`);
+      const durationVal = durationInput ? parseInt(durationInput.value) || 0 : 0;
+
+      // Cari record aslinya di collection exerciseGuru untuk di-update statusnya
+      const matchDb = assignedExercisesDetail.find(e => e.exerciseId === exerciseId);
+      if(matchDb) {
+        const docRef = doc(db, "exerciseGuru", matchDb.docId);
+        // Perbarui data tugas yang tadinya terkunci menjadi Aktif Beserta Waktu Durasinya
+        await addDoc(collection(db, "exerciseGuru"), {}).then(async() => {
+          // Firebase Firestore Web SDK v10 updateDoc alias setDoc merge
+          const { updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          await updateDoc(docRef, {
+            isAssigned: isChecked,
+            duration: durationVal
+          });
+        });
+      }
     }
 
-    // 3. Simpan hanya latihan yang dicentang saja ke database kuis aktif siswa
-    for (const exCb of checkedExercises) {
-      const exerciseId = exCb.value;
-      const materialId = exCb.dataset.material; // Mengambil relasi ID Materi
-      const ex = exercisesData.find(e => e.id === exerciseId);
-      if (!ex) continue;
-
-      await addDoc(collection(db, "exerciseGuru"), {
-        exerciseId: ex.id,
-        materialId: materialId,
-        classId,
-        teacherId: user.uid,
-        schoolId: userData.schoolId,
-        title: ex.title,
-        subject: ex.subject || "",
-        createdAt: new Date()
-      });
-    }
-
-    showToast("Akses latihan kuis siswa berhasil diperbarui!");
-    
-    // 4. Muat ulang data & render agar status label di layar guru berubah secara real-time
+    showToast("Akses tugas siswa dan durasi berhasil diperbarui secara real-time!");
     await loadMaterialsData(); 
   } catch (error) {
-    console.error("Gagal memperbarui kuis:", error);
-    showToast("Gagal memperbarui kuis", "error");
+    console.error(error);
+    showToast("Gagal memperbarui kuis penugasan", "error");
   }
 };
 
