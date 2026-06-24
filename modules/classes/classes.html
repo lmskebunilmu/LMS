@@ -166,7 +166,26 @@
     </div>
   </div>
 </div>
+<div id="moveStudentModal" class="modal">
+  <div class="modal-content" style="max-width: 400px;">
+    <h3>🔄 Pindahkan Kelas Siswa</h3>
+    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">
+      Silakan lihat daftar kelas di bawah, lalu masukkan <b>Nomor Kelas</b> tujuan Anda.
+    </p>
 
+    <div id="moveClassListTarget" style="max-height: 150px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 15px; background: #f8fafc;">
+      Memuat daftar kelas...
+    </div>
+
+    <label style="display:block; margin-bottom:5px; font-weight:bold; font-size: 14px;">Masukkan Nomor Kelas Tujuan:</label>
+    <input type="number" id="targetClassNumberInput" min="1" placeholder="Contoh: 1" style="width:100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 20px;"/>
+
+    <div class="modal-actions">
+      <button class="primary" onclick="executeMoveStudents()" style="background-color: #6366f1; color: white;">Pindahkan</button>
+      <button class="danger" onclick="document.getElementById('moveStudentModal').classList.remove('active')">Batal</button>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
