@@ -451,7 +451,7 @@ function generateContent(input) {
 }
 
 // ==========================
-// OPEN EXERCISE (SAVE FIREBASE + HITUNG NILAI + MAKS 2X CEK)
+// OPEN EXERCISE (1X KLIK CEK LANGSUNG KUNCI INSTAN)
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -473,13 +473,27 @@ window.openExercise = async (id) => {
     ...d.data()
   }));
 
-  // Sorting berdasarkan waktu / fallback dokumen id
+  // Sorting pertanyaan berdasarkan waktu pemuatan
   questions.sort((a, b) => {
     let waktuA = a.createdAt?.toDate?.()?.getTime() || new Date(a.createdAt).getTime() || 0;
     let waktuB = b.createdAt?.toDate?.()?.getTime() || new Date(b.createdAt).getTime() || 0;
     if (waktuA === waktuB) return a.id.localeCompare(b.id);
     return waktuA - waktuB;
   });
+
+  const currentUser = auth.currentUser;
+  const studentUid = currentUser ? currentUser.uid : "anonymous";
+
+  // VALIDASI DATABASE: Cek apakah latihan secara keseluruhan sudah pernah disubmit
+  let dbSubmission = null;
+  try {
+    const subSnap = await getDoc(doc(db, "student_submissions", studentUid + "_" + id));
+    if (subSnap.exists()) {
+      dbSubmission = subSnap.data();
+    }
+  } catch (err) {
+    console.error("Gagal memvalidasi status riwayat database:", err);
+  }
 
   const win = window.open("", "_blank");
   if (!win) {
@@ -495,7 +509,7 @@ window.openExercise = async (id) => {
   inlineScript.text = `window.MathJax = { tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']] } };`;
   win.document.head.appendChild(inlineScript);
 
-  // Styling Modern & Atribut Tambahan
+  // CSS Styling
   const styleEl = win.document.createElement("style");
   styleEl.textContent = `
     *{box-sizing:border-box;}
@@ -520,13 +534,13 @@ window.openExercise = async (id) => {
     .match-item.selected{border-color:#2563eb;background:#dbeafe;}
     .match-item.connected{border-color:#16a34a;background:#dcfce7;}
     .match-lines{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
-    .attempts-info{font-size:12px;color:#6b7280;margin-top:5px;display:block;}
+    .attempts-info{font-size:12px;color:#ef4444;margin-top:5px;display:block;font-weight:bold;}
   `;
   win.document.head.appendChild(styleEl);
 
   let bodyContent = `
     <div class="topbar">
-      <div class="title">📝 ${exData.title}</div>
+      <div class="title">📝 ${exData.title} ${dbSubmission ? '<span style="color:#16a34a;font-size:14px;">(Sudah Dikumpulkan)</span>' : ''}</div>
       <div class="btn-group">
         <button class="fullscreen-btn" onclick="openFullscreen()">⛶ Fullscreen</button>
         <button class="exit-btn" onclick="closeFullscreen()">✕ Exit Fullscreen</button>
@@ -535,17 +549,16 @@ window.openExercise = async (id) => {
     <div class="container">
   `;
 
-  const currentUser = auth.currentUser;
-  const studentUid = currentUser ? currentUser.uid : "anonymous";
-
-  // Ambil state pengerjaan dan attempts berdasarkan ID Latihan + UID Siswa agar tidak bentrok
-  const savedData = JSON.parse(localStorage.getItem(`exercise_${id}_${studentUid}`) || "{}");
+  // Ambil state pengerjaan lokal atau DB
+  const savedData = dbSubmission?.answers || JSON.parse(localStorage.getItem(`exercise_${id}_${studentUid}`) || "{}");
   const savedAttempts = JSON.parse(localStorage.getItem(`attempts_${id}_${studentUid}`) || "{}");
 
   questions.forEach((qData, index) => {
     const savedAnswer = savedData[index];
-    const currentAttempts = savedAttempts[index] || 0;
-    const isLocked = currentAttempts >= 2;
+    
+    // Jika latihan sudah dikumpulkan total ATAU tombol cek soal ini sudah pernah diklik (attempts >= 1), kunci soal!
+    const currentAttempts = dbSubmission ? 1 : (savedAttempts[index] || 0);
+    const isLocked = currentAttempts >= 1;
 
     bodyContent += `<div class="question"><h3>${index + 1}. ${qData.question || ""}</h3>`;
 
@@ -589,9 +602,9 @@ window.openExercise = async (id) => {
     bodyContent += `
       <div style="margin-top:20px">
         <button id="btn_check_${index}" onclick="checkAnswer(${index})" style="background:#2563eb; color:white; border:none; padding:10px 16px; border-radius:10px; cursor:pointer;" ${isLocked ? 'disabled style="background:#9ca3af; cursor:not-allowed;"' : ''}>✅ Cek Jawaban</button>
-        <span class="attempts-info" id="attempts_text_${index}">Mencoba: ${currentAttempts}/2 kali</span>
+        <span class="attempts-info" id="attempts_text_${index}">${isLocked ? '🔒 Soal Terkunci (1x Kesempatan Habis)' : '⚠️ Hanya bisa dicek 1 kali'}</span>
         <div id="result_${index}" style="margin-top:15px;font-weight:bold"></div>
-        <div id="explain_${index}" style="margin-top:15px;display:none">
+        <div id="explain_${index}" style="margin-top:15px; ${isLocked ? 'display:block;' : 'display:none;'}">
           <button onclick="toggleExplain(${index})" style="background:#16a34a; color:white; border:none; padding:10px 16px; border-radius:10px; cursor:pointer;">📘 Pembahasan</button>
           <div id="explain_content_${index}" style="display:none; margin-top:10px; background:#f3f4f6; padding:15px; border-radius:10px;">
             ${qData.explanation || "Belum ada pembahasan"}
@@ -602,13 +615,14 @@ window.openExercise = async (id) => {
   });
 
   bodyContent += `
-      <button class="submit-btn" onclick="submitToFirebase()">📤 Kirim Jawaban & Simpan Nilai ke Firebase</button>
+      <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'disabled style="background:#9ca3af; cursor:not-allowed;"' : ''}>
+        ${dbSubmission ? '🔒 Jawaban Sudah Terkirim ke Firebase' : '📤 Kirim Jawaban & Simpan Nilai ke Firebase'}
+      </button>
     </div>
   `;
 
   win.document.body.innerHTML = bodyContent;
 
-  // Injeksi modul SDK Firebase ke popup baru agar bisa melakukan penulisan data secara terpisah
   const scriptEl = win.document.createElement("script");
   scriptEl.type = "module";
   scriptEl.text = `
@@ -620,6 +634,7 @@ window.openExercise = async (id) => {
     const classId = "${studentClassId || ''}";
     const schoolId = "${schoolData?.schoolId || ''}";
     const questionsData = ${JSON.stringify(questions)};
+    const isAlreadySubmitted = ${dbSubmission ? true : false};
     
     let selectedLeft = null;
     window.matchAnswers = {};
@@ -633,6 +648,7 @@ window.openExercise = async (id) => {
     };
 
     function saveAnswer(index, value){
+      if(isAlreadySubmitted) return;
       const key = "exercise_" + exerciseId + "_" + studentUid;
       const data = JSON.parse(localStorage.getItem(key) || "{}");
       data[index] = value;
@@ -640,22 +656,24 @@ window.openExercise = async (id) => {
     }
 
     window.checkAnswer = function(index){
+      if(isAlreadySubmitted) { alert("Latihan ini sudah Anda kumpulkan!"); return; }
+      
       const q = questionsData[index];
       const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
       let attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
       
-      // Tambah riwayat hit pengerjaan
-      attempts[index] = (attempts[index] || 0) + 1;
+      // Catat klik cek jawaban (Maksimal 1 kali langsung kunci)
+      attempts[index] = 1;
       localStorage.setItem(attemptKey, JSON.stringify(attempts));
 
-      document.getElementById("attempts_text_" + index).innerText = "Mencoba: " + attempts[index] + "/2 kali";
+      document.getElementById("attempts_text_" + index).innerText = "🔒 Soal Terkunci (1x Kesempatan Habis)";
 
       let correct = false;
       let userAnswer = null;
 
       if(q.type === "pg"){
         const selected = document.querySelector('input[name="q' + index + '"]:checked');
-        if(!selected) { alert("Pilih salah satu opsi jawaban!"); return; }
+        if(!selected) { alert("Pilih salah satu opsi jawaban terlebih dahulu!"); return; }
         userAnswer = selected.value;
         saveAnswer(index, userAnswer);
         correct = userAnswer == q.answer;
@@ -697,18 +715,14 @@ window.openExercise = async (id) => {
       if(correct){
         result.innerHTML = "✅ Jawaban Benar";
         result.style.color = "green";
-        document.getElementById("explain_"+index).style.display = "block";
-        lockQuestionFields(index); // Jika benar langsung kunci agar tidak bisa diubah lagi
       }else{
         result.innerHTML = "❌ Jawaban Salah";
         result.style.color = "red";
       }
 
-      // Kunci jika batas klik mencapai 2 kali
-      if(attempts[index] >= 2){
-        lockQuestionFields(index);
-        document.getElementById("explain_"+index).style.display = "block"; // Munculkan pembahasan otomatis saat kesempatan habis
-      }
+      // 🔥 KUNCI INSTAN: Langsung panggil fungsi pengunci dan tampilkan pembahasan
+      lockQuestionFields(index);
+      document.getElementById("explain_"+index).style.display = "block";
     };
 
     function lockQuestionFields(index){
@@ -732,8 +746,9 @@ window.openExercise = async (id) => {
       el.style.display = el.style.display === "block" ? "none" : "block";
     };
 
-    // Fungsi Pengiriman Nilai & Jawaban Akhir ke Database Firebase
     window.submitToFirebase = async function() {
+      if(isAlreadySubmitted) return;
+
       let totalBenar = 0;
       const key = "exercise_" + exerciseId + "_" + studentUid;
       const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
@@ -763,11 +778,9 @@ window.openExercise = async (id) => {
         }
       });
 
-      // Perhitungan skor berbasis skala 100
       const score = questionsData.length > 0 ? Math.round((totalBenar / questionsData.length) * 100) : 0;
 
       try {
-        // Disimpan ke dalam nama koleksi 'student_submissions'
         await setDoc(doc(db, "student_submissions", studentUid + "_" + exerciseId), {
           studentUid: studentUid,
           exerciseId: exerciseId,
@@ -780,10 +793,11 @@ window.openExercise = async (id) => {
           submittedAt: new Date()
         });
 
-        alert("🎉 Hasil pengerjaan Anda berhasil disimpan ke Firebase!\\nSkor Nilai Anda: " + score);
+        alert("🎉 Nilai pengerjaan Anda berhasil disimpan ke Firebase!\\nSkor Nilai Anda: " + score);
+        window.close(); 
       } catch (error) {
         console.error("Gagal menyimpan ke Firebase:", error);
-        alert("Gagal mengirim jawaban ke database, pastikan jaringan Anda stabil.");
+        alert("Gagal mengirim jawaban ke database.");
       }
     };
 
@@ -807,7 +821,9 @@ window.openExercise = async (id) => {
     };
 
     function restoreMatchAnswers(){
-      const saved = JSON.parse(localStorage.getItem("exercise_" + exerciseId + "_" + studentUid) || "{}");
+      const key = "exercise_" + exerciseId + "_" + studentUid;
+      const saved = isAlreadySubmitted ? ${JSON.stringify(savedData)} : JSON.parse(localStorage.getItem(key) || "{}");
+      
       Object.keys(saved).forEach(qIndex => {
         const pairs = saved[qIndex];
         if(typeof pairs !== "object" || Array.isArray(pairs)) return;
@@ -826,6 +842,7 @@ window.openExercise = async (id) => {
     }
 
     document.addEventListener("click", (e) => {
+      if(isAlreadySubmitted) return;
       const left = e.target.closest(".left-item");
       const right = e.target.closest(".right-item");
 
@@ -859,7 +876,17 @@ window.openExercise = async (id) => {
       }
     });
 
-    setTimeout(() => { restoreMatchAnswers(); }, 300);
+    setTimeout(() => { 
+      restoreMatchAnswers(); 
+      // Mengunci seluruh elemen secara visual jika latihan ini bermutu 'Terbuka Kembali' namun terdeteksi locked
+      questionsData.forEach((q, index) => {
+        const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
+        const attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
+        if(isAlreadySubmitted || attempts[index] >= 1){
+          lockQuestionFields(index);
+        }
+      });
+    }, 300);
     
     const mjScript = document.createElement('script');
     mjScript.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
