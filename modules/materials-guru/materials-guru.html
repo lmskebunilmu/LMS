@@ -1,111 +1,88 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<title>Materi Guru</title>
-
-<link rel="stylesheet" href="../../assets/css/style.css">
-<link rel="stylesheet" href="../../assets/css/responsive.css">
-
+  <meta charset="UTF-8">
+  <title>Materi Guru</title>
+  <link rel="stylesheet" href="../../assets/css/style.css">
+  <link rel="stylesheet" href="../../assets/css/responsive.css">
 </head>
-
 <body>
 <div class="wrapper">
 
-  <!-- SIDEBAR -->
   <div id="sidebar-container"></div>
 
-  <!-- MAIN -->
   <div class="main">
 
-    <!-- HEADER -->
     <div id="header-container"></div>
 
     <div class="card">
       <div class="action-buttons" style="margin-bottom: 20px;">
-  <button id="btnBukaFormMateri" onclick="toggleForm('formMateri')" style="background-color: #28a745; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer;">
-    ➕ Buat Materi Baru
-  </button>
-  <button id="btnBukaFormExercise" onclick="toggleForm('formExercise')" style="background-color: #007bff; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">
-    📝 Buat Latihan Baru
-  </button>
-</div>
+        <button id="btnBukaFormMateri" onclick="toggleForm('formMateri')" style="background-color: #28a745; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer;">
+          ➕ Buat Materi Baru
+        </button>
+        <button id="btnBukaFormExercise" onclick="toggleForm('formExercise')" style="background-color: #007bff; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">
+          📝 Buat Latihan Baru
+        </button>
+      </div>
 
-<div id="formMateri" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px;">
-  <h4>Form Buat Materi Baru</h4>
-  
-  <input type="text" id="newMaterialTitle" placeholder="Judul Sub-Bab / Materi Spesifik (Contoh: Perkalian Aljabar)" style="width:100%; margin-bottom:10px; padding:8px;"><br><br>
-  
-  <select id="newMaterialSubject" onchange="populateExistingChapters()" style="width:100%; margin-bottom:10px; padding:8px;">
-    </select><br><br>
+      <div id="formMateri" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px;">
+        <h4>Form Buat Materi Baru</h4>
+        <input type="text" id="newMaterialTitle" placeholder="Judul Sub-Bab / Materi Spesifik (Contoh: Perkalian Aljabar)" style="width:100%; margin-bottom:10px; padding:8px;"><br><br>
+        
+        <select id="newMaterialSubject" onchange="window.populateExistingChapters()" style="width:100%; margin-bottom:10px; padding:8px;"></select><br><br>
 
-  <div style="border: 1px dashed #aaa; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
-    <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Bab:</label>
-    
-    <select id="newMaterialChapterSelect" style="width:100%; margin-bottom:10px; padding:8px;" onchange="handleChapterSelectChange()">
-      <option value="">-- Pilih Bab Yang Sudah Ada --</option>
-    </select>
-    
-    <p style="text-align: center; margin: 5px 0; font-size: 12px; color: gray;">atau</p>
-    
-    <input type="text" id="newMaterialChapterInput" placeholder="Ketik Nama Bab Baru (Contoh: Bab 1: Aljabar)" style="width:100%; padding:8px;">
-  </div>
+        <div style="border: 1px dashed #aaa; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+          <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Bab:</label>
+          <select id="newMaterialChapterSelect" style="width:100%; margin-bottom:10px; padding:8px;" onchange="window.handleChapterSelectChange()">
+            <option value="">-- Pilih Bab Yang Sudah Ada --</option>
+          </select>
+          <p style="text-align: center; margin: 5px 0; font-size: 12px; color: gray;">atau</p>
+          <input type="text" id="newMaterialChapterInput" placeholder="Ketik Nama Bab Baru (Contoh: Bab 1: Aljabar)" style="width:100%; padding:8px;">
+        </div>
 
-  <textarea id="newMaterialContent" placeholder="Isi materi atau link video YouTube / PDF..." style="width:100%; height:150px; margin-bottom:10px; padding:8px Holy;"></textarea><br><br>
-  
-  <button onclick="saveNewMaterial()" style="background-color: #28a745; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Materi</button>
-  <button onclick="toggleForm('formMateri')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
-</div>
+        <textarea id="newMaterialContent" placeholder="Isi materi atau link video YouTube / PDF..." style="width:100%; height:150px; margin-bottom:10px; padding:8px;"></textarea><br><br>
+        
+        <button onclick="window.saveNewMaterial()" style="background-color: #28a745; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Materi</button>
+        <button onclick="toggleForm('formMateri')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
+      </div>
 
-<div id="formExercise" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px;">
-  <h4>Form Buat Latihan (Exercise) Baru</h4>
-  
-  <label style="font-size: 13px; font-weight: bold;">1. Pilih Mata Pelajaran:</label>
-  <select id="newExerciseSubject" onchange="window.updateExerciseChapters()" style="width:100%; margin-bottom:10px; padding:8px;">
-    <option value="">-- Pilih Mapel --</option>
-  </select><br><br>
+      <div id="formExercise" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px;">
+        <h4>Form Buat Latihan (Exercise) Baru</h4>
+        
+        <label style="font-size: 13px; font-weight: bold;">1. Pilih Mata Pelajaran:</label>
+        <select id="newExerciseSubject" onchange="window.updateExerciseChapters()" style="width:100%; margin-bottom:10px; padding:8px;">
+          <option value="">-- Pilih Mapel --</option>
+        </select><br><br>
 
-  <label style="font-size: 13px; font-weight: bold;">2. Pilih Bab:</label>
-  <select id="newExerciseChapter" onchange="window.updateExerciseMaterials()" style="width:100%; margin-bottom:10px; padding:8px;" disabled>
-    <option value="">-- Pilih Bab --</option>
-  </select><br><br>
+        <label style="font-size: 13px; font-weight: bold;">2. Pilih Bab:</label>
+        <select id="newExerciseChapter" onchange="window.updateExerciseMaterials()" style="width:100%; margin-bottom:10px; padding:8px;" disabled>
+          <option value="">-- Pilih Bab --</option>
+        </select><br><br>
 
-  <label style="font-size: 13px; font-weight: bold;">3. Pilih Sub-Bab / Materi Terkait:</label>
-  <select id="newExerciseMaterialId" style="width:100%; margin-bottom:15px; padding:8px;" disabled>
-    <option value="">-- Pilih Sub-Bab / Materi --</option>
-  </select><br><br>
+        <label style="font-size: 13px; font-weight: bold;">3. Pilih Sub-Bab / Materi Terkait:</label>
+        <select id="newExerciseMaterialId" style="width:100%; margin-bottom:15px; padding:8px;" disabled>
+          <option value="">-- Pilih Sub-Bab / Materi --</option>
+        </select><br><br>
 
-  <label style="font-size: 13px; font-weight: bold;">4. Nama / Judul Latihan:</label>
-  <input type="text" id="newExerciseTitle" placeholder="Contoh: Kuis Harian 1, Ulangan Bab 1" style="width:100%; margin-bottom:15px; padding:8px;"><br><br>
-  
-  <p style="font-size:12px; color:gray;">*Catatan: Isian soal dan sistem kuis detailnya bisa diarahkan ke halaman pembuatan soal terpisah seperti milik superadmin.</p>
-  
-  <button onclick="saveNewExercise()" style="background-color: #007bff; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Latihan</button>
-  <button onclick="toggleForm('formExercise')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
-</div>
+        <label style="font-size: 13px; font-weight: bold;">4. Nama / Judul Latihan:</label>
+        <input type="text" id="newExerciseTitle" placeholder="Contoh: Kuis Harian 1, Ulangan Bab 1" style="width:100%; margin-bottom:15px; padding:8px;"><br><br>
+        
+        <p style="font-size:12px; color:gray;">*Catatan: Isian soal dan sistem kuis detailnya bisa diarahkan ke halaman pembuatan soal terpisah seperti milik superadmin.</p>
+        
+        <button onclick="window.saveNewExercise()" style="background-color: #007bff; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Latihan</button>
+        <button onclick="toggleForm('formExercise')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
+      </div>
 
       <h3>Pilih Materi untuk Kelas</h3>
-
-      <!-- PILIH KELAS -->
       <select id="classSelect"></select>
-
       <select id="subjectFilter" onchange="filterBySubject()">
-  <option value="">Semua Mapel</option>
-</select>
+        <option value="">Semua Mapel</option>
+      </select>
 
-      <!-- SEARCH -->
-      <input 
-        type="text"
-        id="searchMaterialGuru"
-        placeholder="Cari materi..."
-        oninput="filterMaterialsGuru()"
-      >
+      <input type="text" id="searchMaterialGuru" placeholder="Cari materi..." oninput="filterMaterialsGuru()">
 
-      <!-- LIST -->
       <div id="materialGuruList" class="material-container"></div>
-
     </div>
-
   </div>
 </div>
 
