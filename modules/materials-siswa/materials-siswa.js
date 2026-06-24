@@ -468,13 +468,13 @@ window.openExercise = async (id) => {
     where("exerciseId", "==", id)
   );
   const qSnap = await getDocs(q);
- const questions = qSnap.docs.map(d => d.data());
+  const questions = qSnap.docs.map(d => d.data());
 
-  // 🔥 PERBAIKAN URUTAN (ANTI-ACAK): Paksa konversi ke tipe data Number murni
+  // 🔥 URUTKAN BERDASARKAN WAKTU PEMBUATAN (Dari yang paling lama ke terbaru)
   questions.sort((a, b) => {
-    const urutanA = Number(a.order) || 0;
-    const urutanB = Number(b.order) || 0;
-    return urutanA - urutanB;
+    const waktuA = a.createdAt ? a.createdAt.toDate().getTime() : 0; // Sesuaikan nama field jika bukan createdAt
+    const waktuB = b.createdAt ? b.createdAt.toDate().getTime() : 0;
+    return waktuA - waktuB;
   });
 
   // Buka window baru kosong
