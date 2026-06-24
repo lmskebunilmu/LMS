@@ -451,10 +451,7 @@ function generateContent(input) {
 }
 
 // ==========================
-// OPEN EXERCISE (DOM PURE - CLIENT SORT FULL FIX)
-// ==========================
-// ==========================
-// OPEN EXERCISE (DOM PURE - CLIENT SORT FULL FIX)
+// OPEN EXERCISE (DENGAN SAVE FIREBASE, SKOR, & MAKS 2X CEK)
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -471,60 +468,34 @@ window.openExercise = async (id) => {
   );
   const qSnap = await getDocs(q);
   
-  // Ambil data beserta ID dokumennya untuk memastikan fallback sorting aman
   const questions = qSnap.docs.map(d => ({
     id: d.id,
     ...d.data()
   }));
 
-  // 🔥 PERBAIKAN UTAMA: Validasi multi-fallback untuk Timestamp Firebase
+  // Sorting berdasarkan waktu / id dokumen
   questions.sort((a, b) => {
-    let waktuA = 0;
-    let waktuB = 0;
-
-    // Cek jika berbentuk Firebase Timestamp objek yang memiliki method toDate()
-    if (a.createdAt && typeof a.createdAt.toDate === 'function') {
-      waktuA = a.createdAt.toDate().getTime();
-    } else if (a.createdAt) {
-      // Fallback jika berupa string tanggal biasa atau format epoch unix
-      waktuA = new Date(a.createdAt).getTime() || 0;
-    }
-
-    if (b.createdAt && typeof b.createdAt.toDate === 'function') {
-      waktuB = b.createdAt.toDate().getTime();
-    } else if (b.createdAt) {
-      waktuB = new Date(b.createdAt).getTime() || 0;
-    }
-
-    // Jika waktu sama atau kosong, urutkan berdasarkan ID Dokumen secara alfabetis (agar urutan konsisten)
-    if (waktuA === waktuB) {
-      return a.id.localeCompare(b.id);
-    }
-
+    let waktuA = a.createdAt?.toDate?.()?.getTime() || new Date(a.createdAt).getTime() || 0;
+    let waktuB = b.createdAt?.toDate?.()?.getTime() || new Date(b.createdAt).getTime() || 0;
+    if (waktuA === waktuB) return a.id.localeCompare(b.id);
     return waktuA - waktuB;
   });
 
-  // Buka window baru kosong
   const win = window.open("", "_blank");
   if (!win) {
-    alert("Pop-up diblokir oleh browser! Harap izinkan pop-up untuk membuka latihan.");
+    alert("Pop-up diblokir oleh browser! Harap izinkan pop-up.");
     return;
   }
 
   win.document.innerHTML = ""; 
   win.document.title = exData.title;
 
+  // MathJax Configuration
   const inlineScript = win.document.createElement("script");
-  inlineScript.text = `
-    window.MathJax = {
-      tex: {
-        inlineMath: [['\\\\(', '\\\\)']],
-        displayMath: [['\\\\[', '\\\\]']]
-      }
-    };
-  `;
+  inlineScript.text = `window.MathJax = { tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']] } };`;
   win.document.head.appendChild(inlineScript);
 
+  // CSS Styling
   const styleEl = win.document.createElement("style");
   styleEl.textContent = `
     *{box-sizing:border-box;}
@@ -535,7 +506,7 @@ window.openExercise = async (id) => {
     button{border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:bold;}
     .fullscreen-btn{background:#111827;color:white;}
     .exit-btn{background:#dc2626;color:white;}
-    .submit-btn{background:#2563eb;color:white;width:100%;margin-top:30px;}
+    .submit-btn{background:#2563eb;color:white;width:100%;margin-top:30px;padding:15px;font-size:16px;}
     .container{max-width:1000px;margin:auto;padding:25px;}
     .question{background:white;margin-bottom:25px;padding:20px;border-radius:15px;box-shadow:0 2px 8px rgba(0,0,0,.05);}
     h3{margin-top:0;}
@@ -549,6 +520,7 @@ window.openExercise = async (id) => {
     .match-item.selected{border-color:#2563eb;background:#dbeafe;}
     .match-item.connected{border-color:#16a34a;background:#dcfce7;}
     .match-lines{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+    .attempts-info{font-size:12px;color:#6b7280;margin-top:5px;display:block;}
   `;
   win.document.head.appendChild(styleEl);
 
@@ -563,38 +535,43 @@ window.openExercise = async (id) => {
     <div class="container">
   `;
 
-  const savedData = JSON.parse(localStorage.getItem("exercise_" + id) || "{}");
+  // Mengambil user login saat ini dari context utama
+  const currentUser = auth.currentUser;
+  const studentUid = currentUser ? currentUser.uid : "anonymous";
+
+  // Load saved data dari localStorage sebagai fallback rendering awal
+  const savedData = JSON.parse(localStorage.getItem(`exercise_${id}_${studentUid}`) || "{}");
+  const savedAttempts = JSON.parse(localStorage.getItem(`attempts_${id}_${studentUid}`) || "{}");
 
   questions.forEach((qData, index) => {
     const savedAnswer = savedData[index];
+    const currentAttempts = savedAttempts[index] || 0;
+    const isLocked = currentAttempts >= 2;
+
     bodyContent += `<div class="question"><h3>${index + 1}. ${qData.question || ""}</h3>`;
 
     if (qData.type === "pg") {
       (qData.options || []).forEach((opt, i) => {
         const checked = savedAnswer == i ? "checked" : "";
-        bodyContent += `<label><input type="radio" name="q${index}" value="${i}" ${checked}> ${opt}</label>`;
+        bodyContent += `<label><input type="radio" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
     } else if (qData.type === "checkbox") {
       (qData.options || []).forEach((opt, i) => {
         const checked = Array.isArray(savedAnswer) && savedAnswer.includes(String(i)) ? "checked" : "";
-        bodyContent += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked}> ${opt}</label>`;
+        bodyContent += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
     } else if (qData.type === "isian") {
-      bodyContent += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Jawaban...">`;
+      bodyContent += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Jawaban..." ${isLocked ? 'disabled' : ''}>`;
     } else if (qData.type === "match") {
       const shuffled = [...(qData.pairs || [])].sort(() => Math.random() - 0.5);
       bodyContent += `
-        <div class="match-wrapper">
+        <div class="match-wrapper" id="match_${index}" data-locked="${isLocked}">
           <svg class="match-lines"></svg>
           <div class="match-column">
-            ${(qData.pairs || []).map((p, i) => `
-              <div class="match-item left-item" data-question="${index}" data-left="${i}" data-answer="${p.right}">${p.left}</div>
-            `).join("")}
+            ${(qData.pairs || []).map((p, i) => `<div class="match-item left-item" data-question="${index}" data-left="${i}" data-answer="${p.right}">${p.left}</div>`).join("")}
           </div>
           <div class="match-column">
-            ${shuffled.map((p, i) => `
-              <div class="match-item right-item" data-question="${index}" data-right="${p.right}">${p.right}</div>
-            `).join("")}
+            ${shuffled.map((p, i) => `<div class="match-item right-item" data-question="${index}" data-right="${p.right}">${p.right}</div>`).join("")}
           </div>
         </div>
       `;
@@ -604,7 +581,7 @@ window.openExercise = async (id) => {
         bodyContent += `
           <div style="margin-top:15px">
             <label style="display:block; margin-bottom:8px; font-weight:bold; background:none; padding:0;">${f.label}</label>
-            <input type="text" name="multi_${index}_${i}" value="${val}" placeholder="Jawaban...">
+            <input type="text" name="multi_${index}_${i}" value="${val}" placeholder="Jawaban..." ${isLocked ? 'disabled' : ''}>
           </div>
         `;
       });
@@ -612,7 +589,8 @@ window.openExercise = async (id) => {
 
     bodyContent += `
       <div style="margin-top:20px">
-        <button onclick="checkAnswer(${index})" style="background:#2563eb; color:white; border:none; padding:10px 16px; border-radius:10px; cursor:pointer;">✅ Cek Jawaban</button>
+        <button id="btn_check_${index}" onclick="checkAnswer(${index})" style="background:#2563eb; color:white; border:none; padding:10px 16px; border-radius:10px; cursor:pointer;" ${isLocked ? 'disabled style="background:#9ca3af; cursor:not-allowed;"' : ''}>✅ Cek Jawaban</button>
+        <span class="attempts-info" id="attempts_text_${index}">Mencoba: ${currentAttempts}/2 kali</span>
         <div id="result_${index}" style="margin-top:15px;font-weight:bold"></div>
         <div id="explain_${index}" style="margin-top:15px;display:none">
           <button onclick="toggleExplain(${index})" style="background:#16a34a; color:white; border:none; padding:10px 16px; border-radius:10px; cursor:pointer;">📘 Pembahasan</button>
@@ -625,42 +603,60 @@ window.openExercise = async (id) => {
   });
 
   bodyContent += `
-      <button class="submit-btn" onclick="alert('Jawaban latihan Anda berhasil tersimpan di browser!')">Kirim Jawaban</button>
+      <button class="submit-btn" onclick="submitToFirebase()">📤 Kirim & Simpan Nilai ke Firebase</button>
     </div>
   `;
 
   win.document.body.innerHTML = bodyContent;
 
+  // Memasukkan modul Firestore ke window baru agar fungsi pengiriman bekerja secara independent
   const scriptEl = win.document.createElement("script");
+  scriptEl.type = "module";
   scriptEl.text = `
+    import { doc, setDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { db } from "${window.location.origin}/firebase/firebase-config.js";
+
     const exerciseId = "${id}";
+    const studentUid = "${studentUid}";
+    const classId = "${studentClassId || ''}";
+    const schoolId = "${schoolData?.schoolId || ''}";
     const questionsData = ${JSON.stringify(questions)};
+    
     let selectedLeft = null;
     window.matchAnswers = {};
 
-    function openFullscreen(){
+    window.openFullscreen = () => {
       const elem = document.documentElement;
       if (elem.requestFullscreen) elem.requestFullscreen();
-    }
-    function closeFullscreen(){
+    };
+    window.closeFullscreen = () => {
       if (document.exitFullscreen) document.exitFullscreen();
-    }
+    };
 
     function saveAnswer(index, value){
-      const key = "exercise_" + exerciseId;
+      const key = "exercise_" + exerciseId + "_" + studentUid;
       const data = JSON.parse(localStorage.getItem(key) || "{}");
       data[index] = value;
       localStorage.setItem(key, JSON.stringify(data));
     }
 
-    function checkAnswer(index){
+    window.checkAnswer = function(index){
       const q = questionsData[index];
+      
+      // Hitung & batasi attempts
+      const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
+      let attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
+      attempts[index] = (attempts[index] || 0) + 1;
+      localStorage.setItem(attemptKey, JSON.stringify(attempts));
+
+      document.getElementById("attempts_text_" + index).innerText = "Mencoba: " + attempts[index] + "/2 kali";
+
       let correct = false;
       let userAnswer = null;
 
       if(q.type === "pg"){
         const selected = document.querySelector('input[name="q' + index + '"]:checked');
-        if(!selected) { alert("Pilih jawaban!"); return; }
+        if(!selected) { alert("Pilih jawaban terlebih dahulu!"); return; }
         userAnswer = selected.value;
         saveAnswer(index, userAnswer);
         correct = userAnswer == q.answer;
@@ -698,23 +694,105 @@ window.openExercise = async (id) => {
         correct = totalCorrect === q.pairs.length;
       }
 
+      // Tampilkan hasil cek
       const result = document.getElementById("result_"+index);
       if(correct){
         result.innerHTML = "✅ Jawaban Benar";
         result.style.color = "green";
         document.getElementById("explain_"+index).style.display = "block";
+        // Kunci input/button jika sudah benar
+        lockQuestionFields(index);
       }else{
         result.innerHTML = "❌ Jawaban Salah";
         result.style.color = "red";
       }
+
+      // Kunci jika attempt sudah mencapai/melebihi 2 kali
+      if(attempts[index] >= 2){
+        lockQuestionFields(index);
+        document.getElementById("explain_"+index).style.display = "block"; // Buka pembahasan otomatis di akhir kesempatan
+      }
+    };
+
+    function lockQuestionFields(index){
+      const btn = document.getElementById("btn_check_" + index);
+      if(btn) {
+        btn.disabled = true;
+        btn.style.background = "#9ca3af";
+        btn.style.cursor = "not-allowed";
+      }
+      // Disable radio/checkbox/text inputs
+      document.querySelectorAll('input[name="q'+index+'"]').forEach(el => el.disabled = true);
+      const isian = document.getElementById("q"+index);
+      if(isian) isian.disabled = true;
+      document.querySelectorAll('[name^="multi_'+index+'_"]').forEach(el => el.disabled = true);
+      
+      const matchWrap = document.getElementById("match_" + index);
+      if(matchWrap) matchWrap.dataset.locked = "true";
     }
 
-    function toggleExplain(index){
+    window.toggleExplain = function(index){
       const el = document.getElementById("explain_content_"+index);
       el.style.display = el.style.display === "block" ? "none" : "block";
-    }
+    };
 
-    function drawConnection(leftEl, rightEl){
+    window.submitToFirebase = async function() {
+      // Hitung total jawaban benar saat ini untuk kalkulasi nilai mutakhir
+      let totalBenar = 0;
+      const key = "exercise_" + exerciseId + "_" + studentUid;
+      const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
+
+      questionsData.forEach((q, index) => {
+        const uAns = savedAnswers[index];
+        if (uAns === undefined || uAns === null) return;
+
+        if (q.type === "pg" && uAns == q.answer) totalBenar++;
+        else if (q.type === "isian" && String(uAns).toLowerCase() === String(q.answer).toLowerCase()) totalBenar++;
+        else if (q.type === "checkbox") {
+          if (JSON.stringify([...uAns].sort()) === JSON.stringify((q.answer || []).map(String).sort())) totalBenar++;
+        }
+        else if (q.type === "multi_isian") {
+          let multiCorrect = 0;
+          (q.fields || []).forEach((f, i) => {
+            if (uAns[i] && uAns[i].toLowerCase() === String(f.answer).toLowerCase()) multiCorrect++;
+          });
+          if (multiCorrect === q.fields.length) totalBenar++;
+        }
+        else if (q.type === "match") {
+          let matchCorrect = 0;
+          (q.pairs || []).forEach((p, i) => {
+            if (uAns[i] === p.right) matchCorrect++;
+          });
+          if (matchCorrect === q.pairs.length) totalBenar++;
+        }
+      });
+
+      const score = questionsData.length > 0 ? Math.round((totalBenar / questionsData.length) * 100) : 0;
+
+      try {
+        // Simpan ke Firebase Firestore menggunakan ID gabungan (studentUid_exerciseId) agar data ter-update jika dikirim ulang
+        const docRef = doc(db, "student_exercises", studentUid + "_" + exerciseId);
+        await setDoc(docRef, {
+          studentUid: studentUid,
+          exerciseId: exerciseId,
+          classId: classId,
+          schoolId: schoolId,
+          answers: savedAnswers,
+          score: score,
+          submittedAt: new Date(),
+          totalQuestions: questionsData.length,
+          correctAnswers: totalBenar
+        });
+
+        alert("🎉 Nilai berhasil dikalkulasi dan tersimpan ke database!\\nSkor Anda: " + score);
+      } catch (error) {
+        console.error("Gagal menyimpan ke Firebase:", error);
+        alert("Gagal menyimpan jawaban ke database. Coba lagi.");
+      }
+    };
+
+    // Fungsi Penggaris Garis Hubung Match
+    window.drawConnection = function(leftEl, rightEl){
       const wrapper = leftEl.closest(".match-wrapper");
       const svg = wrapper.querySelector(".match-lines");
       const wrapperRect = wrapper.getBoundingClientRect();
@@ -731,10 +809,10 @@ window.openExercise = async (id) => {
       line.setAttribute("x2", x2); line.setAttribute("y2", y2);
       line.setAttribute("stroke", "#2563eb"); line.setAttribute("stroke-width", "3");
       svg.appendChild(line);
-    }
+    };
 
     function restoreMatchAnswers(){
-      const saved = JSON.parse(localStorage.getItem("exercise_" + exerciseId) || "{}");
+      const saved = JSON.parse(localStorage.getItem("exercise_" + exerciseId + "_" + studentUid) || "{}");
       Object.keys(saved).forEach(qIndex => {
         const pairs = saved[qIndex];
         if(typeof pairs !== "object" || Array.isArray(pairs)) return;
@@ -746,7 +824,7 @@ window.openExercise = async (id) => {
           if(leftEl && rightEl){
             leftEl.classList.add("connected");
             rightEl.classList.add("connected");
-            drawConnection(leftEl, rightEl);
+            window.drawConnection(leftEl, rightEl);
           }
         });
       });
@@ -757,12 +835,18 @@ window.openExercise = async (id) => {
       const right = e.target.closest(".right-item");
 
       if (left) {
+        const wrapper = left.closest(".match-wrapper");
+        if(wrapper.dataset.locked === "true") return; // block click if locked
+
         document.querySelectorAll(".left-item").forEach(x => x.classList.remove("selected"));
         left.classList.add("selected");
         selectedLeft = left;
       }
 
       if (right && selectedLeft) {
+        const wrapper = right.closest(".match-wrapper");
+        if(wrapper.dataset.locked === "true") return; // block click if locked
+
         const qIndex = selectedLeft.dataset.question;
         const leftIndex = selectedLeft.dataset.left;
         const rightValue = right.dataset.right;
@@ -770,7 +854,7 @@ window.openExercise = async (id) => {
         window.matchAnswers[qIndex] ??= {};
         window.matchAnswers[qIndex][leftIndex] = rightValue;
 
-        drawConnection(selectedLeft, right);
+        window.drawConnection(selectedLeft, right);
         selectedLeft.classList.remove("selected");
         selectedLeft.classList.add("connected");
         right.classList.add("connected");
