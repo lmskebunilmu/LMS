@@ -370,13 +370,54 @@ window.filterMaterialsGuru = () => {
 // ==========================
 // ASSIGN
 // ==========================
-// 🚨 KODE LAMA KAMU DI MATERIALS-GURU.JS:
-const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
+window.assignSelected = async (bab) => {
+  const classId = document.getElementById("classSelect").value;
+  if(!classId){
+    showToast("Pilih kelas dulu", "error");
+    return;
+  }
 
-for (const exCb of checkedExercises) {
-  // ... simpan ke exerciseGuru ...
-}
+  const checked = document.querySelectorAll(".subbab-check:checked");
+  if(checked.length === 0){
+    showToast("Pilih minimal 1 subbab", "error");
+    return;
+  }
 
+  const user = auth.currentUser;
+  const userSnap = await getDoc(doc(db,"users",user.uid));
+  const userData = userSnap.data();
+
+  // Bersihkan MATERIAL lama saja
+  const q = query(
+    collection(db,"materialGuru"),
+    where("classId","==",classId),
+    where("teacherId","==",user.uid)
+  );
+  const oldSnap = await getDocs(q);
+  for(const d of oldSnap.docs){
+    await deleteDoc(d.ref);
+  }
+
+  // 🔥 SIMPAN MATERINYA SAJA (Latihan/Exercise dikosongkan agar diatur di halaman Penugasan)
+  for (const cb of checked) {
+    const materialId = cb.value;
+    const selectedMaterial = materialsGuru.find(m => m.id === materialId);
+    if (!selectedMaterial) continue;
+
+    await addDoc(collection(db, "materialGuru"), {
+      materialId,
+      classId,
+      teacherId: user.uid,
+      schoolId: userData.schoolId,
+      title: selectedMaterial.title,
+      subject: selectedMaterial.subject,
+      createdAt: new Date()
+    });
+  }
+
+  showToast("Materi berhasil diterapkan! Silakan buka menu 'Tugas' untuk mengaktifkan latihan siswa.");
+  await loadMaterials();
+};
 // ==========================
 // PREVIEW
 // ==========================
