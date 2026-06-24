@@ -370,105 +370,12 @@ window.filterMaterialsGuru = () => {
 // ==========================
 // ASSIGN
 // ==========================
-window.assignSelected = async (bab) => {
+// 🚨 KODE LAMA KAMU DI MATERIALS-GURU.JS:
+const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
 
-  const classId = document.getElementById("classSelect").value;
-
-  if(!classId){
-    showToast("Pilih kelas dulu", "error");
-    return;
-  }
-
-  const checked = document.querySelectorAll(".subbab-check:checked");
-
-  if(checked.length === 0){
-    showToast("Pilih minimal 1 subbab", "error");
-    return;
-  }
-
-  const user = auth.currentUser;
-
-  const userSnap = await getDoc(doc(db,"users",user.uid));
-  const userData = userSnap.data();
-
- // ==========================
-// 🔥 HAPUS MATERIAL LAMA
-// ==========================
-const q = query(
-  collection(db,"materialGuru"),
-  where("classId","==",classId),
-  where("teacherId","==",user.uid)
-);
-
-const oldSnap = await getDocs(q);
-
-for(const d of oldSnap.docs){
-  await deleteDoc(d.ref);
+for (const exCb of checkedExercises) {
+  // ... simpan ke exerciseGuru ...
 }
-
-// ==========================
-// 🔥 HAPUS EXERCISE LAMA
-// ==========================
-const eq = query(
-  collection(db,"exerciseGuru"),
-  where("classId","==",classId),
-  where("teacherId","==",user.uid)
-);
-
-const exSnap = await getDocs(eq);
-
-for(const d of exSnap.docs){
-  await deleteDoc(d.ref);
-}
-
- // ==========================
-// ==========================
-// 🔥 2. INSERT MATERIAL & EXERCISE YANG DICENTANG
-// ==========================
-for (const cb of checked) {
-  const materialId = cb.value;
-  const selectedMaterial = materialsGuru.find(m => m.id === materialId);
-
-  if (!selectedMaterial) continue;
-
-  // 1. Simpan Materi yang dicentang
-  await addDoc(collection(db, "materialGuru"), {
-    materialId,
-    classId,
-    teacherId: user.uid,
-    schoolId: userData.schoolId,
-    title: selectedMaterial.title,
-    subject: selectedMaterial.subject,
-    createdAt: new Date()
-  });
-
-  // 2. AMBIL HANYA EXERCISE YANG DICENTANG UNTUK MATERIAL INI
-  // Kita cari checkbox exercise yang dicentang DAN memiliki data-material yang cocok
-  const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
-
-  for (const exCb of checkedExercises) {
-    const exerciseId = exCb.value;
-    
-    // Cari data lengkap exercise dari array exercisesData
-    const ex = exercisesData.find(e => e.id === exerciseId);
-    if (!ex) continue;
-
-    // Simpan ke Firestore
-    await addDoc(collection(db, "exerciseGuru"), {
-      exerciseId: ex.id,
-      materialId: materialId,
-      classId,
-      teacherId: user.uid,
-      schoolId: userData.schoolId,
-      title: ex.title,
-      subject: ex.subject || "",
-      createdAt: new Date()
-    });
-  }
-}
-
-  showToast("Materi dan latihan berhasil disimpan (update)");
-};
 
 // ==========================
 // PREVIEW
