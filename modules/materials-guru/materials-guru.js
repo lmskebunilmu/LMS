@@ -811,3 +811,67 @@ window.saveNewExercise = async () => {
     showToast("Gagal membuat latihan", "error");
   }
 };
+
+// Fungsi untuk mengisi daftar Bab yang sudah ada berdasarkan Mapel yang dipilih
+window.populateExistingChapters = () => {
+  const selectedSubject = document.getElementById("newMaterialSubject").value;
+  const chapterSelect = document.getElementById("newMaterialChapterSelect");
+  
+  // Reset dropdown Bab
+  chapterSelect.innerHTML = '<option value="">-- Pilih Bab Yang Sudah Ada --</option>';
+  
+  if (!selectedSubject) return;
+
+  // Ambil semua bab unik dari materi yang punya mapel sama
+  const chapters = [];
+  materialsGuru.forEach(m => {
+    if (m.subject === selectedSubject && m.chapter) {
+      if (!chapters.includes(m.chapter)) {
+        chapters.push(m.chapter);
+      }
+    }
+  });
+
+  // Masukkan bab-bab tersebut ke dalam dropdown select
+  chapters.forEach(bab => {
+    const opt = document.createElement("option");
+    opt.value = bab;
+    opt.textContent = bab;
+    chapterSelect.appendChild(opt);
+  });
+  
+  // Reset input teks bab baru jika mapel berubah
+  document.getElementById("newMaterialChapterInput").value = "";
+};
+
+// Fungsi pendukung jika user memilih Bab dari dropdown, matikan/kosongkan input teks baru agar tidak membingungkan
+window.handleChapterSelectChange = () => {
+  const selectVal = document.getElementById("newMaterialChapterSelect").value;
+  const inputEl = document.getElementById("newMaterialChapterInput");
+  
+  if (selectVal !== "") {
+    inputEl.value = ""; // kosongkan input teks karena user memilih bab yang ada
+    inputEl.placeholder = "Kosong (Menggunakan bab pilihan di atas)";
+    inputEl.disabled = true;
+    inputEl.style.backgroundColor = "#eee";
+  } else {
+    inputEl.placeholder = "Ketik Nama Bab Baru (Contoh: Bab 1: Aljabar)";
+    inputEl.disabled = false;
+    inputEl.style.backgroundColor = "#fff";
+  }
+};
+
+// Jangan lupa update fungsi toggleForm yang sebelumnya agar memanggil populateExistingChapters() saat form materi dibuka
+window.toggleForm = (formId) => {
+  const form = document.getElementById(formId);
+  if(form.style.display === "none") {
+    form.style.display = "block";
+    if(formId === 'formMateri') {
+      populateNewMaterialSubjects();
+      populateExistingChapters(); // 🔥 ISI DAFTAR BAB SAAT FORM DIBUKA
+    }
+    if(formId === 'formExercise') populateNewExerciseMaterials();
+  } else {
+    form.style.display = "none";
+  }
+};
