@@ -719,3 +719,10 @@ window.openExercise = async (id) => {
   win.document.write(html);
   win.document.close();
 };
+window.filterMaterialsSiswa = () => {
+  const search = document.getElementById("searchMaterialSiswa").value.toLowerCase();
+  filteredMaterials = materialsSiswa.filter(m => {
+    return m.title.toLowerCase().includes(search) || m.subject.toLowerCase().includes(search);
+  });
+  renderMaterials(filteredMaterials);
+};
