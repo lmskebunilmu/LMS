@@ -748,7 +748,7 @@ function checkAnswer(index){
       }
 
       function restoreMatchAnswers(){
-        const saved = JSON.parse(localStorage.getItem("exercise_${id}") || "{}");
+        const saved = JSON.parse(localStorage.getItem("exercise_" + "${id}") || "{}");
         window.matchAnswers = {};
         Object.keys(saved).forEach(qIndex => {
           const pairs = saved[qIndex];
