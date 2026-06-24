@@ -451,7 +451,7 @@ function generateContent(input) {
 }
 
 // ==========================
-// OPEN EXERCISE (1X KLIK CEK LANGSUNG KUNCI INSTAN)
+// OPEN EXERCISE (PERBAIKAN ERROR MIME TYPE & BLANK WINDOW)
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -473,7 +473,7 @@ window.openExercise = async (id) => {
     ...d.data()
   }));
 
-  // Sorting pertanyaan berdasarkan waktu pemuatan
+  // Sorting pertanyaan
   questions.sort((a, b) => {
     let waktuA = a.createdAt?.toDate?.()?.getTime() || new Date(a.createdAt).getTime() || 0;
     let waktuB = b.createdAt?.toDate?.()?.getTime() || new Date(b.createdAt).getTime() || 0;
@@ -484,7 +484,7 @@ window.openExercise = async (id) => {
   const currentUser = auth.currentUser;
   const studentUid = currentUser ? currentUser.uid : "anonymous";
 
-  // VALIDASI DATABASE: Cek apakah latihan secara keseluruhan sudah pernah disubmit
+  // VALIDASI DATABASE UTAMA
   let dbSubmission = null;
   try {
     const subSnap = await getDoc(doc(db, "student_submissions", studentUid + "_" + id));
@@ -492,12 +492,12 @@ window.openExercise = async (id) => {
       dbSubmission = subSnap.data();
     }
   } catch (err) {
-    console.error("Gagal memvalidasi status riwayat database:", err);
+    console.error("Gagal memvalidasi status database:", err);
   }
 
   const win = window.open("", "_blank");
   if (!win) {
-    alert("Pop-up diblokir oleh browser! Harap izinkan pop-up untuk membuka latihan.");
+    alert("Pop-up diblokir oleh browser! Harap izinkan pop-up.");
     return;
   }
 
@@ -549,14 +549,11 @@ window.openExercise = async (id) => {
     <div class="container">
   `;
 
-  // Ambil state pengerjaan lokal atau DB
   const savedData = dbSubmission?.answers || JSON.parse(localStorage.getItem(`exercise_${id}_${studentUid}`) || "{}");
   const savedAttempts = JSON.parse(localStorage.getItem(`attempts_${id}_${studentUid}`) || "{}");
 
   questions.forEach((qData, index) => {
     const savedAnswer = savedData[index];
-    
-    // Jika latihan sudah dikumpulkan total ATAU tombol cek soal ini sudah pernah diklik (attempts >= 1), kunci soal!
     const currentAttempts = dbSubmission ? 1 : (savedAttempts[index] || 0);
     const isLocked = currentAttempts >= 1;
 
@@ -623,11 +620,17 @@ window.openExercise = async (id) => {
 
   win.document.body.innerHTML = bodyContent;
 
+  // 🔥 SOLUSI UTAMA: Menggunakan CDN murni tanpa mengimpor file lokal github
   const scriptEl = win.document.createElement("script");
   scriptEl.type = "module";
   scriptEl.text = `
-    import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { db } from "${window.location.origin}/firebase/firebase-config.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // Meneruskan konfigurasi Firebase dari window induk agar tidak melanggar aturan CORS/MIME di GitHub Pages
+    const firebaseConfig = ${JSON.stringify(auth.app.options)};
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     const exerciseId = "${id}";
     const studentUid = "${studentUid}";
@@ -662,7 +665,6 @@ window.openExercise = async (id) => {
       const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
       let attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
       
-      // Catat klik cek jawaban (Maksimal 1 kali langsung kunci)
       attempts[index] = 1;
       localStorage.setItem(attemptKey, JSON.stringify(attempts));
 
@@ -720,12 +722,11 @@ window.openExercise = async (id) => {
         result.style.color = "red";
       }
 
-      // 🔥 KUNCI INSTAN: Langsung panggil fungsi pengunci dan tampilkan pembahasan
       lockQuestionFields(index);
       document.getElementById("explain_"+index).style.display = "block";
     };
 
-    function lockQuestionFields(index){
+    window.lockQuestionFields = function(index){
       const btn = document.getElementById("btn_check_" + index);
       if(btn) {
         btn.disabled = true;
@@ -878,12 +879,11 @@ window.openExercise = async (id) => {
 
     setTimeout(() => { 
       restoreMatchAnswers(); 
-      // Mengunci seluruh elemen secara visual jika latihan ini bermutu 'Terbuka Kembali' namun terdeteksi locked
       questionsData.forEach((q, index) => {
         const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
         const attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
         if(isAlreadySubmitted || attempts[index] >= 1){
-          lockQuestionFields(index);
+          window.lockQuestionFields(index);
         }
       });
     }, 300);
