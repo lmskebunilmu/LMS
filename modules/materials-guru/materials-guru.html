@@ -33,11 +33,26 @@
 
 <div id="formMateri" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px;">
   <h4>Form Buat Materi Baru</h4>
-  <input type="text" id="newMaterialTitle" placeholder="Judul Materi / Sub-Bab" style="width:100%; margin-bottom:100px; padding:8px;"><br><br>
-  <input type="text" id="newMaterialChapter" placeholder="Nama Bab (Contoh: Bab 1: Aljabar)" style="width:100%; margin-bottom:10px; padding:8px;"><br><br>
-  <select id="newMaterialSubject" style="width:100%; margin-bottom:10px; padding:8px;">
+  
+  <input type="text" id="newMaterialTitle" placeholder="Judul Sub-Bab / Materi Spesifik (Contoh: Perkalian Aljabar)" style="width:100%; margin-bottom:10px; padding:8px;"><br><br>
+  
+  <select id="newMaterialSubject" onchange="populateExistingChapters()" style="width:100%; margin-bottom:10px; padding:8px;">
     </select><br><br>
-  <textarea id="newMaterialContent" placeholder="Isi materi atau link video YouTube / PDF..." style="width:100%; height:150px; margin-bottom:10px; padding:8px;"></textarea><br><br>
+
+  <div style="border: 1px dashed #aaa; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+    <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Bab:</label>
+    
+    <select id="newMaterialChapterSelect" style="width:100%; margin-bottom:10px; padding:8px;" onchange="handleChapterSelectChange()">
+      <option value="">-- Pilih Bab Yang Sudah Ada --</option>
+    </select>
+    
+    <p style="text-align: center; margin: 5px 0; font-size: 12px; color: gray;">atau</p>
+    
+    <input type="text" id="newMaterialChapterInput" placeholder="Ketik Nama Bab Baru (Contoh: Bab 1: Aljabar)" style="width:100%; padding:8px;">
+  </div>
+
+  <textarea id="newMaterialContent" placeholder="Isi materi atau link video YouTube / PDF..." style="width:100%; height:150px; margin-bottom:10px; padding:8px Holy;"></textarea><br><br>
+  
   <button onclick="saveNewMaterial()" style="background-color: #28a745; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Materi</button>
   <button onclick="toggleForm('formMateri')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
 </div>
