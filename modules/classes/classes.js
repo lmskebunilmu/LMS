@@ -1192,60 +1192,92 @@ window.addSelectedStudents = async () => {
 // ==================================================================
 // FITUR: PINDAHKAN KELAS (DARI KELAS AKTIF KE KELAS LAIN)
 // ==================================================================
+// Variabel global sementara untuk menyimpan data opsi kelas tujuan
+let activeTargetClasses = []; 
+
+// 1. Membuka Modal Pindah Kelas & Menampilkan Daftar Kelas Ber-Nomor
 window.moveSelectedStudents = async () => {
   if (!activeClassIdInModal) return;
+  
+  // Ambil semua checkbox siswa yang dicentang di modal utama
   const checkedBoxes = document.querySelectorAll(".student-item-cb:checked");
   if (checkedBoxes.length === 0) {
     alert("Silahkan pilih siswa yang ingin dipindahkan terlebih dahulu!");
     return;
   }
 
+  const listContainer = document.getElementById("moveClassListTarget");
+  const numberInput = document.getElementById("targetClassNumberInput");
+  
+  listContainer.innerHTML = "⏳ Memuat kelas tujuan...";
+  numberInput.value = ""; // Reset input nomor
+  
+  // Tampilkan modal pindah kelas
+  document.getElementById("moveStudentModal").classList.add("active");
+
   try {
-    // 1. Ambil daftar semua kelas di sekolah ini untuk opsi tujuan
+    // Ambil daftar seluruh kelas di sekolah ini
     const q = query(collection(db, "classes"), where("schoolId", "==", currentSchoolId));
     const snap = await getDocs(q);
     
-    let targetClasses = [];
+    activeTargetClasses = [];
+    listContainer.innerHTML = "";
+
+    let index = 1;
     snap.forEach(cDoc => {
+      // Kecualikan kelas asal (kelas aktif saat ini)
       if (cDoc.id !== activeClassIdInModal) {
-        targetClasses.push({ id: cDoc.id, name: cDoc.data().name });
+        activeTargetClasses.push({ id: cDoc.id, name: cDoc.data().name });
+        
+        // Buat tampilan daftar ber-nomor
+        const item = document.createElement("div");
+        item.style.cssText = "padding: 4px 0; border-bottom: 1px dashed #f1f5f9;";
+        item.innerHTML = `<b>${index}.</b> ${cDoc.data().name}`;
+        listContainer.appendChild(item);
+        
+        index++;
       }
     });
 
-    if (targetClasses.length === 0) {
-      alert("Tidak ada kelas lain di sekolah ini untuk dijadikan tujuan pemindahan.");
-      return;
+    if (activeTargetClasses.length === 0) {
+      listContainer.innerHTML = "<span style='color:red;'>Tidak ada kelas lain di sekolah ini.</span>";
     }
+  } catch (err) {
+    console.error("Gagal memuat kelas untuk pindah:", err);
+    listContainer.innerHTML = "<span style='color:red;'>❌ Gagal memuat data kelas.</span>";
+  }
+};
 
-    // 2. Tampilkan prompt pilihan kelas (Sederhana & Efektif)
-    let promptMessage = "Pilih angka kelas tujuan pemindahan:\n";
-    targetClasses.forEach((c, index) => {
-      promptMessage += `${index + 1}. ${c.name}\n`;
-    });
+// 2. Eksekusi Pemindahan Berdasarkan Input Nomor
+window.executeMoveStudents = async () => {
+  const numberInput = document.getElementById("targetClassNumberInput");
+  const choiceValue = parseInt(numberInput.value);
 
-    const choice = prompt(promptMessage);
-    if (choice === null) return; // Batal
+  if (!choiceValue || isNaN(choiceValue) || choiceValue < 1 || choiceValue > activeTargetClasses.length) {
+    alert("Nomor kelas yang Anda masukkan tidak valid atau di luar jangkauan daftar!");
+    return;
+  }
 
-    const chosenIndex = parseInt(choice) - 1;
-    if (isNaN(chosenIndex) || chosenIndex < 0 || chosenIndex >= targetClasses.length) {
-      alert("Pilihan tidak valid!");
-      return;
-    }
+  // Cari kelas target berdasarkan indeks array (dikurangi 1 karena array mulai dari 0)
+  const destinationClass = activeTargetClasses[choiceValue - 1];
+  const checkedBoxes = document.querySelectorAll(".student-item-cb:checked");
 
-    const destinationClass = targetClasses[chosenIndex];
-
-    // 3. Eksekusi pemindahan data classId siswa di Firestore
+  try {
+    // Eksekusi pembaruan classId pada setiap siswa terpilih di Firestore
     for (const cb of checkedBoxes) {
-      await updateDoc(doc(doc(db, "students", cb.value)), { classId: destinationClass.id });
+      await updateDoc(doc(db, "students", cb.value), { classId: destinationClass.id });
     }
 
+    // Tutup semua modal terkait
+    document.getElementById("moveStudentModal").classList.remove("active");
     document.getElementById("studentModal").classList.remove("active");
+    
+    // Refresh data tabel utama kelas
     await loadClasses();
     showToast(`${checkedBoxes.length} Siswa berhasil dipindahkan ke kelas ${destinationClass.name}.`);
-
   } catch (err) {
-    console.error(err);
-    alert("Gagal memindahkan siswa.");
+    console.error("Gagal mengeksekusi perpindahan siswa:", err);
+    alert("Terjadi kesalahan saat memindahkan siswa.");
   }
 };
 
