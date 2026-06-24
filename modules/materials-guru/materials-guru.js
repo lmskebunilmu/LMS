@@ -97,31 +97,29 @@ await loadMaterials();
 });
 
 // ==========================
-// LOAD KELAS
+// LOAD KELAS (REVISI SINKRONISASI)
 // ==========================
 async function loadClasses(user) {
-
   const userSnap = await getDoc(doc(db, "users", user.uid));
   const userData = userSnap.data();
 
   const q = query(
-    collection(db,"classes"),
-    where("teacherIds","array-contains",user.uid),
-    where("schoolId","==",userData.schoolId)
+    collection(db, "classes"),
+    where("teacherIds", "array-contains", user.uid),
+    where("schoolId", "==", userData.schoolId)
   );
 
   const snap = await getDocs(q);
-
   const select = document.getElementById("classSelect");
   select.innerHTML = "";
 
   snap.forEach(doc => {
     const opt = document.createElement("option");
     opt.value = doc.id;
-    opt.textContent = doc.data().className || "Kelas Tanpa Nama";
+    // REVISI: diubah dari className menjadi name agar sinkron dengan file Admin
+    opt.textContent = doc.data().name || "Kelas Tanpa Nama"; 
     select.appendChild(opt);
   });
-
 }
 
 // ==========================
