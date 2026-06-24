@@ -469,7 +469,11 @@ window.openExercise = async (id) => {
   }
 
   const exData = exSnap.data();
-  const q = query(collection(db, "questions"), where("exerciseId", "==", id)),orderBy("order", "asc");
+  const q = query(
+  collection(db, "questions"), 
+  where("exerciseId", "==", id), 
+  orderBy("order", "asc") // 🔥 Parameter orderBy harus berada di dalam tanda kurung query()
+);
   const qSnap = await getDocs(q);
   const questions = qSnap.docs.map(d => d.data());
 
