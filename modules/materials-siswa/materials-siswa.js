@@ -453,6 +453,9 @@ function generateContent(input) {
 // ==========================
 // OPEN EXERCISE (DOM PURE - CLIENT SORT FULL FIX)
 // ==========================
+// ==========================
+// OPEN EXERCISE (DOM PURE - CLIENT SORT FULL FIX)
+// ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
   if (!exSnap.exists()) {
@@ -462,18 +465,42 @@ window.openExercise = async (id) => {
 
   const exData = exSnap.data();
   
-  // 1. REVISI UTAMA: Hapus 'orderBy' agar data tidak diblokir/blank
   const q = query(
     collection(db, "questions"), 
     where("exerciseId", "==", id)
   );
   const qSnap = await getDocs(q);
-  const questions = qSnap.docs.map(d => d.data());
+  
+  // Ambil data beserta ID dokumennya untuk memastikan fallback sorting aman
+  const questions = qSnap.docs.map(d => ({
+    id: d.id,
+    ...d.data()
+  }));
 
-  // 🔥 URUTKAN BERDASARKAN WAKTU PEMBUATAN (Dari yang paling lama ke terbaru)
+  // 🔥 PERBAIKAN UTAMA: Validasi multi-fallback untuk Timestamp Firebase
   questions.sort((a, b) => {
-    const waktuA = a.createdAt ? a.createdAt.toDate().getTime() : 0; // Sesuaikan nama field jika bukan createdAt
-    const waktuB = b.createdAt ? b.createdAt.toDate().getTime() : 0;
+    let waktuA = 0;
+    let waktuB = 0;
+
+    // Cek jika berbentuk Firebase Timestamp objek yang memiliki method toDate()
+    if (a.createdAt && typeof a.createdAt.toDate === 'function') {
+      waktuA = a.createdAt.toDate().getTime();
+    } else if (a.createdAt) {
+      // Fallback jika berupa string tanggal biasa atau format epoch unix
+      waktuA = new Date(a.createdAt).getTime() || 0;
+    }
+
+    if (b.createdAt && typeof b.createdAt.toDate === 'function') {
+      waktuB = b.createdAt.toDate().getTime();
+    } else if (b.createdAt) {
+      waktuB = new Date(b.createdAt).getTime() || 0;
+    }
+
+    // Jika waktu sama atau kosong, urutkan berdasarkan ID Dokumen secara alfabetis (agar urutan konsisten)
+    if (waktuA === waktuB) {
+      return a.id.localeCompare(b.id);
+    }
+
     return waktuA - waktuB;
   });
 
