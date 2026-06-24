@@ -1119,3 +1119,225 @@ window.filterAddTeachers = () => {
     li.style.display = li.innerText.toLowerCase().includes(keyword) ? "" : "none";
   });
 };
+// ==================================================================
+// FITUR: MASUKKAN SISWA BARU (KE KELAS INI)
+// ==================================================================
+window.openAddStudentModal = async () => {
+  if (!activeClassIdInModal) return;
+  const addStudentList = document.getElementById("addStudentList");
+  addStudentList.innerHTML = "<li>⏳ Memuat siswa yang belum memiliki kelas...</li>";
+  
+  document.getElementById("addStudentModal").classList.add("active");
+
+  try {
+    // Mengambil siswa di sekolah ini yang BELUM memiliki kelas (classId kosong atau tidak ada)
+    const q = query(collection(db, "students"), where("schoolId", "==", currentSchoolId));
+    const snap = await getDocs(q);
+    addStudentList.innerHTML = "";
+
+    let count = 0;
+    snap.forEach(sDoc => {
+      const sData = sDoc.data();
+      // Filter mandiri untuk mencari siswa yang belum punya kelas atau bukan di kelas aktif ini
+      if (!sData.classId || sData.classId === "") {
+        count++;
+        const li = document.createElement("li");
+        li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+        li.innerHTML = `
+          <input type="checkbox" class="add-student-cb" value="${sDoc.id}" style="cursor:pointer;">
+          <span>👶 <b>${sData.name || "Tanpa Nama"}</b> (${sData.email || "-"})</span>
+        `;
+        addStudentList.appendChild(li);
+      }
+    });
+
+    if (count === 0) {
+      addStudentList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Semua siswa sekolah sudah memiliki kelas.</li>";
+    }
+  } catch (err) {
+    console.error(err);
+    addStudentList.innerHTML = "<li style='color:red;'>❌ Gagal memuat daftar siswa.</li>";
+  }
+};
+
+window.toggleAllAddStudents = (masterCheckbox) => {
+  const checkboxes = document.querySelectorAll(".add-student-cb");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+};
+
+window.addSelectedStudents = async () => {
+  if (!activeClassIdInModal) return;
+  const checkedBoxes = document.querySelectorAll(".add-student-cb:checked");
+  if (checkedBoxes.length === 0) {
+    alert("Silahkan pilih minimal satu siswa!");
+    return;
+  }
+
+  try {
+    // Update field classId pada masing-masing dokumen siswa terpilih
+    for (const cb of checkedBoxes) {
+      await updateDoc(doc(db, "students", cb.value), { classId: activeClassIdInModal });
+    }
+    
+    document.getElementById("addStudentModal").classList.remove("active");
+    document.getElementById("studentModal").classList.remove("active"); // Refresh modal utama
+    await loadClasses();
+    showToast(`${checkedBoxes.length} Siswa berhasil dimasukkan ke kelas.`);
+  } catch (err) {
+    console.error(err);
+    alert("Gagal menambahkan siswa ke kelas.");
+  }
+};
+
+// ==================================================================
+// FITUR: PINDAHKAN KELAS (DARI KELAS AKTIF KE KELAS LAIN)
+// ==================================================================
+window.moveSelectedStudents = async () => {
+  if (!activeClassIdInModal) return;
+  const checkedBoxes = document.querySelectorAll(".student-item-cb:checked");
+  if (checkedBoxes.length === 0) {
+    alert("Silahkan pilih siswa yang ingin dipindahkan terlebih dahulu!");
+    return;
+  }
+
+  try {
+    // 1. Ambil daftar semua kelas di sekolah ini untuk opsi tujuan
+    const q = query(collection(db, "classes"), where("schoolId", "==", currentSchoolId));
+    const snap = await getDocs(q);
+    
+    let targetClasses = [];
+    snap.forEach(cDoc => {
+      if (cDoc.id !== activeClassIdInModal) {
+        targetClasses.push({ id: cDoc.id, name: cDoc.data().name });
+      }
+    });
+
+    if (targetClasses.length === 0) {
+      alert("Tidak ada kelas lain di sekolah ini untuk dijadikan tujuan pemindahan.");
+      return;
+    }
+
+    // 2. Tampilkan prompt pilihan kelas (Sederhana & Efektif)
+    let promptMessage = "Pilih angka kelas tujuan pemindahan:\n";
+    targetClasses.forEach((c, index) => {
+      promptMessage += `${index + 1}. ${c.name}\n`;
+    });
+
+    const choice = prompt(promptMessage);
+    if (choice === null) return; // Batal
+
+    const chosenIndex = parseInt(choice) - 1;
+    if (isNaN(chosenIndex) || chosenIndex < 0 || chosenIndex >= targetClasses.length) {
+      alert("Pilihan tidak valid!");
+      return;
+    }
+
+    const destinationClass = targetClasses[chosenIndex];
+
+    // 3. Eksekusi pemindahan data classId siswa di Firestore
+    for (const cb of checkedBoxes) {
+      await updateDoc(doc(doc(db, "students", cb.value)), { classId: destinationClass.id });
+    }
+
+    document.getElementById("studentModal").classList.remove("active");
+    await loadClasses();
+    showToast(`${checkedBoxes.length} Siswa berhasil dipindahkan ke kelas ${destinationClass.name}.`);
+
+  } catch (err) {
+    console.error(err);
+    alert("Gagal memindahkan siswa.");
+  }
+};
+
+// ==================================================================
+// FITUR: MASUKKAN GURU BARU (KE KELAS INI)
+// ==================================================================
+window.openAddTeacherModal = async () => {
+  if (!activeClassIdInModal) return;
+  const addTeacherList = document.getElementById("addTeacherList");
+  addTeacherList.innerHTML = "<li>⏳ Memuat daftar guru...</li>";
+  
+  document.getElementById("addTeacherModal").classList.add("active");
+
+  try {
+    // 1. Ambil data kelas saat ini untuk tahu siapa saja guru yang sudah bergabung
+    const classSnap = await getDoc(doc(db, "classes", activeClassIdInModal));
+    const currentTeacherIds = classSnap.exists() ? (classSnap.data().teacherIds || []) : [];
+
+    // 2. Ambil master guru sekolah
+    const q = query(collection(db, "teachers"), where("schoolId", "==", currentSchoolId));
+    const snap = await getDocs(q);
+    addTeacherList.innerHTML = "";
+
+    let count = 0;
+    snap.forEach(tDoc => {
+      // Hanya tampilkan guru yang belum terdaftar di kelas ini
+      if (!currentTeacherIds.includes(tDoc.id)) {
+        count++;
+        const tData = tDoc.data();
+        const li = document.createElement("li");
+        li.style.cssText = "padding: 8px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;";
+        li.innerHTML = `
+          <input type="checkbox" class="add-teacher-cb" value="${tDoc.id}" style="cursor:pointer;">
+          <span>👨‍🏫 <b>${tData.name || "Tanpa Nama"}</b> (${tData.email || "-"})</span>
+        `;
+        addTeacherList.appendChild(li);
+      }
+    });
+
+    if (count === 0) {
+      addTeacherList.innerHTML = "<li style='color:#64748b; padding:8px;'>📭 Semua guru sudah mengajar di kelas ini.</li>";
+    }
+  } catch (err) {
+    console.error(err);
+    addTeacherList.innerHTML = "<li style='color:red;'>❌ Gagal memuat daftar guru.</li>";
+  }
+};
+
+window.toggleAllAddTeachers = (masterCheckbox) => {
+  const checkboxes = document.querySelectorAll(".add-teacher-cb");
+  checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+};
+
+window.addSelectedTeachers = async () => {
+  if (!activeClassIdInModal) return;
+  const checkedBoxes = document.querySelectorAll(".add-teacher-cb:checked");
+  if (checkedBoxes.length === 0) {
+    alert("Silahkan pilih minimal satu guru!");
+    return;
+  }
+
+  try {
+    const classRef = doc(db, "classes", activeClassIdInModal);
+    const classSnap = await getDoc(classRef);
+    
+    if (classSnap.exists()) {
+      const classData = classSnap.data();
+      let currentTeacherIds = classData.teacherIds || [];
+      let currentTeachersMapping = classData.teachers || {};
+
+      checkedBoxes.forEach(cb => {
+        const tId = cb.value;
+        if (!currentTeacherIds.includes(tId)) {
+          currentTeacherIds.push(tId);
+          // Set mapel default kosong [] agar nanti bisa diatur lewat menu edit kelas
+          currentTeachersMapping[tId] = []; 
+        }
+      });
+
+      // Update struktur data kelas di Firestore
+      await updateDoc(classRef, {
+        teacherIds: currentTeacherIds,
+        teachers: currentTeachersMapping
+      });
+
+      document.getElementById("addTeacherModal").classList.remove("active");
+      document.getElementById("teacherModal").classList.remove("active"); // Refresh modal utama
+      await loadClasses();
+      showToast(`${checkedBoxes.length} Guru pengampu berhasil ditambahkan.`);
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Gagal menambahkan guru ke kelas.");
+  }
+};
