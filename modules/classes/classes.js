@@ -434,7 +434,8 @@ window.viewClass = (id, name) => {
 };
 
 // ==================================================================
-// AKSI BERKELOMPOK: KELUARKAN GURU (SUDAH DIPERBAIKI SINKRON)
+// ==================================================================
+// AKSI BERKELOMPOK: KELUARKAN GURU (SUDAH DIPERBAIKI TOTAL)
 // ==================================================================
 window.removeSelectedTeachers = async () => {
   if (!activeClassIdInModal) return;
@@ -455,20 +456,21 @@ window.removeSelectedTeachers = async () => {
 
         const idsToRemove = Array.from(checkedBoxes).map(cb => cb.value);
         
-        // 1. Bersihkan dari array teacherIds
+        // 1. Filter array ID lama untuk membuang ID guru yang dicentang
         const updatedTeacherIds = currentTeacherIds.filter(id => !idsToRemove.includes(id));
         
-        // 2. 🔥 PERBAIKAN: Bersihkan juga dari objek map teachers agar tidak membekas di list modal
+        // 2. Hapus key UID guru secara permanen dari dalam field Object 'teachers'
         idsToRemove.forEach(id => {
           delete currentTeachersMapping[id];
         });
         
-        // 3. Update kedua field secara bersamaan ke Firestore
+        // 3. Update kedua field secara bersamaan agar data sinkron
         await updateDoc(classRef, { 
           teacherIds: updatedTeacherIds,
           teachers: currentTeachersMapping
         });
 
+        // Tutup modal agar data me-refresh ulang dengan bersih
         document.getElementById("teacherModal").classList.remove("active");
         await loadClasses();
         showToast("Guru terpilih berhasil dikeluarkan.");
@@ -484,7 +486,7 @@ window.removeAllTeachers = async () => {
   if (!activeClassIdInModal) return;
   if (confirm("Apakah Anda yakin ingin mengeluarkan SEMUA guru dari kelas ini?")) {
     try {
-      // 🔥 PERBAIKAN: Kosongkan kedua field sekaligus (array dan object map)
+      // Kosongkan array (teacherIds) dan bersihkan seluruh isi Object (teachers) sekaligus
       await updateDoc(doc(db, "classes", activeClassIdInModal), { 
         teacherIds: [],
         teachers: {} 
