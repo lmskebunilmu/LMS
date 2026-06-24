@@ -5,8 +5,7 @@ import {
   getDoc,
   doc,
   query,
-  where,
-  orderBy
+  where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -68,9 +67,10 @@ async function loadProfileHeader(user, userData){
   const school = schoolSnap.exists() ? schoolSnap.data() : {};
 
   document.getElementById("headerNameHeader").innerText = userData.name || "Siswa";
-  document.getElementById("headerAvatarHeader").src = userData.avatarURL || "../assets/images/default-avatar.png";
+  // Perbaikan path jika gambar default pecah/404
+  document.getElementById("headerAvatarHeader").src = userData.avatarURL || "../../assets/images/default-avatar.png";
   document.getElementById("headerSchoolName").innerText = school.name || "-";
-  document.getElementById("headerSchoolLogo").src = school.logoURL || "../assets/images/default-logo.png";
+  document.getElementById("headerSchoolLogo").src = school.logoURL || "../../assets/images/default-logo.png";
 }
 
 // ==========================
@@ -102,11 +102,10 @@ async function loadSchoolData(schoolId) {
 }
 
 // ==========================
-// FIND STUDENT CLASS (REVISI TOTAL AGAR SINKRON DENGAN ADMIN)
+// FIND STUDENT CLASS
 // ==========================
 async function findStudentClass(studentUid, schoolId) {
   try {
-    // Admin menyimpan classId langsung di dalam dokumen student, bukan array di dokumen kelas
     const studentDocSnap = await getDoc(doc(db, "students", studentUid));
     if (studentDocSnap.exists()) {
       const studentData = studentDocSnap.data();
@@ -121,7 +120,7 @@ async function findStudentClass(studentUid, schoolId) {
 }
 
 // ==========================
-// CLASS MAP (REVISI SINKRONISASI FIELD NAME)
+// CLASS MAP
 // ==========================
 async function loadClassMap(schoolId) {
   const q = query(
@@ -133,7 +132,6 @@ async function loadClassMap(schoolId) {
   classMap = {};
 
   snap.forEach(d => {
-    // REVISI: diubah dari className menjadi name agar sinkron dengan Admin & Guru
     classMap[d.id] = d.data().name || "Kelas Tanpa Nama"; 
   });
 }
@@ -178,7 +176,6 @@ async function loadMaterials(schoolId, classId) {
 // ==========================
 // EXERCISES
 // ==========================
-// Ubah fungsi LOADEXERCISES milik siswa agar mengambil rincian data terbaru
 async function loadExercises(schoolId, classId) {
   const q = query(
     collection(db, "exerciseGuru"),
@@ -196,17 +193,17 @@ async function loadExercises(schoolId, classId) {
 
     const ex = exSnap.data();
     temp.push({
-  exerciseId: assign.exerciseId,
-  classId: assign.classId,
-  subject: ex.subject,
-  chapter: ex.chapter || "Umum",
-  subChapter: ex.subChapter || "Umum",
-  title: ex.title,
-  isAssigned: assign.isAssigned ?? false,
-  deadlineDate: assign.deadlineDate || "", // 🔥 Tanggal batas
-  deadlineTime: assign.deadlineTime || "", // 🔥 Jam menit batas
-  questions: ex.questions || []
-});
+      exerciseId: assign.exerciseId,
+      classId: assign.classId,
+      subject: ex.subject,
+      chapter: ex.chapter || "Umum",
+      subChapter: ex.subChapter || "Umum",
+      title: ex.title,
+      isAssigned: assign.isAssigned ?? false,
+      deadlineDate: assign.deadlineDate || "",
+      deadlineTime: assign.deadlineTime || "",
+      questions: ex.questions || []
+    });
   }
 
   const map = new Map();
@@ -214,7 +211,9 @@ async function loadExercises(schoolId, classId) {
   exercisesSiswa = [...map.values()];
 }
 
-// Sesuaikan fungsi RENDER MATERIALS siswa untuk mengunci latihan yang belum aktif
+// ==========================
+// RENDER MATERIALS
+// ==========================
 function renderMaterials(data) {
   const container = document.getElementById("materialSiswaList");
   if (!container) return;
@@ -284,69 +283,62 @@ function renderMaterials(data) {
           babContent.appendChild(item);
         });
 
-        // 🔥 RENDER LATIHAN DENGAN SISTEM CEK KONDISI AKTIF DAN WAKTU DURASI
+        // RENDER LATIHAN
         currentBab.exercises.forEach(ex => {
-  const item = document.createElement("div");
-  item.className = "materi-item";
+          const item = document.createElement("div");
+          item.className = "materi-item";
 
-  // LOGIKA VALIDASI APAKAH DEADLINE SUDAH LEWAT ATAU BELUM
-  let isExpired = false;
-  let deadlineString = "Tidak ditentukan";
+          let isExpired = false;
+          let deadlineString = "Tidak ditentukan";
 
-  if (ex.deadlineDate && ex.deadlineTime) {
-    const deadlineTarget = new Date(`${ex.deadlineDate}T${ex.deadlineTime}:00`);
-    const sekarang = new Date();
-    
-    // Bandingkan waktu sekarang dengan target dari guru
-    if (sekarang > deadlineTarget) {
-      isExpired = true;
-    }
-    
-    // Format tampilan info rapi untuk siswa
-    const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
-    const tanggalRapi = new Date(ex.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
-    deadlineString = `${tanggalRapi} - Pukul ${ex.deadlineTime} WIB`;
-  }
+          if (ex.deadlineDate && ex.deadlineTime) {
+            const deadlineTarget = new Date(`${ex.deadlineDate}T${ex.deadlineTime}:00`);
+            const sekarang = new Date();
+            
+            if (sekarang > deadlineTarget) {
+              isExpired = true;
+            }
+            
+            const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
+            const tanggalRapi = new Date(ex.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
+            deadlineString = `${tanggalRapi} - Pukul ${ex.deadlineTime} WIB`;
+          }
 
-  // VALIDASI KONDISI TAMPILAN
-  if (ex.isAssigned && !isExpired) {
-    // TUGAS AKTIF BISA DIKERJAKAN
-    item.style.borderLeft = "4px solid #16a34a"; 
-    item.style.cursor = "pointer";
-    item.innerHTML = `
-      📝 ${ex.title} 
-      <span style="color:#16a34a; font-size:11px; font-weight:bold; margin-left:8px;">
-        ⏱ Batas: ${deadlineString} (Tugas Aktif)
-      </span>`;
-    item.onclick = () => openExercise(ex.exerciseId);
+          if (ex.isAssigned && !isExpired) {
+            item.style.borderLeft = "4px solid #16a34a"; 
+            item.style.cursor = "pointer";
+            item.innerHTML = `
+              📝 ${ex.title} 
+              <span style="color:#16a34a; font-size:11px; font-weight:bold; margin-left:8px;">
+                ⏱ Batas: ${deadlineString} (Tugas Aktif)
+              </span>`;
+            item.onclick = () => openExercise(ex.exerciseId);
 
-  } else if (ex.isAssigned && isExpired) {
-    // TUGAS SUDAH LEWAt BATAS (TERKUNCI OTOMATIS)
-    item.style.borderLeft = "4px solid #ef4444"; 
-    item.style.opacity = "0.5";
-    item.style.cursor = "not-allowed";
-    item.innerHTML = `
-      🔒 <s>📝 ${ex.title}</s> 
-      <span style="color:#ef4444; font-size:11px; font-weight:bold; margin-left:8px;">
-        ❌ Batas Waktu Habis (${deadlineString})
-      </span>`;
-    item.onclick = () => alert("Maaf, waktu pengerjaan latihan ini sudah habis/melewati batas pengumpulan!");
+          } else if (ex.isAssigned && isExpired) {
+            item.style.borderLeft = "4px solid #ef4444"; 
+            item.style.opacity = "0.5";
+            item.style.cursor = "not-allowed";
+            item.innerHTML = `
+              🔒 <s>📝 ${ex.title}</s> 
+              <span style="color:#ef4444; font-size:11px; font-weight:bold; margin-left:8px;">
+                ❌ Batas Waktu Habis (${deadlineString})
+              </span>`;
+            item.onclick = () => alert("Maaf, waktu pengerjaan latihan ini sudah habis/melewati batas pengumpulan!");
 
-  } else {
-    // BELUM DIAKTIFKAN OLEH GURU
-    item.style.borderLeft = "4px solid #9ca3af"; 
-    item.style.opacity = "0.6";
-    item.style.cursor = "not-allowed";
-    item.innerHTML = `
-      🔒 <s>📝 ${ex.title}</s> 
-      <span style="color:#6b7280; font-size:11px; font-style:italic; margin-left:8px;">
-        (Belum Ditugaskan / Terkunci)
-      </span>`;
-    item.onclick = () => alert("Latihan ini belum dibuka/ditugaskan aktif oleh gurumu.");
-  }
-  
-  babContent.appendChild(item);
-});
+          } else {
+            item.style.borderLeft = "4px solid #9ca3af"; 
+            item.style.opacity = "0.6";
+            item.style.cursor = "not-allowed";
+            item.innerHTML = `
+              🔒 <s>📝 ${ex.title}</s> 
+              <span style="color:#6b7280; font-size:11px; font-style:italic; margin-left:8px;">
+                (Belum Ditugaskan / Terkunci)
+              </span>`;
+            item.onclick = () => alert("Latihan ini belum dibuka/ditugaskan aktif oleh gurumu.");
+          }
+          
+          babContent.appendChild(item);
+        });
 
         mapelContent.appendChild(babDiv);
       });
@@ -457,11 +449,9 @@ function generateContent(input) {
 
   return output;
 }
+
 // ==========================
-// OPEN EXERCISE (DOM PURE - 100% FIX)
-// ==========================
-// ==========================
-// OPEN EXERCISE (DOM PURE & CLIENT SORT - FULL FIX)
+// OPEN EXERCISE (DOM PURE - CLIENT SORT FULL FIX)
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -472,31 +462,27 @@ window.openExercise = async (id) => {
 
   const exData = exSnap.data();
   
-  // 🔥 PERBAIKAN UTAMA: Mengembalikan ke query polosan agar tidak memicu error indeks Firestore
+  // 1. REVISI UTAMA: Hapus 'orderBy' agar data tidak diblokir/blank
   const q = query(
     collection(db, "questions"), 
     where("exerciseId", "==", id)
   );
   const qSnap = await getDocs(q);
-  
-  // Ambil data mentah dari dokumen snapshot
   const questions = qSnap.docs.map(d => d.data());
 
-  // 🔥 SOLUSI URUTAN: Mengurutkan soal secara lokal di browser berdasarkan properti 'order'
+  // 2. REVISI URUTAN: Urutkan array secara lokal berdasarkan properti 'order'
   questions.sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  // 1. Buka window baru kosong
+  // Buka window baru kosong
   const win = window.open("", "_blank");
   if (!win) {
     alert("Pop-up diblokir oleh browser! Harap izinkan pop-up untuk membuka latihan.");
     return;
   }
 
-  // 2. Siapkan kerangka dasar halaman tanpa menggunakan document.write string panjang
   win.document.innerHTML = ""; 
   win.document.title = exData.title;
 
-  // 3. Masukkan Konfigurasi MathJax ke Head Window Baru
   const inlineScript = win.document.createElement("script");
   inlineScript.text = `
     window.MathJax = {
@@ -508,7 +494,6 @@ window.openExercise = async (id) => {
   `;
   win.document.head.appendChild(inlineScript);
 
-  // 4. Masukkan Style CSS ke Head Window Baru
   const styleEl = win.document.createElement("style");
   styleEl.textContent = `
     *{box-sizing:border-box;}
@@ -536,7 +521,6 @@ window.openExercise = async (id) => {
   `;
   win.document.head.appendChild(styleEl);
 
-  // 5. Buat Struktur Body HTML ke Window Baru
   let bodyContent = `
     <div class="topbar">
       <div class="title">📝 ${exData.title}</div>
@@ -548,7 +532,6 @@ window.openExercise = async (id) => {
     <div class="container">
   `;
 
-  // Ambil data jawaban lokal
   const savedData = JSON.parse(localStorage.getItem("exercise_" + id) || "{}");
 
   questions.forEach((qData, index) => {
@@ -617,7 +600,6 @@ window.openExercise = async (id) => {
 
   win.document.body.innerHTML = bodyContent;
 
-  // 6. Inject Skrip Fungsi ke Window Baru Menggunakan DOM Element agar Tidak Terblokir
   const scriptEl = win.document.createElement("script");
   scriptEl.text = `
     const exerciseId = "${id}";
@@ -767,7 +749,6 @@ window.openExercise = async (id) => {
       }
     });
 
-    // Jalankan pemulihan data mencocokkan & muat CDN MathJax secara aman
     setTimeout(() => { restoreMatchAnswers(); }, 300);
     
     const mjScript = document.createElement('script');
@@ -777,6 +758,7 @@ window.openExercise = async (id) => {
   `;
   win.document.body.appendChild(scriptEl);
 };
+
 window.filterMaterialsSiswa = () => {
   const search = document.getElementById("searchMaterialSiswa").value.toLowerCase();
   filteredMaterials = materialsSiswa.filter(m => {
