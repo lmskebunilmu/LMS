@@ -22,6 +22,35 @@
     <div id="header-container"></div>
 
     <div class="card">
+      <div class="action-buttons" style="margin-bottom: 20px;">
+  <button id="btnBukaFormMateri" onclick="toggleForm('formMateri')" style="background-color: #28a745; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer;">
+    ➕ Buat Materi Baru
+  </button>
+  <button id="btnBukaFormExercise" onclick="toggleForm('formExercise')" style="background-color: #007bff; color: white; padding: 10px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">
+    📝 Buat Latihan Baru
+  </button>
+</div>
+
+<div id="formMateri" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px;">
+  <h4>Form Buat Materi Baru</h4>
+  <input type="text" id="newMaterialTitle" placeholder="Judul Materi / Sub-Bab" style="width:100%; margin-bottom:100px; padding:8px;"><br><br>
+  <input type="text" id="newMaterialChapter" placeholder="Nama Bab (Contoh: Bab 1: Aljabar)" style="width:100%; margin-bottom:10px; padding:8px;"><br><br>
+  <select id="newMaterialSubject" style="width:100%; margin-bottom:10px; padding:8px;">
+    </select><br><br>
+  <textarea id="newMaterialContent" placeholder="Isi materi atau link video YouTube / PDF..." style="width:100%; height:150px; margin-bottom:10px; padding:8px;"></textarea><br><br>
+  <button onclick="saveNewMaterial()" style="background-color: #28a745; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Materi</button>
+  <button onclick="toggleForm('formMateri')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
+</div>
+
+<div id="formExercise" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px;">
+  <h4>Form Buat Latihan (Exercise) Baru</h4>
+  <input type="text" id="newExerciseTitle" placeholder="Judul Latihan (Contoh: Kuis Harian 1)" style="width:100%; margin-bottom:10px; padding:8px;"><br><br>
+  <select id="newExerciseMaterialId" style="width:100%; margin-bottom:10px; padding:8px;">
+    </select><br><br>
+  <p style="font-size:12px; color:gray;">*Catatan: Isian soal dan sistem kuis detailnya bisa diarahkan ke halaman pembuatan soal terpisah seperti milik superadmin.</p>
+  <button onclick="saveNewExercise()" style="background-color: #007bff; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Latihan</button>
+  <button onclick="toggleForm('formExercise')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
+</div>
 
       <h3>Pilih Materi untuk Kelas</h3>
 
