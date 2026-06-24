@@ -177,6 +177,7 @@ async function loadMaterials(schoolId, classId) {
 // ==========================
 // EXERCISES
 // ==========================
+// Ubah fungsi LOADEXERCISES milik siswa agar mengambil rincian data terbaru
 async function loadExercises(schoolId, classId) {
   const q = query(
     collection(db, "exerciseGuru"),
@@ -200,23 +201,18 @@ async function loadExercises(schoolId, classId) {
       chapter: ex.chapter || "Umum",
       subChapter: ex.subChapter || "Umum",
       title: ex.title,
+      isAssigned: assign.isAssigned ?? false, // 🔥 Ambil flag status aktif dari guru
+      duration: assign.duration || 0,        // 🔥 Ambil durasi waktu pengerjaan
       questions: ex.questions || []
     });
   }
 
   const map = new Map();
   temp.forEach(i => map.set(i.exerciseId, i));
-
   exercisesSiswa = [...map.values()];
-  console.log("EXERCISES:", exercisesSiswa);
 }
 
-// ==========================
-// RENDER
-// ==========================
-// ==========================
-// RENDER (FILE SISWA - DENGAN VALIDASI PENUGASAN)
-// ==========================
+// Sesuaikan fungsi RENDER MATERIALS siswa untuk mengunci latihan yang belum aktif
 function renderMaterials(data) {
   const container = document.getElementById("materialSiswaList");
   if (!container) return;
@@ -229,7 +225,6 @@ function renderMaterials(data) {
   }
 
   const grouped = {};
-
   data.forEach(m => {
     const kelas = classMap[m.classId] || "Tanpa Kelas";
     const mapel = m.subject || "Umum";
@@ -238,7 +233,6 @@ function renderMaterials(data) {
     grouped[kelas] ??= {};
     grouped[kelas][mapel] ??= {};
     grouped[kelas][mapel][bab] ??= { materials: [], exercises: [] };
-
     grouped[kelas][mapel][bab].materials.push(m);
   });
 
@@ -250,7 +244,6 @@ function renderMaterials(data) {
     grouped[kelas] ??= {};
     grouped[kelas][mapel] ??= {};
     grouped[kelas][mapel][bab] ??= { materials: [], exercises: [] };
-
     grouped[kelas][mapel][bab].exercises.push(ex);
   });
 
@@ -261,7 +254,6 @@ function renderMaterials(data) {
       <div class="level kelas" onclick="toggle(this)">🏫 ${kelas}</div>
       <div class="content"></div>
     `;
-
     const kelasContent = box.querySelector(".content");
 
     Object.keys(grouped[kelas]).forEach(mapel => {
@@ -270,7 +262,6 @@ function renderMaterials(data) {
         <div class="level mapel" onclick="toggle(this)">📘 ${mapel}</div>
         <div class="content"></div>
       `;
-
       const mapelContent = mapelDiv.querySelector(".content");
 
       Object.keys(grouped[kelas][mapel]).forEach(bab => {
@@ -279,11 +270,10 @@ function renderMaterials(data) {
           <div class="level bab" onclick="toggle(this)">📖 ${bab}</div>
           <div class="content"></div>
         `;
-
         const babContent = babDiv.querySelector(".content");
         const currentBab = grouped[kelas][mapel][bab];
 
-        // Render Materi
+        // Render Materi Bacaan
         currentBab.materials.forEach(m => {
           const item = document.createElement("div");
           item.className = "materi-item";
@@ -292,26 +282,33 @@ function renderMaterials(data) {
           babContent.appendChild(item);
         });
 
-        // 🔥 RENDER LATIHAN DI SISI SISWA (Sudah otomatis Aktif karena Berhasil Ditugaskan Guru)
+        // 🔥 RENDER LATIHAN DENGAN SISTEM CEK KONDISI AKTIF DAN WAKTU DURASI
         currentBab.exercises.forEach(ex => {
           const item = document.createElement("div");
           item.className = "materi-item";
-          item.style.borderLeft = "4px solid #16a34a"; // Diubah hijau menandakan aktif ditugaskan
-          item.style.cursor = "pointer";
+
+          if (ex.isAssigned) {
+            // JIKA SUDAH DITUGASKAN OLEH GURU
+            item.style.borderLeft = "4px solid #16a34a"; // Garis Hijau
+            item.style.cursor = "pointer";
+            item.innerHTML = `📝 ${ex.title} <span style="color:#16a34a; font-size:11px; font-weight:bold; margin-left:8px;">⏱ Waktu: ${ex.duration} Menit (Tugas Aktif)</span>`;
+            item.onclick = () => openExercise(ex.exerciseId);
+          } else {
+            // JIKA BELUM DITUGASKAN OLEH GURU (TAMPIL TAPI TERKUNCI)
+            item.style.borderLeft = "4px solid #dc2626"; // Garis Merah
+            item.style.opacity = "0.6";
+            item.style.cursor = "not-allowed";
+            item.innerHTML = `🔒 <s>📝 ${ex.title}</s> <span style="color:#dc2626; font-size:11px; font-style:italic; margin-left:8px;">(Belum Ditugaskan / Terkunci)</span>`;
+            item.onclick = () => alert("Latihan tugas ini terkunci. Tunggu instruksi atau penugasan aktif dari guru kamu!");
+          }
           
-          // Menambahkan label teks pembantu agar siswa tahu tugas ini sudah aktif/dibuka oleh guru
-          item.innerHTML = `📝 ${ex.title} <span style="color:#16a34a; font-size:11px; font-weight:bold; margin-left:8px;">(Tugas Aktif)</span>`;
-          
-          item.onclick = () => openExercise(ex.exerciseId);
           babContent.appendChild(item);
         });
 
         mapelContent.appendChild(babDiv);
       });
-
       kelasContent.appendChild(mapelDiv);
     });
-
     container.appendChild(box);
   });
 }
