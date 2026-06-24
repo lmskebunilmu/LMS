@@ -451,7 +451,7 @@ function generateContent(input) {
 }
 
 // ==========================
-// OPEN EXERCISE (DENGAN SAVE FIREBASE, SKOR, & MAKS 2X CEK)
+// OPEN EXERCISE (SAVE FIREBASE + HITUNG NILAI + MAKS 2X CEK)
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -473,7 +473,7 @@ window.openExercise = async (id) => {
     ...d.data()
   }));
 
-  // Sorting berdasarkan waktu / id dokumen
+  // Sorting berdasarkan waktu / fallback dokumen id
   questions.sort((a, b) => {
     let waktuA = a.createdAt?.toDate?.()?.getTime() || new Date(a.createdAt).getTime() || 0;
     let waktuB = b.createdAt?.toDate?.()?.getTime() || new Date(b.createdAt).getTime() || 0;
@@ -483,19 +483,19 @@ window.openExercise = async (id) => {
 
   const win = window.open("", "_blank");
   if (!win) {
-    alert("Pop-up diblokir oleh browser! Harap izinkan pop-up.");
+    alert("Pop-up diblokir oleh browser! Harap izinkan pop-up untuk membuka latihan.");
     return;
   }
 
   win.document.innerHTML = ""; 
   win.document.title = exData.title;
 
-  // MathJax Configuration
+  // MathJax Config
   const inlineScript = win.document.createElement("script");
   inlineScript.text = `window.MathJax = { tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']] } };`;
   win.document.head.appendChild(inlineScript);
 
-  // CSS Styling
+  // Styling Modern & Atribut Tambahan
   const styleEl = win.document.createElement("style");
   styleEl.textContent = `
     *{box-sizing:border-box;}
@@ -535,11 +535,10 @@ window.openExercise = async (id) => {
     <div class="container">
   `;
 
-  // Mengambil user login saat ini dari context utama
   const currentUser = auth.currentUser;
   const studentUid = currentUser ? currentUser.uid : "anonymous";
 
-  // Load saved data dari localStorage sebagai fallback rendering awal
+  // Ambil state pengerjaan dan attempts berdasarkan ID Latihan + UID Siswa agar tidak bentrok
   const savedData = JSON.parse(localStorage.getItem(`exercise_${id}_${studentUid}`) || "{}");
   const savedAttempts = JSON.parse(localStorage.getItem(`attempts_${id}_${studentUid}`) || "{}");
 
@@ -603,17 +602,17 @@ window.openExercise = async (id) => {
   });
 
   bodyContent += `
-      <button class="submit-btn" onclick="submitToFirebase()">📤 Kirim & Simpan Nilai ke Firebase</button>
+      <button class="submit-btn" onclick="submitToFirebase()">📤 Kirim Jawaban & Simpan Nilai ke Firebase</button>
     </div>
   `;
 
   win.document.body.innerHTML = bodyContent;
 
-  // Memasukkan modul Firestore ke window baru agar fungsi pengiriman bekerja secara independent
+  // Injeksi modul SDK Firebase ke popup baru agar bisa melakukan penulisan data secara terpisah
   const scriptEl = win.document.createElement("script");
   scriptEl.type = "module";
   scriptEl.text = `
-    import { doc, setDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { db } from "${window.location.origin}/firebase/firebase-config.js";
 
     const exerciseId = "${id}";
@@ -642,10 +641,10 @@ window.openExercise = async (id) => {
 
     window.checkAnswer = function(index){
       const q = questionsData[index];
-      
-      // Hitung & batasi attempts
       const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
       let attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
+      
+      // Tambah riwayat hit pengerjaan
       attempts[index] = (attempts[index] || 0) + 1;
       localStorage.setItem(attemptKey, JSON.stringify(attempts));
 
@@ -656,7 +655,7 @@ window.openExercise = async (id) => {
 
       if(q.type === "pg"){
         const selected = document.querySelector('input[name="q' + index + '"]:checked');
-        if(!selected) { alert("Pilih jawaban terlebih dahulu!"); return; }
+        if(!selected) { alert("Pilih salah satu opsi jawaban!"); return; }
         userAnswer = selected.value;
         saveAnswer(index, userAnswer);
         correct = userAnswer == q.answer;
@@ -694,23 +693,21 @@ window.openExercise = async (id) => {
         correct = totalCorrect === q.pairs.length;
       }
 
-      // Tampilkan hasil cek
       const result = document.getElementById("result_"+index);
       if(correct){
         result.innerHTML = "✅ Jawaban Benar";
         result.style.color = "green";
         document.getElementById("explain_"+index).style.display = "block";
-        // Kunci input/button jika sudah benar
-        lockQuestionFields(index);
+        lockQuestionFields(index); // Jika benar langsung kunci agar tidak bisa diubah lagi
       }else{
         result.innerHTML = "❌ Jawaban Salah";
         result.style.color = "red";
       }
 
-      // Kunci jika attempt sudah mencapai/melebihi 2 kali
+      // Kunci jika batas klik mencapai 2 kali
       if(attempts[index] >= 2){
         lockQuestionFields(index);
-        document.getElementById("explain_"+index).style.display = "block"; // Buka pembahasan otomatis di akhir kesempatan
+        document.getElementById("explain_"+index).style.display = "block"; // Munculkan pembahasan otomatis saat kesempatan habis
       }
     };
 
@@ -721,7 +718,6 @@ window.openExercise = async (id) => {
         btn.style.background = "#9ca3af";
         btn.style.cursor = "not-allowed";
       }
-      // Disable radio/checkbox/text inputs
       document.querySelectorAll('input[name="q'+index+'"]').forEach(el => el.disabled = true);
       const isian = document.getElementById("q"+index);
       if(isian) isian.disabled = true;
@@ -736,8 +732,8 @@ window.openExercise = async (id) => {
       el.style.display = el.style.display === "block" ? "none" : "block";
     };
 
+    // Fungsi Pengiriman Nilai & Jawaban Akhir ke Database Firebase
     window.submitToFirebase = async function() {
-      // Hitung total jawaban benar saat ini untuk kalkulasi nilai mutakhir
       let totalBenar = 0;
       const key = "exercise_" + exerciseId + "_" + studentUid;
       const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
@@ -767,31 +763,30 @@ window.openExercise = async (id) => {
         }
       });
 
+      // Perhitungan skor berbasis skala 100
       const score = questionsData.length > 0 ? Math.round((totalBenar / questionsData.length) * 100) : 0;
 
       try {
-        // Simpan ke Firebase Firestore menggunakan ID gabungan (studentUid_exerciseId) agar data ter-update jika dikirim ulang
-        const docRef = doc(db, "student_exercises", studentUid + "_" + exerciseId);
-        await setDoc(docRef, {
+        // Disimpan ke dalam nama koleksi 'student_submissions'
+        await setDoc(doc(db, "student_submissions", studentUid + "_" + exerciseId), {
           studentUid: studentUid,
           exerciseId: exerciseId,
           classId: classId,
           schoolId: schoolId,
           answers: savedAnswers,
           score: score,
-          submittedAt: new Date(),
           totalQuestions: questionsData.length,
-          correctAnswers: totalBenar
+          correctAnswers: totalBenar,
+          submittedAt: new Date()
         });
 
-        alert("🎉 Nilai berhasil dikalkulasi dan tersimpan ke database!\\nSkor Anda: " + score);
+        alert("🎉 Hasil pengerjaan Anda berhasil disimpan ke Firebase!\\nSkor Nilai Anda: " + score);
       } catch (error) {
         console.error("Gagal menyimpan ke Firebase:", error);
-        alert("Gagal menyimpan jawaban ke database. Coba lagi.");
+        alert("Gagal mengirim jawaban ke database, pastikan jaringan Anda stabil.");
       }
     };
 
-    // Fungsi Penggaris Garis Hubung Match
     window.drawConnection = function(leftEl, rightEl){
       const wrapper = leftEl.closest(".match-wrapper");
       const svg = wrapper.querySelector(".match-lines");
@@ -836,7 +831,7 @@ window.openExercise = async (id) => {
 
       if (left) {
         const wrapper = left.closest(".match-wrapper");
-        if(wrapper.dataset.locked === "true") return; // block click if locked
+        if(wrapper.dataset.locked === "true") return;
 
         document.querySelectorAll(".left-item").forEach(x => x.classList.remove("selected"));
         left.classList.add("selected");
@@ -845,7 +840,7 @@ window.openExercise = async (id) => {
 
       if (right && selectedLeft) {
         const wrapper = right.closest(".match-wrapper");
-        if(wrapper.dataset.locked === "true") return; // block click if locked
+        if(wrapper.dataset.locked === "true") return;
 
         const qIndex = selectedLeft.dataset.question;
         const leftIndex = selectedLeft.dataset.left;
