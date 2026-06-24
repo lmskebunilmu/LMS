@@ -717,18 +717,94 @@ function populateNewMaterialSubjects() {
   }
 }
 
-// Mengisi dropdown Pilihan Materi untuk form Exercise baru
-function populateNewExerciseMaterials() {
-  const select = document.getElementById("newExerciseMaterialId");
-  select.innerHTML = "<option value=''>-- Pilih Materi Terkait --</option>";
+// ==========================================
+// LOGIKA FORM EXERCISE BERTINGKAT (DYNAMIC DROPDOWN)
+// ==========================================
+
+// 1. Mengisi Dropdown Mapel di form latihan berdasarkan mapel yang diampu guru
+function populateExerciseSubjects() {
+  const select = document.getElementById("newExerciseSubject");
+  select.innerHTML = '<option value="">-- Pilih Mapel --</option>';
   
+  // Diambil langsung dari dropdown filter utama (subjectFilter) yang berisi hak akses mapel guru tersebut
+  const filterSelect = document.getElementById("subjectFilter");
+  for (let option of filterSelect.options) {
+    if (option.value !== "") {
+      const opt = document.createElement("option");
+      opt.value = option.value;
+      opt.textContent = option.textContent;
+      select.appendChild(opt);
+    }
+  }
+
+  // Reset tingkatan dropdown di bawahnya
+  document.getElementById("newExerciseChapter").innerHTML = '<option value="">-- Pilih Bab --</option>';
+  document.getElementById("newExerciseChapter").disabled = true;
+  document.getElementById("newExerciseMaterialId").innerHTML = '<option value="">-- Pilih Sub-Bab / Materi --</option>';
+  document.getElementById("newExerciseMaterialId").disabled = true;
+}
+
+// 2. Mengisi Dropdown Bab setelah Mapel dipilih
+window.updateExerciseChapters = () => {
+  const subject = document.getElementById("newExerciseSubject").value;
+  const chapterSelect = document.getElementById("newExerciseChapter");
+  const materialSelect = document.getElementById("newExerciseMaterialId");
+
+  // Reset dropdown bab dan sub-bab terdahulu
+  chapterSelect.innerHTML = '<option value="">-- Pilih Bab --</option>';
+  materialSelect.innerHTML = '<option value="">-- Pilih Sub-Bab / Materi --</option>';
+  materialSelect.disabled = true;
+
+  if (!subject) {
+    chapterSelect.disabled = true;
+    return;
+  }
+
+  // Mengambil daftar nama Bab unik dari materi yang ter-load berdasarkan mapel pilihan
+  const chapters = [];
   materialsGuru.forEach(m => {
+    if (m.subject === subject && m.chapter) {
+      if (!chapters.includes(m.chapter)) {
+        chapters.push(m.chapter);
+      }
+    }
+  });
+
+  chapters.forEach(bab => {
+    const opt = document.createElement("option");
+    opt.value = bab;
+    opt.textContent = bab;
+    chapterSelect.appendChild(opt);
+  });
+
+  chapterSelect.disabled = false;
+};
+
+// 3. Mengisi Dropdown Sub-Bab / Materi setelah Bab dipilih
+window.updateExerciseMaterials = () => {
+  const subject = document.getElementById("newExerciseSubject").value;
+  const chapter = document.getElementById("newExerciseChapter").value;
+  const materialSelect = document.getElementById("newExerciseMaterialId");
+
+  materialSelect.innerHTML = '<option value="">-- Pilih Sub-Bab / Materi --</option>';
+
+  if (!chapter) {
+    materialSelect.disabled = true;
+    return;
+  }
+
+  // Menyaring data materi yang memiliki Mapel DAN Bab yang sesuai
+  const filtered = materialsGuru.filter(m => m.subject === subject && m.chapter === chapter);
+
+  filtered.forEach(m => {
     const opt = document.createElement("option");
     opt.value = m.id;
-    opt.textContent = `[${m.subject}] ${m.chapter} - ${m.title}`;
-    select.appendChild(opt);
+    opt.textContent = m.subChapter || m.title;
+    materialSelect.appendChild(opt);
   });
-}
+
+  materialSelect.disabled = false;
+};
 window.saveNewMaterial = async () => {
   const title = document.getElementById("newMaterialTitle").value;
   const subject = document.getElementById("newMaterialSubject").value;
@@ -779,38 +855,38 @@ window.saveNewMaterial = async () => {
   }
 };
 window.saveNewExercise = async () => {
-  const title = document.getElementById("newExerciseTitle").value;
+  const subject = document.getElementById("newExerciseSubject").value;
+  const chapter = document.getElementById("newExerciseChapter").value;
   const materialId = document.getElementById("newExerciseMaterialId").value;
+  const title = document.getElementById("newExerciseTitle").value;
   
-  if(!title || !materialId) {
-    showToast("Judul latihan dan materi terkait wajib diisi!", "error");
+  if (!subject || !chapter || !materialId || !title) {
+    showToast("Semua tingkatan (Mapel, Bab, Materi) dan Judul Latihan wajib dipilih/diisi!", "error");
     return;
   }
-  
-  // Cari tahu mapel dari materi yang dipilih
-  const selectedMat = materialsGuru.find(m => m.id === materialId);
-  const subject = selectedMat ? selectedMat.subject : "";
 
   try {
     const user = auth.currentUser;
-    // Tambahkan ke koleksi 'exercises' pusat
+    
+    // Simpan data kuis ke koleksi 'exercises' pusat
     await addDoc(collection(db, "exercises"), {
       title: title,
-      materialId: materialId,
+      materialId: materialId, // Mengunci relasi kuis ke dokumen materi spesifik
       subject: subject,
+      chapter: chapter,
       createdBy: user.uid,
       isCustomTeacher: true,
-      questions: [], // Nanti superadmin/guru bisa mengisi array ini lewat halaman pembuat soal
+      questions: [],          // Wadah array untuk butir soal nantinya
       createdAt: new Date()
     });
     
     showToast("Latihan baru berhasil dibuat!");
     
-    // Reset & tutup form
+    // Reset elemen isian input teks & tutup form
     document.getElementById("newExerciseTitle").value = "";
     toggleForm('formExercise');
     
-    // Refresh data exercise dan list tampilan
+    // Memuat ulang data latihan dan merender ulang tampilan list accordion utama
     await loadExercises();
     renderMaterials(filteredMaterials);
   } catch (error) {
@@ -871,13 +947,16 @@ window.handleChapterSelectChange = () => {
 // Jangan lupa update fungsi toggleForm yang sebelumnya agar memanggil populateExistingChapters() saat form materi dibuka
 window.toggleForm = (formId) => {
   const form = document.getElementById(formId);
-  if(form.style.display === "none") {
+  if (form.style.display === "none") {
     form.style.display = "block";
-    if(formId === 'formMateri') {
+    
+    if (formId === 'formMateri') {
       populateNewMaterialSubjects();
-      populateExistingChapters(); // 🔥 ISI DAFTAR BAB SAAT FORM DIBUKA
+      window.populateExistingChapters(); 
     }
-    if(formId === 'formExercise') populateNewExerciseMaterials();
+    if (formId === 'formExercise') {
+      populateExerciseSubjects(); // 🔥 Otomatis memicu pengisian mapel asli milik guru saat form kuis dibuka
+    }
   } else {
     form.style.display = "none";
   }
