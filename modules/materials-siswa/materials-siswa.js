@@ -5,7 +5,8 @@ import {
   getDoc,
   doc,
   query,
-  where
+  where,
+  orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -468,7 +469,7 @@ window.openExercise = async (id) => {
   }
 
   const exData = exSnap.data();
-  const q = query(collection(db, "questions"), where("exerciseId", "==", id));
+  const q = query(collection(db, "questions"), where("exerciseId", "==", id)),orderBy("order", "asc");
   const qSnap = await getDocs(q);
   const questions = qSnap.docs.map(d => d.data());
 
