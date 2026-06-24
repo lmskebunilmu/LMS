@@ -214,6 +214,9 @@ async function loadExercises(schoolId, classId) {
 // ==========================
 // RENDER
 // ==========================
+// ==========================
+// RENDER (FILE SISWA - DENGAN VALIDASI PENUGASAN)
+// ==========================
 function renderMaterials(data) {
   const container = document.getElementById("materialSiswaList");
   if (!container) return;
@@ -289,12 +292,16 @@ function renderMaterials(data) {
           babContent.appendChild(item);
         });
 
-        // Render Latihan
+        // 🔥 RENDER LATIHAN DI SISI SISWA (Sudah otomatis Aktif karena Berhasil Ditugaskan Guru)
         currentBab.exercises.forEach(ex => {
           const item = document.createElement("div");
           item.className = "materi-item";
-          item.style.borderLeft = "4px solid orange";
-          item.innerHTML = `📝 ${ex.title}`;
+          item.style.borderLeft = "4px solid #16a34a"; // Diubah hijau menandakan aktif ditugaskan
+          item.style.cursor = "pointer";
+          
+          // Menambahkan label teks pembantu agar siswa tahu tugas ini sudah aktif/dibuka oleh guru
+          item.innerHTML = `📝 ${ex.title} <span style="color:#16a34a; font-size:11px; font-weight:bold; margin-left:8px;">(Tugas Aktif)</span>`;
+          
           item.onclick = () => openExercise(ex.exerciseId);
           babContent.appendChild(item);
         });
