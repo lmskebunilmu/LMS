@@ -460,6 +460,9 @@ function generateContent(input) {
 // ==========================
 // OPEN EXERCISE (DOM PURE - 100% FIX)
 // ==========================
+// ==========================
+// OPEN EXERCISE (DOM PURE & CLIENT SORT - FULL FIX)
+// ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
   if (!exSnap.exists()) {
@@ -468,13 +471,19 @@ window.openExercise = async (id) => {
   }
 
   const exData = exSnap.data();
+  
+  // 🔥 PERBAIKAN UTAMA: Mengembalikan ke query polosan agar tidak memicu error indeks Firestore
   const q = query(
     collection(db, "questions"), 
-    where("exerciseId", "==", id), 
-    orderBy("order", "asc")
+    where("exerciseId", "==", id)
   );
   const qSnap = await getDocs(q);
+  
+  // Ambil data mentah dari dokumen snapshot
   const questions = qSnap.docs.map(d => d.data());
+
+  // 🔥 SOLUSI URUTAN: Mengurutkan soal secara lokal di browser berdasarkan properti 'order'
+  questions.sort((a, b) => (a.order || 0) - (b.order || 0));
 
   // 1. Buka window baru kosong
   const win = window.open("", "_blank");
