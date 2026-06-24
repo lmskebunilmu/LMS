@@ -686,3 +686,128 @@ async function loadAssignments() {
   assignedExercises = esnap.docs.map(d => d.data().exerciseId);
 
 }
+
+window.toggleForm = (formId) => {
+  const form = document.getElementById(formId);
+  if(form.style.display === "none") {
+    form.style.display = "block";
+    // Jika membuka form materi, isi pilihan mapelnya
+    if(formId === 'formMateri') populateNewMaterialSubjects();
+    // Jika membuka form exercise, isi pilihan materinya
+    if(formId === 'formExercise') populateNewExerciseMaterials();
+  } else {
+    form.style.display = "none";
+  }
+};
+
+// Mengisi dropdown Mapel di form materi baru berdasarkan mapel yang diampu guru
+function populateNewMaterialSubjects() {
+  const select = document.getElementById("newMaterialSubject");
+  select.innerHTML = "";
+  
+  // Mengambil mata pelajaran dari filter yang aktif (yang dimiliki guru)
+  const filterSelect = document.getElementById("subjectFilter");
+  for (let option of filterSelect.options) {
+    if(option.value !== "") {
+      const opt = document.createElement("option");
+      opt.value = option.value;
+      opt.textContent = option.textContent;
+      select.appendChild(opt);
+    }
+  }
+}
+
+// Mengisi dropdown Pilihan Materi untuk form Exercise baru
+function populateNewExerciseMaterials() {
+  const select = document.getElementById("newExerciseMaterialId");
+  select.innerHTML = "<option value=''>-- Pilih Materi Terkait --</option>";
+  
+  materialsGuru.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = `[${m.subject}] ${m.chapter} - ${m.title}`;
+    select.appendChild(opt);
+  });
+}
+window.saveNewMaterial = async () => {
+  const title = document.getElementById("newMaterialTitle").value;
+  const chapter = document.getElementById("newMaterialChapter").value;
+  const subject = document.getElementById("newMaterialSubject").value;
+  const content = document.getElementById("newMaterialContent").value;
+  
+  if(!title || !chapter || !subject) {
+    showToast("Judul, Bab, dan Mapel wajib diisi!", "error");
+    return;
+  }
+  
+  try {
+    const user = auth.currentUser;
+    // Tambahkan data materi baru ke koleksi 'materials' pusat
+    await addDoc(collection(db, "materials"), {
+      title: title,
+      subChapter: title, // samakan atau sesuaikan
+      chapter: chapter,
+      subject: subject,
+      content: content,
+      level: schoolData.level,         // disamakan dengan level sekolah guru saat ini
+      curriculum: schoolData.curriculum, // disamakan dengan kurikulum sekolah guru saat ini
+      createdBy: user.uid,             // Penanda bahwa ini dibuat oleh guru tersebut
+      isCustomTeacher: true,
+      createdAt: new Date()
+    });
+    
+    showToast("Materi baru berhasil dibuat!");
+    
+    // Reset & tutup form
+    document.getElementById("newMaterialTitle").value = "";
+    document.getElementById("newMaterialChapter").value = "";
+    document.getElementById("newMaterialContent").value = "";
+    toggleForm('formMateri');
+    
+    // Refresh list materi
+    await loadMaterials();
+  } catch (error) {
+    console.error("Error creating material:", error);
+    showToast("Gagal membuat materi", "error");
+  }
+};
+window.saveNewExercise = async () => {
+  const title = document.getElementById("newExerciseTitle").value;
+  const materialId = document.getElementById("newExerciseMaterialId").value;
+  
+  if(!title || !materialId) {
+    showToast("Judul latihan dan materi terkait wajib diisi!", "error");
+    return;
+  }
+  
+  // Cari tahu mapel dari materi yang dipilih
+  const selectedMat = materialsGuru.find(m => m.id === materialId);
+  const subject = selectedMat ? selectedMat.subject : "";
+
+  try {
+    const user = auth.currentUser;
+    // Tambahkan ke koleksi 'exercises' pusat
+    await addDoc(collection(db, "exercises"), {
+      title: title,
+      materialId: materialId,
+      subject: subject,
+      createdBy: user.uid,
+      isCustomTeacher: true,
+      questions: [], // Nanti superadmin/guru bisa mengisi array ini lewat halaman pembuat soal
+      createdAt: new Date()
+    });
+    
+    showToast("Latihan baru berhasil dibuat!");
+    
+    // Reset & tutup form
+    document.getElementById("newExerciseTitle").value = "";
+    toggleForm('formExercise');
+    
+    // Refresh data exercise dan list tampilan
+    await loadExercises();
+    renderMaterials(filteredMaterials);
+  } catch (error) {
+    console.error("Error creating exercise:", error);
+    showToast("Gagal membuat latihan", "error");
+  }
+};
