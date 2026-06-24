@@ -243,9 +243,9 @@ function setActiveMenu() {
       btn.classList.add("active");
     }
 
-    if (onclickAttr.includes("goAssignmentsSiswa") && currentPath.includes("assignments")) {
-      btn.classList.add("active");
-    }
+    if (onclickAttr.includes("goAssignmentsSiswa") && currentPath.includes("assignments-siswa.html")) {
+  btn.classList.add("active");
+}
 
     if (onclickAttr.includes("goTeachersSuperAdmin") && currentPath.includes("teachers")) {
       btn.classList.add("active");
@@ -255,7 +255,7 @@ function setActiveMenu() {
       btn.classList.add("active");
     }
 
-    if (onclickAttr.includes("goAssignments") && currentPath.includes("assignments-guru")) {
+   if (onclickAttr.includes("goAssignments") && currentPath.includes("assignments-guru.html")) {
   btn.classList.add("active");
 }
 
