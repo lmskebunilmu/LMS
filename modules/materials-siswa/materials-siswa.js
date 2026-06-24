@@ -468,10 +468,14 @@ window.openExercise = async (id) => {
     where("exerciseId", "==", id)
   );
   const qSnap = await getDocs(q);
-  const questions = qSnap.docs.map(d => d.data());
+ const questions = qSnap.docs.map(d => d.data());
 
-  // 2. REVISI URUTAN: Urutkan array secara lokal berdasarkan properti 'order'
-  questions.sort((a, b) => (a.order || 0) - (b.order || 0));
+  // 🔥 PERBAIKAN URUTAN (ANTI-ACAK): Paksa konversi ke tipe data Number murni
+  questions.sort((a, b) => {
+    const urutanA = Number(a.order) || 0;
+    const urutanB = Number(b.order) || 0;
+    return urutanA - urutanB;
+  });
 
   // Buka window baru kosong
   const win = window.open("", "_blank");
