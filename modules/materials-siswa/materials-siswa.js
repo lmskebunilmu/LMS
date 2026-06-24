@@ -101,24 +101,26 @@ async function loadSchoolData(schoolId) {
 }
 
 // ==========================
-// FIND STUDENT CLASS (Mencari Kelas Berdasarkan Sistem Admin)
+// FIND STUDENT CLASS (REVISI TOTAL AGAR SINKRON DENGAN ADMIN)
 // ==========================
 async function findStudentClass(studentUid, schoolId) {
-  // Admin menyimpan murid dalam array 'students' di dalam koleksi 'classes'
-  const q = query(
-    collection(db, "classes"),
-    where("schoolId", "==", schoolId),
-    where("students", "array-contains", studentUid)
-  );
-  
-  const snap = await getDocs(q);
-  snap.forEach(docSnap => {
-    studentClassId = docSnap.id; // Menemukan ID kelas siswa tersebut
-  });
+  try {
+    // Admin menyimpan classId langsung di dalam dokumen student, bukan array di dokumen kelas
+    const studentDocSnap = await getDoc(doc(db, "students", studentUid));
+    if (studentDocSnap.exists()) {
+      const studentData = studentDocSnap.data();
+      studentClassId = studentData.classId || null;
+      console.log("Menemukan Class ID Siswa:", studentClassId);
+    } else {
+      console.warn("Dokumen siswa di koleksi 'students' tidak ditemukan.");
+    }
+  } catch (err) {
+    console.error("Gagal memuat kelas siswa:", err);
+  }
 }
 
 // ==========================
-// CLASS MAP (Disinkronkan dengan field 'className' milik Admin)
+// CLASS MAP (REVISI SINKRONISASI FIELD NAME)
 // ==========================
 async function loadClassMap(schoolId) {
   const q = query(
@@ -130,8 +132,8 @@ async function loadClassMap(schoolId) {
   classMap = {};
 
   snap.forEach(d => {
-    // Diubah dari d.data().name menjadi d.data().className agar sinkron dengan file admin
-    classMap[d.id] = d.data().className || "Kelas Tanpa Nama";
+    // REVISI: diubah dari className menjadi name agar sinkron dengan Admin & Guru
+    classMap[d.id] = d.data().name || "Kelas Tanpa Nama"; 
   });
 }
 
