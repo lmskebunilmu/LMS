@@ -819,7 +819,7 @@ window.saveNewExercise = async () => {
   }
 };
 
-// Fungsi untuk mengisi daftar Bab yang sudah ada berdasarkan Mapel yang dipilih
+// 🔥 Tambahkan window. di depan nama fungsi agar bisa dibaca oleh onchange HTML
 window.populateExistingChapters = () => {
   const selectedSubject = document.getElementById("newMaterialSubject").value;
   const chapterSelect = document.getElementById("newMaterialChapterSelect");
@@ -851,7 +851,7 @@ window.populateExistingChapters = () => {
   document.getElementById("newMaterialChapterInput").value = "";
 };
 
-// Fungsi pendukung jika user memilih Bab dari dropdown, matikan/kosongkan input teks baru agar tidak membingungkan
+// 🔥 Tambahkan window. di depan nama fungsi ini juga
 window.handleChapterSelectChange = () => {
   const selectVal = document.getElementById("newMaterialChapterSelect").value;
   const inputEl = document.getElementById("newMaterialChapterInput");
