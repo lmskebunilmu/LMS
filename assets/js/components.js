@@ -174,7 +174,7 @@ function goMaterialsSiswa() {
 }
 
 function goAssignmentsSiswa() {
-  navigate("modules/assignments/assignments-siswa.html");
+  navigate("modules/assignments-siswa/assignments-siswa.html");
 }
 
 function goAttendance() {
