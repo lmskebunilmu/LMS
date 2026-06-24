@@ -434,7 +434,7 @@ window.viewClass = (id, name) => {
 };
 
 // ==================================================================
-// AKSI BERKELOMPOK: KELUARKAN GURU
+// AKSI BERKELOMPOK: KELUARKAN GURU (SUDAH DIPERBAIKI SINKRON)
 // ==================================================================
 window.removeSelectedTeachers = async () => {
   if (!activeClassIdInModal) return;
@@ -449,17 +449,32 @@ window.removeSelectedTeachers = async () => {
       const classRef = doc(db, "classes", activeClassIdInModal);
       const classSnap = await getDoc(classRef);
       if (classSnap.exists()) {
-        let currentTeachers = classSnap.data().teacherIds || [];
+        const classData = classSnap.data();
+        let currentTeacherIds = classData.teacherIds || [];
+        let currentTeachersMapping = classData.teachers || {}; // Objek Map { UID: [mapel] }
+
         const idsToRemove = Array.from(checkedBoxes).map(cb => cb.value);
-        const updatedTeachers = currentTeachers.filter(id => !idsToRemove.includes(id));
         
-        await updateDoc(classRef, { teacherIds: updatedTeachers });
+        // 1. Bersihkan dari array teacherIds
+        const updatedTeacherIds = currentTeacherIds.filter(id => !idsToRemove.includes(id));
+        
+        // 2. 🔥 PERBAIKAN: Bersihkan juga dari objek map teachers agar tidak membekas di list modal
+        idsToRemove.forEach(id => {
+          delete currentTeachersMapping[id];
+        });
+        
+        // 3. Update kedua field secara bersamaan ke Firestore
+        await updateDoc(classRef, { 
+          teacherIds: updatedTeacherIds,
+          teachers: currentTeachersMapping
+        });
+
         document.getElementById("teacherModal").classList.remove("active");
         await loadClasses();
         showToast("Guru terpilih berhasil dikeluarkan.");
       }
     } catch (err) {
-      console.error(err);
+      console.error("Gagal mengeluarkan guru terpilih:", err);
       alert("Gagal mengeluarkan guru terpilih.");
     }
   }
@@ -469,12 +484,17 @@ window.removeAllTeachers = async () => {
   if (!activeClassIdInModal) return;
   if (confirm("Apakah Anda yakin ingin mengeluarkan SEMUA guru dari kelas ini?")) {
     try {
-      await updateDoc(doc(db, "classes", activeClassIdInModal), { teacherIds: [] });
+      // 🔥 PERBAIKAN: Kosongkan kedua field sekaligus (array dan object map)
+      await updateDoc(doc(db, "classes", activeClassIdInModal), { 
+        teacherIds: [],
+        teachers: {} 
+      });
+      
       document.getElementById("teacherModal").classList.remove("active");
       await loadClasses();
       showToast("Semua guru berhasil dikeluarkan.");
     } catch (err) {
-      console.error(err);
+      console.error("Gagal mengeluarkan semua guru:", err);
       alert("Gagal mengeluarkan semua guru.");
     }
   }
