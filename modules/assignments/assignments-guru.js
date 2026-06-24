@@ -234,38 +234,47 @@ function renderAssignmentPanel(data){
 
               <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 10px; border-radius: 4px;">
                 ${materialExercises.map(ex => {
-                  const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
-                  const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
-                  const savedDuration = dbAssign ? dbAssign.duration || 0 : 0;
+  const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
+  const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
+  
+  // Ambil data tanggal & waktu lama jika sudah pernah disimpan
+  const savedDeadlineDate = dbAssign ? dbAssign.deadlineDate || "" : "";
+  const savedDeadlineTime = dbAssign ? dbAssign.deadlineTime || "" : "";
 
-                  return `
-                    <div class="exercise-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0; background: #fff; padding: 5px; border-radius:4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                      <label class="exercise-item" style="margin: 0; cursor:pointer;">
-                        <input
-                          type="checkbox"
-                          class="exercise-check"
-                          data-material="${m.id}"
-                          value="${ex.id}"
-                          ${isChecked} 
-                        >
-                        📝 Latihan: ${ex.title}
-                      </label>
-                      
-                      <div style="display:flex; align-items:center; gap:5px;">
-                        <span style="font-size:12px; color:gray;">Durasi:</span>
-                        <input 
-                          type="number" 
-                          class="exercise-duration" 
-                          data-id="${ex.id}" 
-                          value="${savedDuration}" 
-                          placeholder="Menit" 
-                          style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px;"
-                        >
-                        <span style="font-size:12px; color:gray;">menit</span>
-                      </div>
-                    </div>
-                  `;
-                }).join("")}
+  return `
+    <div class="exercise-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0; background: #fff; padding: 10px; border-radius:4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 10px;">
+      <label class="exercise-item" style="margin: 0; cursor:pointer; font-weight: 500;">
+        <input
+          type="checkbox"
+          class="exercise-check"
+          data-material="${m.id}"
+          value="${ex.id}"
+          ${isChecked} 
+        >
+        📝 Latihan: ${ex.title}
+      </label>
+      
+      <!-- INPUT TANGGAL & JAM MENIT DEADLINE -->
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
+        <span style="font-size:12px; color:gray;">Batas Pengumpulan:</span>
+        <input 
+          type="date" 
+          class="exercise-date" 
+          data-id="${ex.id}" 
+          value="${savedDeadlineDate}" 
+          style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
+        >
+        <input 
+          type="time" 
+          class="exercise-time" 
+          data-id="${ex.id}" 
+          value="${savedDeadlineTime}" 
+          style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
+        >
+      </div>
+    </div>
+  `;
+}).join("")}
                 ${materialExercises.length === 0 ? '<p style="font-size:12px; color:gray; margin:0;">Tidak ada latihan di sub-bab ini</p>' : ''}
               </div>
             </div>
@@ -330,37 +339,38 @@ window.saveAssignmentStructure = async (bab) => {
   if(!classId) return showToast("Pilih kelas dulu", "error");
 
   const exerciseRows = document.querySelectorAll(".exercise-check");
+  const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
   
   try {
     for(const el of exerciseRows) {
       const exerciseId = el.value;
       const isChecked = el.checked;
       
-      // Ambil inputan durasi kuis yang bersangkutan
-      const durationInput = document.querySelector(`.exercise-duration[data-id="${exerciseId}"]`);
-      const durationVal = durationInput ? parseInt(durationInput.value) || 0 : 0;
+      // Ambil nilai input tanggal dan jam menit
+      const dateInput = document.querySelector(`.exercise-date[data-id="${exerciseId}"]`);
+      const timeInput = document.querySelector(`.exercise-time[data-id="${exerciseId}"]`);
+      
+      const deadlineDate = dateInput ? dateInput.value : ""; // format: YYYY-MM-DD
+      const deadlineTime = timeInput ? timeInput.value : ""; // format: HH:MM
 
-      // Cari record aslinya di collection exerciseGuru untuk di-update statusnya
       const matchDb = assignedExercisesDetail.find(e => e.exerciseId === exerciseId);
       if(matchDb) {
         const docRef = doc(db, "exerciseGuru", matchDb.docId);
-        // Perbarui data tugas yang tadinya terkunci menjadi Aktif Beserta Waktu Durasinya
-        await addDoc(collection(db, "exerciseGuru"), {}).then(async() => {
-          // Firebase Firestore Web SDK v10 updateDoc alias setDoc merge
-          const { updateDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-          await updateDoc(docRef, {
-            isAssigned: isChecked,
-            duration: durationVal
-          });
+        
+        // Simpan status aktif, tanggal batas, dan jam menit batas
+        await updateDoc(docRef, {
+          isAssigned: isChecked,
+          deadlineDate: deadlineDate,
+          deadlineTime: deadlineTime
         });
       }
     }
 
-    showToast("Akses tugas siswa dan durasi berhasil diperbarui secara real-time!");
+    showToast("Pengaturan tanggal batas pengumpulan tugas berhasil disimpan!");
     await loadMaterialsData(); 
   } catch (error) {
     console.error(error);
-    showToast("Gagal memperbarui kuis penugasan", "error");
+    showToast("Gagal memperbarui batas penugasan", "error");
   }
 };
 
