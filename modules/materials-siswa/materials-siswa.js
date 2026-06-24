@@ -672,31 +672,33 @@ window.openExercise = async (id) => {
       }
 
       function saveAnswer(index, value){
-        const key = "exercise_${id}";
-        const data = JSON.parse(localStorage.getItem(key) || "{}");
-        data[index] = value;
-        localStorage.setItem(key, JSON.stringify(data));
-      }
+  const key = "exercise_" + "${id}";
+  const data = JSON.parse(localStorage.getItem(key) || "{}");
+  data[index] = value;
+  localStorage.setItem(key, JSON.stringify(data));
+}
 
-      function checkAnswer(index){
-        const question = ${JSON.stringify(questions)};
-        const q = question[index];
-        let correct = false;
-        let userAnswer = null;
+function checkAnswer(index){
+  const question = ${JSON.stringify(questions)};
+  const q = question[index];
+  let correct = false;
+  let userAnswer = null;
 
-        if(q.type === "pg"){
-          const selected = document.querySelector('input[name="q"'+index+'"]:checked');
-          if(!selected) { alert("Pilih jawaban!"); return; }
-          userAnswer = selected.value;
-          saveAnswer(index, userAnswer);
-          correct = userAnswer == q.answer;
-        }
-        else if(q.type === "checkbox"){
-          const checked = [...document.querySelectorAll('input[name="q"'+index+'"]:checked')].map(x => x.value);
-          userAnswer = checked;
-          saveAnswer(index, userAnswer);
-          correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
-        }
+  if(q.type === "pg"){
+    // PERBAIKAN SINTAKS SELECTOR
+    const selected = document.querySelector('input[name="q' + index + '"]:checked');
+    if(!selected) { alert("Pilih jawaban!"); return; }
+    userAnswer = selected.value;
+    saveAnswer(index, userAnswer);
+    correct = userAnswer == q.answer;
+  }
+  else if(q.type === "checkbox"){
+    // PERBAIKAN SINTAKS SELECTOR
+    const checked = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
+    userAnswer = checked;
+    saveAnswer(index, userAnswer);
+    correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
+  }
         else if(q.type === "isian"){
           const input = document.getElementById("q"+index);
           userAnswer = input.value.trim();
