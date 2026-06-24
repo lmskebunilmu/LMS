@@ -457,9 +457,8 @@ function generateContent(input) {
 
   return output;
 }
-
 // ==========================
-// OPEN EXERCISE (FULL FIX)
+// OPEN EXERCISE (ANTI-BLOCK FIX)
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -491,7 +490,6 @@ window.openExercise = async (id) => {
       }
     };
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
       *{box-sizing:border-box;}
       body{margin:0;font-family:Arial;background:#f5f6fa;}
@@ -529,7 +527,6 @@ window.openExercise = async (id) => {
   `;
 
   questions.forEach((q, index) => {
-    // Inject ID latihan ke string localStorage anak secara aman
     const saved = JSON.parse(localStorage.getItem("exercise_${id}") || "{}");
     const savedAnswer = saved[index];
 
@@ -619,14 +616,20 @@ window.openExercise = async (id) => {
       function closeFullscreen(){
         if (document.exitFullscreen) document.exitFullscreen();
       }
-      window.onload = () => {
-        openFullscreen();
-        setTimeout(() => { restoreMatchAnswers(); }, 300);
-      };
       
-      window.addEventListener("load", async () => {
-        if (window.MathJax) { await MathJax.typesetPromise(); }
-      });
+      // REVISI: Amankan restore data & batalkan paksaan fullscreen otomatis
+      window.onload = () => {
+        setTimeout(() => { restoreMatchAnswers(); }, 300);
+        
+        // 🔥 MEMUAT MATHJAX SECARA DINAMIS (BEBAS BLOKIR PARSER)
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
+        script.async = true;
+        script.onload = async () => {
+          if (window.MathJax) { await MathJax.typesetPromise(); }
+        };
+        document.head.appendChild(script);
+      };
 
       let selectedLeft = null;
       document.addEventListener("click", (e) => {
