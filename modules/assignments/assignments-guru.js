@@ -307,7 +307,7 @@ window.filterBySubject = () => {
 };
 
 // ==========================
-// PROSES UTAMA SIMPAN TUGAS KELAS SISWA
+// PROSES UTAMA SIMPAN AKSES TUGAS (DI FILE ASSIGNMENTS-GURU.JS)
 // ==========================
 window.saveAssignmentStructure = async (bab) => {
   const classId = document.getElementById("classSelect").value;
@@ -317,47 +317,29 @@ window.saveAssignmentStructure = async (bab) => {
     return;
   }
 
-  const checked = document.querySelectorAll(".subbab-check:checked");
-
-  if(checked.length === 0){
-    showToast("Pilih minimal 1 subbab", "error");
-    return;
-  }
+  // 🔥 1. AMBIL HANYA KUIS/EXERCISE YANG SEDANG DICENTANG OLEH GURU SAAT INI
+  const checkedExercises = document.querySelectorAll(".exercise-check:checked");
 
   const user = auth.currentUser;
   const userSnap = await getDoc(doc(db,"users",user.uid));
   const userData = userSnap.data();
 
-  // Bersihkan data lama kelas tersebut
-  const q = query(collection(db,"materialGuru"), where("classId","==",classId), where("teacherId","==",user.uid));
-  const oldSnap = await getDocs(q);
-  for(const d of oldSnap.docs) await deleteDoc(d.ref);
+  try {
+    // 2. Bersihkan kuis (exerciseGuru) lama khusus untuk kelas & guru ini
+    const eq = query(
+      collection(db,"exerciseGuru"), 
+      where("classId","==",classId), 
+      where("teacherId","==",user.uid)
+    );
+    const exSnap = await getDocs(eq);
+    for(const d of exSnap.docs) {
+      await deleteDoc(d.ref);
+    }
 
-  const eq = query(collection(db,"exerciseGuru"), where("classId","==",classId), where("teacherId","==",user.uid));
-  const exSnap = await getDocs(eq);
-  for(const d of exSnap.docs) await deleteDoc(d.ref);
-
-  // Masukkan struktur penugasan baru
-  for (const cb of checked) {
-    const materialId = cb.value;
-    const selectedMaterial = materialsGuru.find(m => m.id === materialId);
-
-    if (!selectedMaterial) continue;
-
-    await addDoc(collection(db, "materialGuru"), {
-      materialId,
-      classId,
-      teacherId: user.uid,
-      schoolId: userData.schoolId,
-      title: selectedMaterial.title,
-      subject: selectedMaterial.subject,
-      createdAt: new Date()
-    });
-
-    const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
-
+    // 3. Simpan hanya latihan yang dicentang saja ke database kuis aktif siswa
     for (const exCb of checkedExercises) {
       const exerciseId = exCb.value;
+      const materialId = exCb.dataset.material; // Mengambil relasi ID Materi
       const ex = exercisesData.find(e => e.id === exerciseId);
       if (!ex) continue;
 
@@ -372,10 +354,15 @@ window.saveAssignmentStructure = async (bab) => {
         createdAt: new Date()
       });
     }
-  }
 
-  showToast("Materi dan latihan berhasil disimpan (update)");
-  await loadMaterialsData();
+    showToast("Akses latihan kuis siswa berhasil diperbarui!");
+    
+    // 4. Muat ulang data & render agar status label di layar guru berubah secara real-time
+    await loadMaterialsData(); 
+  } catch (error) {
+    console.error("Gagal memperbarui kuis:", error);
+    showToast("Gagal memperbarui kuis", "error");
+  }
 };
 
 // ==========================
