@@ -620,14 +620,13 @@ window.openExercise = async (id) => {
 
   win.document.body.innerHTML = bodyContent;
 
-  // 🔥 SOLUSI UTAMA: Menggunakan CDN murni tanpa mengimpor file lokal github
+  // 🔥 CDN INJECTION FIXES
   const scriptEl = win.document.createElement("script");
   scriptEl.type = "module";
   scriptEl.text = `
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    // Meneruskan konfigurasi Firebase dari window induk agar tidak melanggar aturan CORS/MIME di GitHub Pages
     const firebaseConfig = ${JSON.stringify(auth.app.options)};
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
@@ -658,6 +657,7 @@ window.openExercise = async (id) => {
       localStorage.setItem(key, JSON.stringify(data));
     }
 
+    // Perbaikan scope: dipasang ke objek window agar onclick="checkAnswer(index)" dapat terbaca
     window.checkAnswer = function(index){
       if(isAlreadySubmitted) { alert("Latihan ini sudah Anda kumpulkan!"); return; }
       
@@ -722,10 +722,11 @@ window.openExercise = async (id) => {
         result.style.color = "red";
       }
 
-      lockQuestionFields(index);
+      window.lockQuestionFields(index);
       document.getElementById("explain_"+index).style.display = "block";
     };
 
+    // Dipasang ke window agar loop pemuatan awal dapat mengidentifikasi modul internal ini
     window.lockQuestionFields = function(index){
       const btn = document.getElementById("btn_check_" + index);
       if(btn) {
