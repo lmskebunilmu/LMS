@@ -459,7 +459,7 @@ function generateContent(input) {
 }
 
 // ==========================
-// OPEN EXERCISE
+// OPEN EXERCISE (FULL FIX)
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -470,10 +470,10 @@ window.openExercise = async (id) => {
 
   const exData = exSnap.data();
   const q = query(
-  collection(db, "questions"), 
-  where("exerciseId", "==", id), 
-  orderBy("order", "asc") // 🔥 Parameter orderBy harus berada di dalam tanda kurung query()
-);
+    collection(db, "questions"), 
+    where("exerciseId", "==", id), 
+    orderBy("order", "asc")
+  );
   const qSnap = await getDocs(q);
   const questions = qSnap.docs.map(d => d.data());
 
@@ -529,7 +529,8 @@ window.openExercise = async (id) => {
   `;
 
   questions.forEach((q, index) => {
-    const saved = JSON.parse(localStorage.getItem("exercise_" + id) || "{}");
+    // Inject ID latihan ke string localStorage anak secara aman
+    const saved = JSON.parse(localStorage.getItem("exercise_${id}") || "{}");
     const savedAnswer = saved[index];
 
     html += `
@@ -599,7 +600,7 @@ window.openExercise = async (id) => {
         <div id="explain_${index}" style="margin-top:15px;display:none">
           <button onclick="toggleExplain(${index})" style="background:#16a34a; color:white; border:none; padding:10px 16px; border-radius:10px; cursor:pointer;">📘 Pembahasan</button>
           <div id="explain_content_${index}" style="display:none; margin-top:10px; background:#f3f4f6; padding:15px; border-radius:10px;">
-            ${q.explanation || "Belum ada pembahasan"}
+            \${q.explanation || "Belum ada pembahasan"}
           </div>
         </div>
       </div>
@@ -677,33 +678,31 @@ window.openExercise = async (id) => {
       }
 
       function saveAnswer(index, value){
-  const key = "exercise_" + "${id}";
-  const data = JSON.parse(localStorage.getItem(key) || "{}");
-  data[index] = value;
-  localStorage.setItem(key, JSON.stringify(data));
-}
+        const key = "exercise_${id}";
+        const data = JSON.parse(localStorage.getItem(key) || "{}");
+        data[index] = value;
+        localStorage.setItem(key, JSON.stringify(data));
+      }
 
-function checkAnswer(index){
-  const question = ${JSON.stringify(questions)};
-  const q = question[index];
-  let correct = false;
-  let userAnswer = null;
+      function checkAnswer(index){
+        const question = ${JSON.stringify(questions)};
+        const q = question[index];
+        let correct = false;
+        let userAnswer = null;
 
-  if(q.type === "pg"){
-    // PERBAIKAN SINTAKS SELECTOR
-    const selected = document.querySelector('input[name="q' + index + '"]:checked');
-    if(!selected) { alert("Pilih jawaban!"); return; }
-    userAnswer = selected.value;
-    saveAnswer(index, userAnswer);
-    correct = userAnswer == q.answer;
-  }
-  else if(q.type === "checkbox"){
-    // PERBAIKAN SINTAKS SELECTOR
-    const checked = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
-    userAnswer = checked;
-    saveAnswer(index, userAnswer);
-    correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
-  }
+        if(q.type === "pg"){
+          const selected = document.querySelector('input[name="q' + index + '"]:checked');
+          if(!selected) { alert("Pilih jawaban!"); return; }
+          userAnswer = selected.value;
+          saveAnswer(index, userAnswer);
+          correct = userAnswer == q.answer;
+        }
+        else if(q.type === "checkbox"){
+          const checked = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
+          userAnswer = checked;
+          saveAnswer(index, userAnswer);
+          correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
+        }
         else if(q.type === "isian"){
           const input = document.getElementById("q"+index);
           userAnswer = input.value.trim();
@@ -748,7 +747,7 @@ function checkAnswer(index){
       }
 
       function restoreMatchAnswers(){
-        const saved = JSON.parse(localStorage.getItem("exercise_" + "${id}") || "{}");
+        const saved = JSON.parse(localStorage.getItem("exercise_${id}") || "{}");
         window.matchAnswers = {};
         Object.keys(saved).forEach(qIndex => {
           const pairs = saved[qIndex];
