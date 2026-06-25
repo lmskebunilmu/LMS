@@ -403,7 +403,30 @@ async function loadProfileHeader(user){
   const data = userSnap.data();
   const name = data.name || user.displayName || "Guru";
   const avatar = data.avatarURL || user.photoURL || "../assets/images/default-avatar.png";
+  const schoolId = data.schoolId;
 
+  let schoolName = "-";
+  let schoolLogo = "../assets/images/default-logo.png";
+
+  if(schoolId){
+    const schoolSnap = await getDoc(doc(db,"schools",schoolId));
+    if(schoolSnap.exists()){
+      const schoolData = schoolSnap.data();
+      
+      // Validasi status sekolah jika diperlukan
+      if(schoolData.status !== "aktif"){
+        showToast("Sekolah kamu nonaktif!", "error");
+        return;
+      }
+
+      schoolName = schoolData.name;
+      schoolLogo = schoolData.logoURL || schoolLogo;
+    }
+  }
+
+  // Menyuntikkan ke HTML
   document.getElementById("headerNameHeader").innerText = name;
   document.getElementById("headerAvatarHeader").src = avatar;
+  document.getElementById("headerSchoolName").innerText = schoolName; // Amankan baris ini
+  document.getElementById("headerSchoolLogo").src = schoolLogo;       // Amankan baris ini
 }
