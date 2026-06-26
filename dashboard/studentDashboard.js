@@ -98,8 +98,14 @@ async function loadDashboardData() {
     const classStudentSnap = await getDocs(classStudentQuery);
     ownedClassIds = classStudentSnap.docs.map(doc => doc.data().classId);
 
-    // 2. AMBIL SEMUA KELAS GLOBAL (Supaya drop-down level & kurikulum pencarian berfungsi untuk semua kelas)
-    const allClassSnap = await getDocs(collection(db, "classes"));
+    // 2. AMBIL HANYA KELAS YANG DIBUAT OLEH SUPER ADMIN (Berdasarkan UID)
+    const superAdminUid = "yI6KBEOIrAcIqIDFu56Mr1UYwNw1";
+    const superAdminClassQuery = query(
+      collection(db, "classes"),
+      where("createdBy", "==", superAdminUid)
+    );
+
+    const allClassSnap = await getDocs(superAdminClassQuery);
     allFetchedClasses = allClassSnap.docs.map(docSnap => ({
       id: docSnap.id,
       ...docSnap.data()
