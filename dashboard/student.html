@@ -2,355 +2,271 @@
 <html lang="id">
 
 <head>
-
   <meta charset="UTF-8">
- 
-
   <title>Dashboard Student</title>
-
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
 
+  <style>
+    /* ======================
+       CLASS CARD MODERN
+    ====================== */
+    .class-card {
+      display: flex;
+      gap: 14px;
+      background: white;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+      margin-bottom: 16px;
+      transition: all 0.25s ease;
+      position: relative;
+    }
 
-<style>/* ======================
-   CLASS CARD MODERN
-====================== */
+    .class-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.10);
+    }
 
-.class-card {
-  display: flex;
-  gap: 14px;
-  background: white;
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.06);
-  margin-bottom: 16px;
-  transition: all 0.25s ease;
-  position: relative;
-}
+    /* IMAGE */
+    .class-image-wrap {
+      width: 160px;
+      min-width: 160px;
+      height: 140px;
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+    }
 
-.class-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 40px rgba(0,0,0,0.10);
-}
+    .class-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
 
-/* IMAGE */
-.class-image-wrap {
-  width: 160px;
-  min-width: 160px;
-  height: 140px;
-  position: relative;
-  border-radius: 14px;
-  overflow: hidden;
-}
+    /* BADGE */
+    .class-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 999px;
+      color: white;
+    }
 
-.class-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-/* BADGE */
-.class-badge {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  padding: 5px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 999px;
-  color: white;
-}
+    .badge-premium {
+      background: linear-gradient(135deg,#ef4444,#f97316);
+    }
 
-.badge-premium {
-  background: linear-gradient(135deg,#ef4444,#f97316);
-}
+    .badge-free {
+      background: linear-gradient(135deg,#10b981,#34d399);
+    }
 
-.badge-free {
-  background: linear-gradient(135deg,#10b981,#34d399);
-}
+    /* CONTENT */
+    .class-content {
+      flex: 1;
+      padding: 14px 14px 14px 0;
+    }
 
-/* CONTENT */
-.class-content {
-  flex: 1;
-  padding: 14px 14px 14px 0;
-}
+    /* TITLE */
+    .class-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #0f172a;
+    }
 
-/* TITLE */
-.class-title {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 6px;
-  color: #0f172a;
-}
+    /* DESC */
+    .class-desc {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
 
-/* DESC */
-.class-desc {
-  font-size: 13px;
-  color: #64748b;
-  margin-bottom: 10px;
-  line-height: 1.4;
-}
+    /* INFO ROW */
+    .class-info {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
 
-/* INFO ROW */
-.class-info {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
+    .info-item {
+      font-size: 12px;
+      background: #f1f5f9;
+      padding: 5px 10px;
+      border-radius: 8px;
+      color: #334155;
+    }
 
-.info-item {
-  font-size: 12px;
-  background: #f1f5f9;
-  padding: 5px 10px;
-  border-radius: 8px;
-  color: #334155;
-}
+    /* FOOTER */
+    .class-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-/* FOOTER */
-.class-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+    /* PRICE */
+    .class-price {
+      font-weight: 700;
+      color: #2563eb;
+      font-size: 14px;
+    }
 
-/* PRICE */
-.class-price {
-  font-weight: 700;
-  color: #2563eb;
-  font-size: 14px;
-}
+    /* BUTTON */
+    .btn-modern {
+      background: linear-gradient(135deg,#2563eb,#3b82f6);
+      color: white;
+      border: none;
+      padding: 9px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: 0.2s;
+    }
 
-/* BUTTON */
-.btn-modern {
-  background: linear-gradient(135deg,#2563eb,#3b82f6);
-  color: white;
-  border: none;
-  padding: 9px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: 0.2s;
-}
+    .btn-modern:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 14px rgba(37,99,235,0.3);
+    }
 
-.btn-modern:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 14px rgba(37,99,235,0.3);
-}
+    /* FILTER STYLES */
+    .filter-wrapper {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
 
-.stat-card {
-  background: white;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-  text-align: center;
-}
+    .filter-wrapper input, .filter-wrapper select {
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
 
-@media (max-width: 768px) {
+    .filter-wrapper input {
+      flex: 1;
+      min-width: 200px;
+    }
 
-  .class-card {
-    flex-direction: column;
-    overflow: hidden; /* tetap boleh, tapi aman karena card full column */
-  }
+    @media (max-width: 768px) {
+      .class-card {
+        flex-direction: column;
+        overflow: hidden;
+      }
 
-  .class-image-wrap {
-    width: 100%;
-    height: 180px;
-    border-radius: 14px;
-  }
+      .class-image-wrap {
+        width: 100%;
+        height: 180px;
+        border-radius: 14px;
+      }
 
-  .class-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+      .class-content {
+        padding: 12px;
+      }
 
-  .class-content {
-    padding: 12px;
-  }
+      .class-footer {
+        flex-direction: column;
+        gap: 10px;
+      }
 
-  .class-footer {
-    flex-direction: column;
-    gap: 10px;
-  }
+      .btn-modern {
+        width: 100%;
+      }
+      
+      .filter-wrapper {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
 
-  .btn-modern {
-    width: 100%;
-  }
-}
-@media (max-width: 768px) {
-
-  .main {
-    padding: 12px;
-  }
-
-  .card {
-    padding: 14px;
-    border-radius: 14px;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-}
-</style>
 <body>
 
-<div class="wrapper">
+  <div class="wrapper">
+    <div id="sidebar-container"></div>
 
-  <!-- SIDEBAR -->
-  <div id="sidebar-container"></div>
+    <div class="main">
+      <div id="header-container"></div>
 
-  <!-- MAIN -->
-  <div class="main">
-
-    <!-- HEADER -->
-    <div id="header-container"></div>
-
-    <!-- PROFILE -->
-    <div class="profile-card">
-
-      <img
-        id="studentAvatar"
-        class="profile-avatar"
-        src="../assets/images/default-avatar.png"
-        alt="Avatar">
-
-      <div class="profile-details">
-
-        <h2 id="studentName">
-          Loading...
-        </h2>
-
-        <p id="studentEmail">
-          -
-        </p>
-
-        <p id="studentLevel">
-          -
-        </p>
-
-          <button
-      class="primary"
-      onclick="openProfileModal()">
-
-      ✏ Edit Profil
-
-    </button>
-
+      <div class="profile-card">
+        <img id="studentAvatar" class="profile-avatar" src="../assets/images/default-avatar.png" alt="Avatar">
+        <div class="profile-details">
+          <h2 id="studentName">Loading...</h2>
+          <p id="studentEmail">-</p>
+          <p id="studentLevel">-</p>
+          <button class="primary" onclick="openProfileModal()">✏ Edit Profil</button>
+        </div>
       </div>
 
-    </div>
-
-    <!-- STATS -->
-<div class="card">
-
-  <h3>Dashboard Student</h3>
-
-  <div class="stats-grid">
-
-    <div class="stat-card">
-      <h4 id="totalClasses">0</h4>
-      <p>Kelas</p>
-    </div>
-
-    
-
-    
-
-  </div>
-
-</div>
-    <!-- KELAS -->
-    <div class="card">
-
-      <h3>Kelas Tersedia</h3><br>
-
-      <div id="classContainer">
-        Loading...
+      <div class="card">
+        <h3>Kelas Saya (Sudah Diikuti)</h3><br>
+        <div id="myClassesContainer">
+          Loading kelas saya...
+        </div>
       </div>
 
-    </div>
+      <div class="card">
+        <h3>Kelas Tersedia</h3><br>
+        
+        <div class="filter-wrapper">
+          <input type="text" id="searchClassName" placeholder="🔍 Cari nama kelas...">
+          
+          <select id="filterLevel">
+            <option value="">-- Semua Level --</option>
+            <option value="SD">SD</option>
+            <option value="SMP">SMP</option>
+            <option value="SMA">SMA</option>
+          </select>
+          
+          <select id="filterCurriculum">
+            <option value="">-- Semua Kurikulum --</option>
+            <option value="Merdeka">Kurikulum Merdeka</option>
+            <option value="K13">K13</option>
+          </select>
+        </div>
 
+        <div id="classContainer">
+          Loading kelas tersedia...
+        </div>
+      </div>
+    </div>
   </div>
 
-</div>
-<!-- MODAL PROFILE -->
-<div id="profileModal" class="modal">
-  <div class="modal-content">
-
-    <h3>Edit Profil</h3>
-
-    <input type="text" id="profileName" placeholder="Nama">
-
-   
-    <input type="file" id="profileAvatarFile" accept="image/*">
-
-    <div class="modal-actions">
-      <button onclick="saveProfile()" class="primary">
-        Simpan
-      </button>
-
-      <button onclick="closeProfileModal()" class="danger">
-        Batal
-      </button>
+  <div id="profileModal" class="modal">
+    <div class="modal-content">
+      <h3>Edit Profil</h3>
+      <input type="text" id="profileName" placeholder="Nama">
+      <input type="file" id="profileAvatarFile" accept="image/*">
+      <div class="modal-actions">
+        <button onclick="saveProfile()" class="primary">Simpan</button>
+        <button onclick="closeProfileModal()" class="danger">Batal</button>
+      </div>
     </div>
-
-  </div>
-</div>
-
-<!-- MODAL PAYMENT -->
-<div id="paymentModal" class="modal">
-
-  <div class="modal-content">
-
-    <h3>Pilih Paket Belajar</h3>
-
-    <div id="pricingOptions"></div>
-
-    <hr style="margin:20px 0;">
-
-    <h3>Pilih Metode Pembayaran</h3>
-
-    <div class="payment-options">
-
-      <button
-        class="payment-btn"
-        onclick="selectPayment('cash')"
-      >
-        💵 Cash
-      </button>
-
-      <button
-        class="payment-btn"
-        onclick="selectPayment('midtrans')"
-      >
-        💳 Midtrans
-      </button>
-
-    </div>
-
-    <div class="modal-actions">
-
-      <button
-        onclick="closePaymentModal()"
-        class="danger"
-      >
-        Batal
-      </button>
-
-    </div>
-
   </div>
 
-</div>
-
-    
-
+  <div id="paymentModal" class="modal">
+    <div class="modal-content">
+      <h3>Pilih Paket Belajar</h3>
+      <div id="pricingOptions"></div>
+      <hr style="margin:20px 0;">
+      <h3>Pilih Metode Pembayaran</h3>
+      <div class="payment-options">
+        <button class="payment-btn" onclick="selectPayment('cash')">💵 Cash</button>
+        <button class="payment-btn" onclick="selectPayment('midtrans')">💳 Midtrans</button>
+      </div>
+      <div class="modal-actions">
+        <button onclick="closePaymentModal()" class="danger">Batal</button>
+      </div>
+    </div>
   </div>
-</div>
-<script type="module" src="./studentDashboard.js"></script>
 
+  <script type="module" src="./studentDashboard.js"></script>
 </body>
 </html>
