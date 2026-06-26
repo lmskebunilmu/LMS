@@ -123,17 +123,16 @@ async function loadDashboardData() {
 }
 
 /* =========================
-   RENDER KELAS SAYA (YANG SUDAH MASUK)
+   RENDER KELAS SAYA
 ========================= */
 function renderMyClasses() {
   const container = document.getElementById("myClassesContainer");
   container.innerHTML = "";
 
-  // Filter kelas dari database yang ID-nya ada di dalam daftar 'ownedClassIds'
   const myClasses = allFetchedClasses.filter(c => ownedClassIds.includes(c.id));
 
   if (myClasses.length === 0) {
-    container.innerHTML = `<p style="color: #64748b; font-size: 14px;">Kamu belum masuk/bergabung ke kelas manapun.</p>`;
+    container.innerHTML = `<p style="color: #64748b; font-size: 14px; grid-column: 1/-1;">Kamu belum masuk/bergabung ke kelas manapun.</p>`;
     return;
   }
 
@@ -144,36 +143,28 @@ function renderMyClasses() {
 }
 
 /* =========================
-   RENDER KELAS TERSEDIA + FILTER PENCARIAN
+   RENDER KELAS TERSEDIA + FILTER
 ========================= */
 function renderClassesAvailable() {
   const container = document.getElementById("classContainer");
   container.innerHTML = "";
 
-  // Ambil data value dari elemen input & select filter di HTML
   const searchKeyword = document.getElementById("searchClassName").value.toLowerCase();
   const selectedLevel = document.getElementById("filterLevel").value;
   const selectedCurriculum = document.getElementById("filterCurriculum").value;
 
-  // Saring kelas untuk dipajang di "Kelas Tersedia"
   const filteredClasses = allFetchedClasses.filter(c => {
-    // A. Jangan tampilkan kelas di menu "Tersedia" jika siswa sudah masuk/membeli kelas tersebut
     if (ownedClassIds.includes(c.id)) return false;
 
-    // B. Filter berdasarkan Keyword Nama Kelas
     const matchName = (c.className || "").toLowerCase().includes(searchKeyword);
-
-    // C. Filter berdasarkan Dropdown Level (Jika kosong, loloskan semua)
     const matchLevel = selectedLevel === "" ? true : c.level === selectedLevel;
-
-    // D. Filter berdasarkan Dropdown Kurikulum (Jika kosong, loloskan semua)
     const matchCurriculum = selectedCurriculum === "" ? true : c.curriculum === selectedCurriculum;
 
     return matchName && matchLevel && matchCurriculum;
   });
 
   if (filteredClasses.length === 0) {
-    container.innerHTML = `<p style="color: #64748b; font-size: 14px;">Tidak ada kelas tersedia yang cocok dengan pencarian Anda.</p>`;
+    container.innerHTML = `<p style="color: #64748b; font-size: 14px; grid-column: 1/-1;">Tidak ada kelas tersedia yang cocok dengan pencarian Anda.</p>`;
     return;
   }
 
@@ -184,7 +175,7 @@ function renderClassesAvailable() {
 }
 
 /* =========================
-   TEMPLATE / GENERATOR ELEMENT CARD KELAS
+   TEMPLATE CARD KELAS (GALERI)
 ========================= */
 function createClassCardElement(c, isAlreadyJoined) {
   const div = document.createElement("div");
@@ -201,7 +192,6 @@ function createClassCardElement(c, isAlreadyJoined) {
       })()
     : "Gratis";
 
-  // Tentukan tombol: Jika sudah masuk, tombolnya "Masuk Kelas". Jika belum dan berbayar, "Beli Kelas".
   const actionButtonHtml = isAlreadyJoined 
     ? `<button class="btn-modern btn-open">Masuk Kelas</button>`
     : c.isPaid 
@@ -216,13 +206,15 @@ function createClassCardElement(c, isAlreadyJoined) {
       </div>
     </div>
     <div class="class-content">
-      <h3 class="class-title">${c.className || "-"}</h3>
-      <p class="class-desc">${c.description || "Kelas interaktif modern untuk meningkatkan skill belajar siswa."}</p>
-      <div class="class-info">
-        <div class="info-item">📚 ${c.subject || "-"}</div>
-        <div class="info-item">👨‍🏫 ${c.teacherName || "-"}</div>
-        <div class="info-item">🎓 ${c.level || "-"}</div>
-        <div class="info-item">📘 ${c.curriculum || "-"}</div>
+      <div>
+        <h3 class="class-title">${c.className || "-"}</h3>
+        <p class="class-desc">${c.description || "Kelas interaktif modern untuk meningkatkan skill belajar siswa."}</p>
+        <div class="class-info">
+          <div class="info-item">📚 ${c.subject || "-"}</div>
+          <div class="info-item">👨‍🏫 ${c.teacherName || "-"}</div>
+          <div class="info-item">🎓 ${c.level || "-"}</div>
+          <div class="info-item">📘 ${c.curriculum || "-"}</div>
+        </div>
       </div>
       <div class="class-footer">
         <div class="class-price">${priceDisplay}</div>
@@ -231,16 +223,11 @@ function createClassCardElement(c, isAlreadyJoined) {
     </div>
   `;
 
-  // Berikan event handler klik ke tombol secara spesifik
   const buyBtn = div.querySelector(".btn-buy");
-  if (buyBtn) {
-    buyBtn.onclick = () => buyClass(c);
-  }
+  if (buyBtn) buyBtn.onclick = () => buyClass(c);
 
   const openBtn = div.querySelector(".btn-open");
-  if (openBtn) {
-    openBtn.onclick = () => openClass(c.id, c.isPaid);
-  }
+  if (openBtn) openBtn.onclick = () => openClass(c.id, c.isPaid);
 
   return div;
 }
@@ -332,7 +319,6 @@ window.selectPayment = async (paymentMethod) => {
       return;
     }
 
-    // MIDTRANS PAYMENT INTEGRATION
     const res = await fetch("/api/createTransaction.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -383,7 +369,6 @@ window.selectPayment = async (paymentMethod) => {
    MASUK KELAS
 ========================= */
 async function openClass(classId, isPaid) {
-  // Jika kelas gratis dan belum terdaftar di database siswa, buat auto join
   if (!isPaid && !ownedClassIds.includes(classId)) {
     try {
       await addDoc(collection(db, "class_students"), {
@@ -396,7 +381,6 @@ async function openClass(classId, isPaid) {
       console.error("Auto join kelas gratis gagal", e);
     }
   }
-
   window.location = `./classDetail.html?id=${classId}`;
 }
 
