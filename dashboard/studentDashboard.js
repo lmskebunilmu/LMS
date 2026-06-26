@@ -1,3 +1,4 @@
+// studentDashboard.js
 import { auth, db } from "../firebase/firebase-config.js";
 import {
   onAuthStateChanged,
@@ -20,7 +21,7 @@ let studentData = null;
 let selectedPricing = null;
 let selectedClass = null;
 
-// State data kelas global untuk manipulasi pencarian tanpa query ulang ke Firestore
+// State data global untuk simpan hasil fetch dari Firestore
 let allFetchedClasses = [];
 let ownedClassIds = [];
 
@@ -44,13 +45,15 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
 
+    // LOAD LAYOUT
     await loadLayout("student");
+
     loadProfile(user);
-    
-    // Inisialisasi pengambilan data utama
+
+    // Ambil semua data dan render ke UI
     await loadDashboardData();
 
-    // Event listener untuk filter real-time
+    // Pasang Event Listener agar filter pencarian, level, kurikulum berjalan dinamis
     document.getElementById("searchClassName").addEventListener("input", renderClassesAvailable);
     document.getElementById("filterLevel").addEventListener("change", renderClassesAvailable);
     document.getElementById("filterCurriculum").addEventListener("change", renderClassesAvailable);
@@ -80,14 +83,14 @@ async function loadProfile(user) {
 }
 
 /* =========================
-   LOAD & PROCESS DATA
+   LOAD & FETCH DATA (FIRESTORE)
 ========================= */
 async function loadDashboardData() {
-  document.getElementById("myClassesContainer").innerHTML = "Loading kelas...";
-  document.getElementById("classContainer").innerHTML = "Loading kelas...";
+  document.getElementById("myClassesContainer").innerHTML = "Loading kelas saya...";
+  document.getElementById("classContainer").innerHTML = "Loading kelas tersedia...";
 
   try {
-    // 1. Ambil list ID kelas yang sudah diikuti student
+    // 1. AMBIL KELAS YANG DIMILIKI STUDENT
     const classStudentQuery = query(
       collection(db, "class_students"),
       where("studentId", "==", auth.currentUser.uid)
@@ -95,19 +98,21 @@ async function loadDashboardData() {
     const classStudentSnap = await getDocs(classStudentQuery);
     ownedClassIds = classStudentSnap.docs.map(doc => doc.data().classId);
 
-    // 2. Ambil seluruh data kelas dari Firestore (tanpa batasan level di query awal agar bisa difilter dinamis)
+    // 2. AMBIL SEMUA KELAS GLOBAL (Supaya drop-down level & kurikulum pencarian berfungsi untuk semua kelas)
     const allClassSnap = await getDocs(collection(db, "classes"));
     allFetchedClasses = allClassSnap.docs.map(docSnap => ({
       id: docSnap.id,
       ...docSnap.data()
     }));
 
-    // Render kedua kontainer kelas
+    // Tampilkan data ke masing-masing kontainer
     renderMyClasses();
     renderClassesAvailable();
 
   } catch (error) {
-    console.error("Gagal memuat data kelas:", error);
+    console.error("Gagal mengambil data dari Firestore:", error);
+    document.getElementById("myClassesContainer").innerHTML = "Gagal memuat kelas saya.";
+    document.getElementById("classContainer").innerHTML = "Gagal memuat kelas tersedia.";
   }
 }
 
@@ -118,11 +123,11 @@ function renderMyClasses() {
   const container = document.getElementById("myClassesContainer");
   container.innerHTML = "";
 
-  // Cari kelas yang id-nya ada di list ownedClassIds
+  // Filter kelas dari database yang ID-nya ada di dalam daftar 'ownedClassIds'
   const myClasses = allFetchedClasses.filter(c => ownedClassIds.includes(c.id));
 
   if (myClasses.length === 0) {
-    container.innerHTML = `<p style="color:#64748b;">Kamu belum bergabung di kelas manapun.</p>`;
+    container.innerHTML = `<p style="color: #64748b; font-size: 14px;">Kamu belum masuk/bergabung ke kelas manapun.</p>`;
     return;
   }
 
@@ -133,36 +138,36 @@ function renderMyClasses() {
 }
 
 /* =========================
-   RENDER KELAS TERSEDIA + FILTER
+   RENDER KELAS TERSEDIA + FILTER PENCARIAN
 ========================= */
 function renderClassesAvailable() {
   const container = document.getElementById("classContainer");
   container.innerHTML = "";
 
-  // Ambil nilai filter saat ini
+  // Ambil data value dari elemen input & select filter di HTML
   const searchKeyword = document.getElementById("searchClassName").value.toLowerCase();
   const selectedLevel = document.getElementById("filterLevel").value;
   const selectedCurriculum = document.getElementById("filterCurriculum").value;
 
-  // Lakukan penyaringan array kelas
+  // Saring kelas untuk dipajang di "Kelas Tersedia"
   const filteredClasses = allFetchedClasses.filter(c => {
-    // 1. Jangan tampilkan kelas yang sudah dibeli / dimasuki siswa di list tersedia
+    // A. Jangan tampilkan kelas di menu "Tersedia" jika siswa sudah masuk/membeli kelas tersebut
     if (ownedClassIds.includes(c.id)) return false;
 
-    // 2. Filter berdasarkan Pencarian Nama
+    // B. Filter berdasarkan Keyword Nama Kelas
     const matchName = (c.className || "").toLowerCase().includes(searchKeyword);
 
-    // 3. Filter berdasarkan Level
+    // C. Filter berdasarkan Dropdown Level (Jika kosong, loloskan semua)
     const matchLevel = selectedLevel === "" ? true : c.level === selectedLevel;
 
-    // 4. Filter berdasarkan Kurikulum
+    // D. Filter berdasarkan Dropdown Kurikulum (Jika kosong, loloskan semua)
     const matchCurriculum = selectedCurriculum === "" ? true : c.curriculum === selectedCurriculum;
 
     return matchName && matchLevel && matchCurriculum;
   });
 
   if (filteredClasses.length === 0) {
-    container.innerHTML = `<p style="color:#64748b;">Tidak ada kelas tersedia yang cocok dengan filter.</p>`;
+    container.innerHTML = `<p style="color: #64748b; font-size: 14px;">Tidak ada kelas tersedia yang cocok dengan pencarian Anda.</p>`;
     return;
   }
 
@@ -173,13 +178,14 @@ function renderClassesAvailable() {
 }
 
 /* =========================
-   KOMPONEN ELEMENT CARD KELAS
+   TEMPLATE / GENERATOR ELEMENT CARD KELAS
 ========================= */
 function createClassCardElement(c, isAlreadyJoined) {
   const div = document.createElement("div");
   div.className = "class-card";
 
   const thumbnail = c.thumbnail || "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=1200";
+  
   const priceDisplay = c.isPaid 
     ? (() => {
         const monthly = c.pricing?.find(p => Number(p.billingPeriod) === 30);
@@ -189,6 +195,7 @@ function createClassCardElement(c, isAlreadyJoined) {
       })()
     : "Gratis";
 
+  // Tentukan tombol: Jika sudah masuk, tombolnya "Masuk Kelas". Jika belum dan berbayar, "Beli Kelas".
   const actionButtonHtml = isAlreadyJoined 
     ? `<button class="btn-modern btn-open">Masuk Kelas</button>`
     : c.isPaid 
@@ -218,7 +225,7 @@ function createClassCardElement(c, isAlreadyJoined) {
     </div>
   `;
 
-  // Hubungkan event klik tombol aksi secara dinamis
+  // Berikan event handler klik ke tombol secara spesifik
   const buyBtn = div.querySelector(".btn-buy");
   if (buyBtn) {
     buyBtn.onclick = () => buyClass(c);
