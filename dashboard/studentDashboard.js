@@ -145,7 +145,8 @@ function renderMyClasses() {
 
   const myClasses = allFetchedClasses.filter(c => ownedClassIds.includes(c.id));
 
-  if (myClasses.length === 0) {
+  if (myClasses.length === 0) 
+  
     container.innerHTML = `<p style="color: #64748b; font-size: 14px; grid-column: 1/-1;">Kamu belum masuk/bergabung ke kelas manapun.</p>`;
     return;
   }
@@ -206,14 +207,24 @@ function createClassCardElement(c, isAlreadyJoined) {
       })()
     : "Gratis";
 
-  // LOGIC TOMBOL/STATUS BARU:
+  // LOGIC TOMBOL & STATUS UPLOAD BARU
   let actionButtonHtml = "";
   const isPendingPayment = pendingTransactionClassIds.includes(c.id);
 
   if (isAlreadyJoined) {
     actionButtonHtml = `<button class="btn-modern btn-open">Masuk Kelas</button>`;
   } else if (isPendingPayment) {
-    actionButtonHtml = `<span style="font-size: 12px; color: #f97316; font-weight: 600; text-align: right; align-self: center;">⏳ Menunggu Pembayaran<br><small style="color:#64748b; font-weight:normal;">Aktif maks 1x24 jam</small></span>`;
+    // Menyediakan tombol upload bukti transfer langsung di card kelas
+    actionButtonHtml = `
+      <div style="text-align: right; display: flex; flex-direction: column; gap: 5px; align-items: flex-end;">
+        <span style="font-size: 12px; color: #f97316; font-weight: 600;">⏳ Menunggu Pembayaran</span>
+        <input type="file" id="receipt-${c.id}" accept="image/*" style="display: none;" />
+        <button class="btn-modern" id="btn-upload-${c.id}" style="background: linear-gradient(135deg,#f97316,#ff7e00); font-size: 11px; padding: 5px 10px;">
+          📸 Upload Bukti
+        </button>
+        <small style="color:#64748b; font-size: 10px; font-weight: normal; line-height: 1.2;">Aktif maks 1x24 jam</small>
+      </div>
+    `;
   } else {
     actionButtonHtml = c.isPaid 
       ? `<button class="btn-modern btn-buy">Beli Kelas</button>` 
@@ -245,11 +256,35 @@ function createClassCardElement(c, isAlreadyJoined) {
     </div>
   `;
 
+  // EVENT LISTENERS BUTTON
   const buyBtn = div.querySelector(".btn-buy");
   if (buyBtn) buyBtn.onclick = () => buyClass(c);
 
   const openBtn = div.querySelector(".btn-open");
   if (openBtn) openBtn.onclick = () => openClass(c.id, c.isPaid);
+
+  // EVENT LISTENER KHUSUS UPLOAD BUKTI TRANSFER
+  if (isPendingPayment) {
+    const uploadBtn = div.querySelector(`#btn-upload-${c.id}`);
+    const fileInput = div.querySelector(`#receipt-${c.id}`);
+
+    if (uploadBtn && fileInput) {
+      // Saat tombol upload diklik, pancing input file asli agar terbuka
+      uploadBtn.onclick = (e) => {
+        e.stopPropagation();
+        fileInput.click();
+      };
+
+      // Saat siswa selesai memilih file/foto dari galeri smartphone/PC
+      fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          // Memanggil fungsi upload yang sebelumnya diletakkan di bagian paling bawah file JS
+          await uploadPaymentReceipt(c.id, file);
+        }
+      };
+    }
+  }
 
   return div;
 }
@@ -478,3 +513,71 @@ window.saveProfile = async () => {
     alert("Gagal update profil");
   }
 };
+/* =========================
+   PROSES UPLOAD BUKTI PEMBAYARAN
+========================= */
+async function uploadPaymentReceipt(classId, file) {
+  try {
+    // 1. Cari dokumen transaksi yang sesuai di Firestore terlebih dahulu
+    const qTx = query(
+      collection(db, "transactions"),
+      where("userId", "==", auth.currentUser.uid),
+      where("classId", "==", classId),
+      where("status", "==", "waiting_upload")
+    );
+    const snapTx = await getDocs(qTx);
+    
+    if (snapTx.empty) {
+      alert("Transaksi tidak ditemukan atau sudah diproses.");
+      return;
+    }
+    
+    const txDocRef = doc(db, "transactions", snapTx.docs[0].id);
+
+    // Tampilkan loading sederhana pada tombol
+    const uploadBtn = document.getElementById(`btn-upload-${classId}`);
+    if (uploadBtn) {
+      uploadBtn.innerText = "⏳ Mengupload...";
+      uploadBtn.disabled = true;
+    }
+
+    // 2. Upload file gambar ke Cloudinary (menggunakan kredensial Cloudinary Anda yang sudah ada)
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "avatar_upload"); // Anda bisa pakai preset ini atau ganti jika punya preset khusus berkas
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/djlvnubgn/image/upload`, {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await res.json();
+    if (!data.secure_url) throw new Error("Gagal mengunggah gambar ke Cloudinary");
+
+    const receiptURL = data.secure_url;
+
+    // 3. Update data transaksi di Firestore
+    await updateDoc(txDocRef, {
+      receiptURL: receiptURL,
+      status: "waiting_confirmation", // Berubah status menjadi menunggu konfirmasi admin
+      paymentStatus: "pending",
+      uploadedAt: serverTimestamp() // Mencatat waktu upload bukti
+    });
+
+    alert("Bukti pembayaran berhasil diunggah! Kelas akan aktif maksimal 1x24 jam setelah diverifikasi oleh Admin.");
+    
+    // 4. Refresh Dashboard agar UI terupdate
+    await loadDashboardData();
+
+  } catch (err) {
+    console.error(err);
+    alert("Gagal mengunggah bukti pembayaran: " + err.message);
+    
+    // Kembalikan teks tombol jika gagal
+    const uploadBtn = document.getElementById(`btn-upload-${classId}`);
+    if (uploadBtn) {
+      uploadBtn.innerText = "📸 Upload Bukti";
+      uploadBtn.disabled = false;
+    }
+  }
+}
