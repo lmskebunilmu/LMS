@@ -17,7 +17,7 @@ import {
   updateDoc,
   addDoc,
   serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"; // <-- Pastikan ujungnya firebase-firestore.js
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { loadLayout } from "../assets/js/components.js";
 
@@ -145,8 +145,8 @@ function renderMyClasses() {
 
   const myClasses = allFetchedClasses.filter(c => ownedClassIds.includes(c.id));
 
-  if (myClasses.length === 0) 
-  
+  // FIX: Memperbaiki kesalahan kurung kurawal pada logic if kosong di bawah ini
+  if (myClasses.length === 0) {
     container.innerHTML = `<p style="color: #64748b; font-size: 14px; grid-column: 1/-1;">Kamu belum masuk/bergabung ke kelas manapun.</p>`;
     return;
   }
@@ -214,7 +214,6 @@ function createClassCardElement(c, isAlreadyJoined) {
   if (isAlreadyJoined) {
     actionButtonHtml = `<button class="btn-modern btn-open">Masuk Kelas</button>`;
   } else if (isPendingPayment) {
-    // Menyediakan tombol upload bukti transfer langsung di card kelas
     actionButtonHtml = `
       <div style="text-align: right; display: flex; flex-direction: column; gap: 5px; align-items: flex-end;">
         <span style="font-size: 12px; color: #f97316; font-weight: 600;">⏳ Menunggu Pembayaran</span>
@@ -269,17 +268,14 @@ function createClassCardElement(c, isAlreadyJoined) {
     const fileInput = div.querySelector(`#receipt-${c.id}`);
 
     if (uploadBtn && fileInput) {
-      // Saat tombol upload diklik, pancing input file asli agar terbuka
       uploadBtn.onclick = (e) => {
         e.stopPropagation();
         fileInput.click();
       };
 
-      // Saat siswa selesai memilih file/foto dari galeri smartphone/PC
       fileInput.onchange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-          // Memanggil fungsi upload yang sebelumnya diletakkan di bagian paling bawah file JS
           await uploadPaymentReceipt(c.id, file);
         }
       };
@@ -356,7 +352,7 @@ window.selectPayment = async (paymentMethod) => {
     const price = Number(selectedPricing.price || 0);
     const billingPeriod = Number(selectedPricing.billingPeriod || 30);
 
-    // 1. PENANGANAN UNTUK CASH (TETAP SAMA SEPERTI SEBELUMNYA)
+    // 1. PENANGANAN UNTUK CASH
     if (paymentMethod === "cash") {
       await addDoc(collection(db, "transactions"), {
         userId: user.uid,
@@ -368,7 +364,7 @@ window.selectPayment = async (paymentMethod) => {
         billingPeriod,
         paymentMethod: "cash",
         paymentStatus: "pending",
-        status: "waiting_confirmation", // Langsung minta konfirmasi admin
+        status: "waiting_confirmation",
         createdAt: serverTimestamp()
       });
 
@@ -390,13 +386,13 @@ window.selectPayment = async (paymentMethod) => {
         billingPeriod,
         paymentMethod: paymentMethod,
         paymentStatus: "pending",
-        status: "waiting_upload", // Status menunggu upload bukti / verifikasi manual
+        status: "waiting_upload",
         createdAt: serverTimestamp()
       });
 
-      alert(`Pilihan ${paymentMethod === 'dana' ? 'DANA' : 'Transfer Bank'} berhasil. Status sekarang: Menunggu Pembayaran. Silakan hubungi admin atau upload bukti jika ada fiturnya.`);
+      alert(`Pilihan ${paymentMethod === 'dana' ? 'DANA' : 'Transfer Bank'} berhasil. Status sekarang: Menunggu Pembayaran. Silakan upload bukti transfer.`);
       closePaymentModal();
-      await loadDashboardData(); // Refresh UI agar status berubah jadi Menunggu Pembayaran
+      await loadDashboardData();
       return;
     }
 
@@ -513,6 +509,7 @@ window.saveProfile = async () => {
     alert("Gagal update profil");
   }
 };
+
 /* =========================
    PROSES UPLOAD BUKTI PEMBAYARAN
 ========================= */
@@ -541,10 +538,10 @@ async function uploadPaymentReceipt(classId, file) {
       uploadBtn.disabled = true;
     }
 
-    // 2. Upload file gambar ke Cloudinary (menggunakan kredensial Cloudinary Anda yang sudah ada)
+    // 2. Upload file gambar ke Cloudinary
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("upload_preset", "avatar_upload"); // Anda bisa pakai preset ini atau ganti jika punya preset khusus berkas
+    formData.append("upload_preset", "avatar_upload");
 
     const res = await fetch(`https://api.cloudinary.com/v1_1/djlvnubgn/image/upload`, {
       method: "POST",
@@ -561,7 +558,7 @@ async function uploadPaymentReceipt(classId, file) {
       receiptURL: receiptURL,
       status: "waiting_confirmation", // Berubah status menjadi menunggu konfirmasi admin
       paymentStatus: "pending",
-      uploadedAt: serverTimestamp() // Mencatat waktu upload bukti
+      uploadedAt: serverTimestamp()
     });
 
     alert("Bukti pembayaran berhasil diunggah! Kelas akan aktif maksimal 1x24 jam setelah diverifikasi oleh Admin.");
@@ -573,7 +570,6 @@ async function uploadPaymentReceipt(classId, file) {
     console.error(err);
     alert("Gagal mengunggah bukti pembayaran: " + err.message);
     
-    // Kembalikan teks tombol jika gagal
     const uploadBtn = document.getElementById(`btn-upload-${classId}`);
     if (uploadBtn) {
       uploadBtn.innerText = "📸 Upload Bukti";
