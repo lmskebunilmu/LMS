@@ -1,8 +1,12 @@
 import { auth, db } from "../firebase/firebase-config.js";
+
+// 1. IMPORT KHUSUS UNTUK AUTH
 import {
   onAuthStateChanged,
   updateProfile
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+// 2. IMPORT KHUSUS UNTUK FIRESTORE (DATABASE)
 import {
   doc,
   getDoc,
@@ -13,7 +17,8 @@ import {
   updateDoc,
   addDoc,
   serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"; // Dipastikan path import disesuaikan dengan environment Anda
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"; // <-- Pastikan ujungnya firebase-firestore.js
+
 import { loadLayout } from "../assets/js/components.js";
 
 let studentData = null;
