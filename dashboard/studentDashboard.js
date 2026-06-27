@@ -1,4 +1,3 @@
-// studentDashboard.js
 import { auth, db } from "../firebase/firebase-config.js";
 import {
   onAuthStateChanged,
@@ -14,7 +13,7 @@ import {
   updateDoc,
   addDoc,
   serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"; // Dipastikan path import disesuaikan dengan environment Anda
 import { loadLayout } from "../assets/js/components.js";
 
 let studentData = null;
@@ -24,6 +23,7 @@ let selectedClass = null;
 // State data global untuk simpan hasil fetch dari Firestore
 let allFetchedClasses = [];
 let ownedClassIds = [];
+let pendingTransactionClassIds = []; // Melacak kelas yang sedang menunggu pembayaran/konfirmasi
 
 /* =========================
    AUTH
@@ -90,7 +90,7 @@ async function loadDashboardData() {
   document.getElementById("classContainer").innerHTML = "Loading kelas tersedia...";
 
   try {
-    // 1. AMBIL KELAS YANG DIMILIKI STUDENT
+    // 1. AMBIL KELAS YANG DIMILIKI STUDENT (SUDAH AKTIF)
     const classStudentQuery = query(
       collection(db, "class_students"),
       where("studentId", "==", auth.currentUser.uid)
@@ -98,7 +98,16 @@ async function loadDashboardData() {
     const classStudentSnap = await getDocs(classStudentQuery);
     ownedClassIds = classStudentSnap.docs.map(doc => doc.data().classId);
 
-    // 2. AMBIL HANYA KELAS YANG DIBUAT OLEH SUPER ADMIN (Berdasarkan UID)
+    // 2. AMBIL TRANSAKSI PENDING (BELUM UPLOAD ATAU MENUNGGU KONFIRMASI)
+    const txQuery = query(
+      collection(db, "transactions"),
+      where("userId", "==", auth.currentUser.uid),
+      where("status", "in", ["waiting_upload", "waiting_confirmation"])
+    );
+    const txSnap = await getDocs(txQuery);
+    pendingTransactionClassIds = txSnap.docs.map(doc => doc.data().classId);
+
+    // 3. AMBIL HANYA KELAS YANG DIBUAT OLEH SUPER ADMIN
     const superAdminUid = "yI6KBEOIrAcIqIDFu56Mr1UYwNw1";
     const superAdminClassQuery = query(
       collection(db, "classes"),
@@ -192,11 +201,19 @@ function createClassCardElement(c, isAlreadyJoined) {
       })()
     : "Gratis";
 
-  const actionButtonHtml = isAlreadyJoined 
-    ? `<button class="btn-modern btn-open">Masuk Kelas</button>`
-    : c.isPaid 
+  // LOGIC TOMBOL/STATUS BARU:
+  let actionButtonHtml = "";
+  const isPendingPayment = pendingTransactionClassIds.includes(c.id);
+
+  if (isAlreadyJoined) {
+    actionButtonHtml = `<button class="btn-modern btn-open">Masuk Kelas</button>`;
+  } else if (isPendingPayment) {
+    actionButtonHtml = `<span style="font-size: 12px; color: #f97316; font-weight: 600; text-align: right; align-self: center;">⏳ Menunggu Pembayaran<br><small style="color:#64748b; font-weight:normal;">Aktif maks 1x24 jam</small></span>`;
+  } else {
+    actionButtonHtml = c.isPaid 
       ? `<button class="btn-modern btn-buy">Beli Kelas</button>` 
       : `<button class="btn-modern btn-open">Masuk Kelas</button>`;
+  }
 
   div.innerHTML = `
     <div class="class-image-wrap">
@@ -299,6 +316,7 @@ window.selectPayment = async (paymentMethod) => {
     const price = Number(selectedPricing.price || 0);
     const billingPeriod = Number(selectedPricing.billingPeriod || 30);
 
+    // 1. PENANGANAN UNTUK CASH (TETAP SAMA SEPERTI SEBELUMNYA)
     if (paymentMethod === "cash") {
       await addDoc(collection(db, "transactions"), {
         userId: user.uid,
@@ -310,15 +328,39 @@ window.selectPayment = async (paymentMethod) => {
         billingPeriod,
         paymentMethod: "cash",
         paymentStatus: "pending",
-        status: "waiting_confirmation",
+        status: "waiting_confirmation", // Langsung minta konfirmasi admin
         createdAt: serverTimestamp()
       });
 
       alert("Request pembayaran cash berhasil dikirim");
       closePaymentModal();
+      await loadDashboardData();
       return;
     }
 
+    // 2. PENANGANAN UNTUK TRANSFER BANK DAN DANA (MANUAL)
+    if (paymentMethod === "transfer_bank" || paymentMethod === "dana") {
+      await addDoc(collection(db, "transactions"), {
+        userId: user.uid,
+        classId: selectedClass.id,
+        className: selectedClass.className || "-",
+        studentName: studentData.name || "-",
+        studentEmail: studentData.email || "-",
+        price,
+        billingPeriod,
+        paymentMethod: paymentMethod,
+        paymentStatus: "pending",
+        status: "waiting_upload", // Status menunggu upload bukti / verifikasi manual
+        createdAt: serverTimestamp()
+      });
+
+      alert(`Pilihan ${paymentMethod === 'dana' ? 'DANA' : 'Transfer Bank'} berhasil. Status sekarang: Menunggu Pembayaran. Silakan hubungi admin atau upload bukti jika ada fiturnya.`);
+      closePaymentModal();
+      await loadDashboardData(); // Refresh UI agar status berubah jadi Menunggu Pembayaran
+      return;
+    }
+
+    // 3. PENANGANAN MIDTRANS (OTOMATIS)
     const res = await fetch("/api/createTransaction.php", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -338,6 +380,7 @@ window.selectPayment = async (paymentMethod) => {
           billingPeriod,
           paymentMethod: "midtrans",
           paymentStatus: "paid",
+          status: "success",
           orderId: result.orderId,
           midtransResponse: response,
           createdAt: serverTimestamp()
