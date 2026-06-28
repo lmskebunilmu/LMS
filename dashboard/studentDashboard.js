@@ -95,13 +95,29 @@ async function loadDashboardData() {
   document.getElementById("classContainer").innerHTML = "Loading kelas tersedia...";
 
   try {
-    // 1. AMBIL KELAS YANG DIMILIKI STUDENT (SUDAH AKTIF)
+    // 1. AMBIL KELAS YANG DIMILIKI STUDENT
     const classStudentQuery = query(
       collection(db, "class_students"),
       where("studentId", "==", auth.currentUser.uid)
     );
     const classStudentSnap = await getDocs(classStudentQuery);
-    ownedClassIds = classStudentSnap.docs.map(doc => doc.data().classId);
+    
+    ownedClassIds = [];
+    const now = new Date().getTime();
+
+    classStudentSnap.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      
+      // Jika kelas berbayar memiliki masa aktif, cek apakah sudah kedaluwarsa
+      if (data.expiredAt) {
+        const expireTime = data.expiredAt.toDate().getTime();
+        if (now > expireTime) {
+          return; // Jika sudah expired, lewati (tidak dimasukkan ke ownedClassIds)
+        }
+      }
+      
+      ownedClassIds.push(data.classId);
+    });
 
     // 2. AMBIL TRANSAKSI PENDING (BELUM UPLOAD ATAU MENUNGGU KONFIRMASI)
     const txQuery = query(
@@ -145,7 +161,6 @@ function renderMyClasses() {
 
   const myClasses = allFetchedClasses.filter(c => ownedClassIds.includes(c.id));
 
-  // FIX: Memperbaiki kesalahan kurung kurawal pada logic if kosong di bawah ini
   if (myClasses.length === 0) {
     container.innerHTML = `<p style="color: #64748b; font-size: 14px; grid-column: 1/-1;">Kamu belum masuk/bergabung ke kelas manapun.</p>`;
     return;
@@ -207,7 +222,6 @@ function createClassCardElement(c, isAlreadyJoined) {
       })()
     : "Gratis";
 
-  // LOGIC TOMBOL & STATUS UPLOAD BARU
   let actionButtonHtml = "";
   const isPendingPayment = pendingTransactionClassIds.includes(c.id);
 
@@ -396,48 +410,6 @@ window.selectPayment = async (paymentMethod) => {
       return;
     }
 
-    // 3. PENANGANAN MIDTRANS (OTOMATIS)
-    const res = await fetch("/api/createTransaction.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ price, name: studentData.name, email: studentData.email })
-    });
-
-    const result = await res.json();
-    if (!result.success) throw new Error(result.message);
-
-    snap.pay(result.snapToken, {
-      onSuccess: async function(response){
-        await addDoc(collection(db, "transactions"), {
-          userId: user.uid,
-          classId: selectedClass.id,
-          className: selectedClass.className,
-          price,
-          billingPeriod,
-          paymentMethod: "midtrans",
-          paymentStatus: "paid",
-          status: "success",
-          orderId: result.orderId,
-          midtransResponse: response,
-          createdAt: serverTimestamp()
-        });
-
-        await addDoc(collection(db, "class_students"), {
-          classId: selectedClass.id,
-          studentId: user.uid,
-          joinedAt: new Date(),
-          paymentStatus: "paid",
-          billingPeriod
-        });
-
-        alert("Pembayaran berhasil");
-        closePaymentModal();
-        await loadDashboardData();
-      },
-      onPending: () => alert("Menunggu pembayaran"),
-      onError: () => alert("Pembayaran gagal")
-    });
-
   } catch(err){
     console.error(err);
     alert(err.message);
@@ -515,7 +487,7 @@ window.saveProfile = async () => {
 ========================= */
 async function uploadPaymentReceipt(classId, file) {
   try {
-    // 1. Cari dokumen transaksi yang sesuai di Firestore terlebih dahulu
+    // 1. Cari dokumen transaksi yang sesuai di Firestore
     const qTx = query(
       collection(db, "transactions"),
       where("userId", "==", auth.currentUser.uid),
@@ -556,7 +528,7 @@ async function uploadPaymentReceipt(classId, file) {
     // 3. Update data transaksi di Firestore
     await updateDoc(txDocRef, {
       receiptURL: receiptURL,
-      status: "waiting_confirmation", // Berubah status menjadi menunggu konfirmasi admin
+      status: "waiting_confirmation",
       paymentStatus: "pending",
       uploadedAt: serverTimestamp()
     });
