@@ -289,7 +289,7 @@ async function buyClass(classItem) {
   selectedClass = classItem;
   selectedPricing = null;
 
-  // Cek dulu apakah siswa sebetulnya punya transaksi pending/waiting untuk kelas ini
+  // 1. Cek dulu apakah siswa sebetulnya punya transaksi pending/waiting untuk kelas ini
   const qTx = query(
     collection(db, "transactions"),
     where("userId", "==", auth.currentUser.uid),
@@ -305,12 +305,36 @@ async function buyClass(classItem) {
     return;
   }
 
-  // TAMPILKAN STEP 1: PILIH PAKET
+  // 2. RESET & TAMPILKAN STRUKTUR DASAR MODAL TERLEBIH DAHULU
+  const modalContent = document.getElementById("paymentModal").querySelector(".modal-content");
+  modalContent.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <h3 style="margin: 0; font-size: 18px; color: #0f172a;">💳 Pendaftaran Kelas</h3>
+      <button onclick="closePaymentModal()" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
+    </div>
+    <h4 style="margin: 0 0 10px 0; font-size: 15px; color: #334155;">1. Pilih Paket Belajar</h4>
+    
+    <div id="pricingOptions"></div> 
+    
+    <hr style="margin: 20px 0; border: none; border-top: 1px dashed #cbd5e1;">
+    <h4 style="margin: 0 0 12px 0; font-size: 15px; color: #334155;">2. Pilih Metode Pembayaran</h4>
+    <div class="payment-options" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+      <button class="payment-btn" onclick="selectPayment('transfer_bank')" style="padding: 12px; font-weight: 600; border-radius: 10px; border: 1px solid #cbd5e1; background: white; cursor: pointer;">🏦 Transfer</button>
+      <button class="payment-btn" onclick="selectPayment('dana')" style="padding: 12px; font-weight: 600; border-radius: 10px; border: 1px solid #cbd5e1; background: white; cursor: pointer;">📱 DANA</button>
+      <button class="payment-btn" onclick="selectPayment('cash')" style="padding: 12px; font-weight: 600; border-radius: 10px; border: 1px solid #cbd5e1; background: white; cursor: pointer;">💵 Cash</button>
+    </div>
+    <div class="modal-actions" style="display: flex; justify-content: flex-end;">
+      <button onclick="closePaymentModal()" class="danger" style="padding: 10px 20px; border-radius: 8px;">Batal</button>
+    </div>
+  `;
+
+  // 3. SEKARANG AMBIL ELEMEN YANG BARU SAJA DI-RENDER DI ATAS
   const pricingWrap = document.getElementById("pricingOptions");
   pricingWrap.innerHTML = `
     <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Silakan tentukan durasi paket belajar yang kamu inginkan:</p>
   `;
 
+  // 4. GENERATE DAN MASUKKAN DAFTAR HARGA
   classItem.pricing?.forEach((p, index) => {
     const label = p.billingPeriod == 30 ? "1 Bulan Belajar"
                 : p.billingPeriod == 90 ? "3 Bulan Belajar"
@@ -348,37 +372,9 @@ async function buyClass(classItem) {
     pricingWrap.appendChild(div);
   });
 
-  // Reset tampilan modal ke mode default (Pilihan paket & metode)
-  const modalContent = document.getElementById("paymentModal").querySelector(".modal-content");
-  modalContent.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-      <h3 style="margin: 0; font-size: 18px; color: #0f172a;">💳 Pendaftaran Kelas</h3>
-      <button onclick="closePaymentModal()" style="background: none; border: none; font-size: 20px; color: #94a3b8; cursor: pointer;">&times;</button>
-    </div>
-    <h4 style="margin: 0 0 10px 0; font-size: 15px; color: #334155;">1. Pilih Paket Belajar</h4>
-    <div id="pricingOptions"></div>
-    <hr style="margin: 20px 0; border: none; border-top: 1px dashed #cbd5e1;">
-    <h4 style="margin: 0 0 12px 0; font-size: 15px; color: #334155;">2. Pilih Metode Pembayaran</h4>
-    <div class="payment-options" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-      <button class="payment-btn" onclick="selectPayment('transfer_bank')" style="padding: 12px; font-weight: 600; border-radius: 10px; border: 1px solid #cbd5e1; background: white; cursor: pointer;">🏦 Transfer</button>
-      <button class="payment-btn" onclick="selectPayment('dana')" style="padding: 12px; font-weight: 600; border-radius: 10px; border: 1px solid #cbd5e1; background: white; cursor: pointer;">📱 DANA</button>
-      <button class="payment-btn" onclick="selectPayment('cash')" style="padding: 12px; font-weight: 600; border-radius: 10px; border: 1px solid #cbd5e1; background: white; cursor: pointer;">💵 Cash</button>
-    </div>
-    <div class="modal-actions" style="display: flex; justify-content: flex-end;">
-      <button onclick="closePaymentModal()" class="danger" style="padding: 10px 20px; border-radius: 8px;">Batal</button>
-    </div>
-  `;
-  
-  // Re-append pricing options yang barusan dibuat
-  modalContent.querySelector("#pricingOptions").replaceWith(pricingWrap);
-
+  // 5. AKTIFKAN MODAL
   document.getElementById("paymentModal").classList.add("active");
 }
-
-window.closePaymentModal = () => {
-  document.getElementById("paymentModal").classList.remove("active");
-  selectedClass = null;
-};
 
 /* =========================
    PROSES SELEKSI & GENERATE INTRUKSI TRANSAKSI
