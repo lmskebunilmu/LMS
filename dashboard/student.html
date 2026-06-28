@@ -247,20 +247,8 @@
   </div>
 
   <div id="paymentModal" class="modal">
-    <div class="modal-content">
-      <h3>Pilih Paket Belajar</h3>
-      <div id="pricingOptions"></div>
-      <hr style="margin:20px 0;">
-      <h3>Pilih Metode Pembayaran</h3>
-      <div class="payment-options" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-        <button class="payment-btn" onclick="selectPayment('cash')">💵 Cash</button>
-        <button class="payment-btn" onclick="selectPayment('transfer_bank')">🏦 Transfer Bank</button>
-        <button class="payment-btn" onclick="selectPayment('dana')">📱 DANA</button>
+    <div class="modal-content" style="max-width: 450px; width: 90%; border-radius: 16px; padding: 24px;">
       </div>
-      <div class="modal-actions">
-        <button onclick="closePaymentModal()" class="danger">Batal</button>
-      </div>
-    </div>
   </div>
 
   <script type="module" src="./studentDashboard.js"></script>
