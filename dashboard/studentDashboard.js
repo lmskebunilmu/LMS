@@ -674,10 +674,19 @@ async function uploadPaymentReceipt(classId, file) {
 }
 
 /* =========================
+   FUNGSI CLOSE MODAL
+========================= */
+function closePaymentModal() {
+  document.getElementById("paymentModal").classList.remove("active");
+  selectedClass = null;
+}
+
+/* =========================
    EXPORT GLOBAL (PENTING!)
 ========================= */
 window.buyClass = buyClass;
 window.selectPayment = selectPayment;
+window.closePaymentModal = closePaymentModal; // <--- TAMBAHKAN BARIS INI
 window.openProfileModal = openProfileModal;
 window.closeProfileModal = closeProfileModal;
 window.saveProfile = saveProfile;
