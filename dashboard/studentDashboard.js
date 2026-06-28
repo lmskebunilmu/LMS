@@ -204,7 +204,7 @@ function renderClassesAvailable() {
   });
 }
 
-/* /* =========================
+/* =========================
    TEMPLATE CARD KELAS (GALERI)
 ========================= */
 function createClassCardElement(c, isAlreadyJoined) {
@@ -228,7 +228,6 @@ function createClassCardElement(c, isAlreadyJoined) {
   if (isAlreadyJoined) {
     actionButtonHtml = `<button class="btn-modern btn-open">Masuk Kelas</button>`;
   } else if (isPendingPayment) {
-    // Tampilan tombol baru yang sinkron dengan alur modal instruksi
     actionButtonHtml = `
       <div style="text-align: right; display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
         <span style="font-size: 12px; color: #f97316; font-weight: bold;">⏳ Menunggu Bukti</span>
@@ -275,7 +274,6 @@ function createClassCardElement(c, isAlreadyJoined) {
   const openBtn = div.querySelector(".btn-open");
   if (openBtn) openBtn.onclick = () => openClass(c.id, c.isPaid);
 
-  // >>> DI SINI TEMPATNYA <<<
   const resumePayBtn = div.querySelector(".btn-resume-pay");
   if (resumePayBtn) {
     resumePayBtn.onclick = () => buyClass(c); 
@@ -678,3 +676,12 @@ async function uploadPaymentReceipt(classId, file) {
     }
   }
 }
+
+/* =========================
+   EXPORT GLOBAL (PENTING!)
+========================= */
+window.buyClass = buyClass;
+window.selectPayment = selectPayment;
+window.openProfileModal = openProfileModal;
+window.closeProfileModal = closeProfileModal;
+window.saveProfile = saveProfile;
