@@ -153,21 +153,33 @@ async function loadDashboardData() {
 }
 
 /* =========================
-   RENDER KELAS SAYA
+   RENDER KELAS SAYA (DENGAN RE-ORDERING)
 ========================= */
 function renderMyClasses() {
   const container = document.getElementById("myClassesContainer");
   container.innerHTML = "";
 
-  const myClasses = allFetchedClasses.filter(c => ownedClassIds.includes(c.id));
+  // 1. Ambil kelas yang transaksinya menggantung (Menunggu Pembayaran)
+  const pendingClasses = allFetchedClasses.filter(c => pendingTransactionClassIds.includes(c.id));
 
-  if (myClasses.length === 0) {
+  // 2. Ambil kelas yang memang sudah resmi dimasuki/join (Sudah Aktif)
+  //    (di-filter agar tidak double jika statusnya bentrok)
+  const activeClasses = allFetchedClasses.filter(c => ownedClassIds.includes(c.id) && !pendingTransactionClassIds.includes(c.id));
+
+  if (pendingClasses.length === 0 && activeClasses.length === 0) {
     container.innerHTML = `<p style="color: #64748b; font-size: 14px; grid-column: 1/-1;">Kamu belum masuk/bergabung ke kelas manapun.</p>`;
     return;
   }
 
-  myClasses.forEach(c => {
-    const card = createClassCardElement(c, true);
+  // Render PENDING CLASSES dulu supaya posisinya berada di paling atas
+  pendingClasses.forEach(c => {
+    const card = createClassCardElement(c, false); // isAlreadyJoined = false supaya tombolnya dinamis (Selesaikan Pembayaran)
+    container.appendChild(card);
+  });
+
+  // Render ACTIVE CLASSES di bawah kelas pending
+  activeClasses.forEach(c => {
+    const card = createClassCardElement(c, true);  // isAlreadyJoined = true supaya keluar tombol "Masuk Kelas"
     container.appendChild(card);
   });
 }
@@ -184,7 +196,8 @@ function renderClassesAvailable() {
   const selectedCurriculum = document.getElementById("filterCurriculum").value;
 
   const filteredClasses = allFetchedClasses.filter(c => {
-    if (ownedClassIds.includes(c.id)) return false;
+    // Sembunyikan dari daftar "Kelas Tersedia" jika user sudah membelinya atau sedang proses bayar
+    if (ownedClassIds.includes(c.id) || pendingTransactionClassIds.includes(c.id)) return false;
 
     const matchName = (c.className || "").toLowerCase().includes(searchKeyword);
     const matchLevel = selectedLevel === "" ? true : c.level === selectedLevel;
@@ -559,6 +572,14 @@ async function openClass(classId, isPaid) {
 }
 
 /* =========================
+   FUNGSI CLOSE MODAL
+========================= */
+function closePaymentModal() {
+  document.getElementById("paymentModal").classList.remove("active");
+  selectedClass = null;
+}
+
+/* =========================
    MODAL PROFILE LOGIC
 ========================= */
 window.openProfileModal = () => document.getElementById("profileModal").classList.add("active");
@@ -674,19 +695,11 @@ async function uploadPaymentReceipt(classId, file) {
 }
 
 /* =========================
-   FUNGSI CLOSE MODAL
-========================= */
-function closePaymentModal() {
-  document.getElementById("paymentModal").classList.remove("active");
-  selectedClass = null;
-}
-
-/* =========================
    EXPORT GLOBAL (PENTING!)
 ========================= */
 window.buyClass = buyClass;
 window.selectPayment = selectPayment;
-window.closePaymentModal = closePaymentModal; // <--- TAMBAHKAN BARIS INI
+window.closePaymentModal = closePaymentModal;
 window.openProfileModal = openProfileModal;
 window.closeProfileModal = closeProfileModal;
 window.saveProfile = saveProfile;
