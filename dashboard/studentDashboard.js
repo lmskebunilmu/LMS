@@ -440,14 +440,14 @@ function showPaymentInstructionAndUpload(tx) {
   if (tx.paymentMethod === "transfer_bank") {
     targetRekening = `
       <div style="background: #f1f5f9; padding: 12px; border-radius: 10px; margin-top: 8px; font-family: monospace; font-size: 14px;">
-        Bank Mandiri: <b>123-456789-012</b><br>
-        A.N. Kursus Super Admin
+        Bank BCA: <b>123-456789-012</b><br>
+        A.N. M. ZAHWAN ANWAR
       </div>`;
   } else if (tx.paymentMethod === "dana") {
     targetRekening = `
       <div style="background: #f1f5f9; padding: 12px; border-radius: 10px; margin-top: 8px; font-family: monospace; font-size: 14px;">
-        Nomor DANA: <b>0812-3456-7890</b><br>
-        A.N. Kursus Super Admin
+        Nomor DANA: <b>0878-8389-5814</b><br>
+        A.N. MUHAMAD ZAHWAN ANWAR
       </div>`;
   } else {
     targetRekening = `
