@@ -277,7 +277,7 @@
             statusDiv.innerText = "Menyimpan seluruh data ke database...";
             await db.collection('undangan').doc(slug).set(payload);
 
-            statusDiv.innerHTML = `Sukses! Undangan siap di: <br><a href="undangan.html?id=${slug}" target="_blank">Lihat Undangan</a>`;
+            statusDiv.innerHTML = `Sukses! Undangan siap di: <br><a href="Undangan.html?id=${slug}" target="_blank">Lihat Undangan</a>`;
             
             // Reset Form State Kembali Semula
             document.getElementById('invitationForm').reset();
