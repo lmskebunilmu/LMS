@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Undangan Digital Premium</title>
+    <!-- Google Fonts: Kombinasi Serif Kontemporer dan Sans-Serif Clean -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Urbanist:ital,wght@0,300;0,500;0,700;1,300&display=swap" rel="stylesheet">
+    <!-- FontAwesome untuk Icon Modern -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- AOS Animation CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+    
+    <style>
+        :root {
+            --accent: #e5c158;
+            --accent-grad: linear-gradient(135deg, #fbf3cd 0%, #d8b244 100%);
+            --bg-main: #0a0d14;
+            --bg-card: rgba(18, 24, 38, 0.6);
+            --border-line: rgba(255, 255, 255, 0.04);
+            --text-white: #ffffff;
+            --text-slate: #94a3b8;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: #05070a; 
+            color: var(--text-slate); 
+            display: flex;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        /* PEMBUNGKUS UTAMA ULTRA-MODERN */
+        .wrapper { 
+            width: 100%;
+            max-width: 450px; 
+            background: var(--bg-main); 
+            min-height: 100vh; 
+            box-shadow: 0 0 60px rgba(0,0,0,0.8); 
+            padding-bottom: 100px; 
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* BACKGROUND BLUR DECORATION (Efek Estetik Modern) */
+        .blur-circle {
+            position: absolute;
+            width: 250px; height: 250px;
+            background: rgba(229, 193, 88, 0.05);
+            filter: blur(80px);
+            border-radius: 50%;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .blur-1 { top: 10%; left: -50px; }
+        .blur-2 { bottom: 20%; right: -50px; }
+
+        /* LOADING SCREEN */
+        #loading { 
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 11000;
+        }
+        .custom-loader {
+            width: 50px; height: 50px;
+            display: grid;
+            animation: s4 4s infinite;
+        }
+        .custom-loader::before,
+        .custom-loader::after {    
+            content:"";
+            grid-area: 1/1;
+            border:3px solid #0000;
+            border-radius: 50%;
+            background: inherit;
+            mix-blend-mode: multiply;
+            animation: s4 1s infinite linear;
+        }
+        .custom-loader::before {
+            border-color: var(--accent);
+            --s:1;
+        }
+        .custom-loader::after {
+            border-color: #ffffff;
+            --s:-1;
+            animation-delay: 0.5s;
+        }
+        @keyframes s4 { 
+            100%{transform: rotate(calc(var(--s,1)*360deg))}
+        }
+
+        /* SCREEN COVER / OPENING */
+        .cover-screen {
+            position: fixed;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 100%; max-width: 450px; height: 100%;
+            background: radial-gradient(circle at center, #131926 0%, #0a0d14 100%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 60px 30px;
+            text-align: center;
+            transition: all 1.2s cubic-bezier(0.85, 0, 0.15, 1);
+        }
+        .cover-screen.slide-up {
+            transform: translate(-50%, -100%);
+            opacity: 0;
+        }
+        .cover-tag {
+            font-size: 11px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+        .cover-main-text {
+            margin-bottom: 50px;
+        }
+        .cover-title {
+            font-family: 'Urbanist', sans-serif;
+            font-weight: 300;
+            font-style: italic;
+            color: var(--text-white);
+            font-size: 42px;
+            line-height: 1.1;
+            letter-spacing: -1px;
+        }
+        .cover-guest-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-line);
+            padding: 20px;
+            border-radius: 16px;
+            width: 100%;
+        }
+        .cover-btn {
+            background: var(--text-white);
+            color: #000;
+            border: none;
+            width: 100%;
+            padding: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-radius: 14px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .cover-btn:hover {
+            background: var(--accent);
+        }
+
+        /* HERO AREA (ASIMETRIS & ELEGANT) */
+        .hero-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1; /* Tampilan kotak modern */
+            padding: 25px;
+            background: var(--bg-main);
+        }
+        .hero-frame {
+            width: 100%; height: 100%;
+            border-radius: 24px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .hero-img { 
+            width: 100%; height: 100%; 
+            object-fit: cover;
+        }
+        .hero-overlay {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 40%;
+            background: linear-gradient(to top, rgba(10,13,20,1), transparent);
+        }
+
+        /* CONTENT GENERAL */
+        .content { 
+            padding: 0 25px; 
+            position: relative; 
+            z-index: 2;
+        }
+        .acara-type { 
+            text-transform: uppercase; 
+            letter-spacing: 5px; 
+            font-size: 10px; 
+            color: var(--accent); 
+            font-weight: 600; 
+            margin-bottom: 5px;
+        }
+        h1 { 
+            font-family: 'Urbanist', sans-serif; 
+            color: var(--text-white); 
+            font-size: 36px; 
+            font-weight: 300;
+            line-height: 1.1;
+            letter-spacing: -1px;
+        }
+
+        /* MODERN MINIMALIST CARD */
+        .section-box { 
+            background: var(--bg-card); 
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px; 
+            padding: 30px 25px; 
+            margin: 25px 0; 
+            border: 1px solid var(--border-line);
+        }
+
+        .section-title {
+            font-size: 12px;
+            color: var(--accent);
+            letter-spacing: 3px;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* TYPOGRAPHY NAMA PASANGAN / ANAK */
+        .names { 
+            font-family: 'Urbanist', sans-serif;
+            font-size: 30px; 
+            font-weight: 500; 
+            color: var(--text-white); 
+            letter-spacing: -0.5px;
+        }
+        .parents { 
+            font-size: 13px; 
+            color: var(--text-slate); 
+            margin-top: 4px;
+            font-weight: 300;
+        }
+        .ampersand { 
+            font-family: 'Urbanist', sans-serif;
+            font-size: 40px; 
+            font-weight: 300;
+            font-style: italic;
+            color: rgba(255,255,255,0.15);
+            margin: 10px 0;
+        }
+
+        /* ROW LAYOUT FOR TIME/DATE */
+        .time-row {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .time-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-line);
+            padding: 20px;
+            border-radius: 16px;
+            text-align: left;
+        }
+        .time-card h4 {
+            color: var(--text-white);
+            font-size: 14px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .time-card h4 i { color: var(--accent); }
+        .time-card p { font-size: 13px; line-height: 1.5; }
+
+        /* MAP CLEAN DARK MODE */
+        .map-container {
+            width: 100%; height: 200px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-line);
+            margin-top: 15px;
+        }
+        .map-container iframe {
+            width: 100%; height: 100%; border: 0;
+            filter: invert(90%) hue-rotate(180deg) grayscale(40%);
+        }
+
+        /* GALERI FOTO ASIMETRIS MASONRY-LIKE */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .gallery-item {
+            width: 100%; height: 160px;
+            object-fit: cover;
+            border-radius: 16px;
+            transition: transform 0.4s ease;
+        }
+        .gallery-item:nth-child(even) {
+            transform: translateY(15px); /* Membuat layout estetik asimetris */
+        }
+
+        /* FLOATING MUSIC BUTTON MINI */
+        .floating-music-btn {
+            position: fixed;
+            bottom: 30px; right: 30px;
+            width: 45px; height: 45px;
+            border-radius: 14px;
+            background: var(--text-white);
+            border: none;
+            cursor: pointer;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        .rotate-music {
+            animation: spin 6s infinite linear;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loading">
+    <div class="custom-loader"></div>
+</div>
+
+<!-- COVER SCREEN OVERLAY -->
+<div id="coverScreen" class="cover-screen hidden">
+    <div class="cover-tag" data-aos="fade-down">Special Invitation</div>
+    <div class="cover-main-text">
+        <h2 class="cover-title" id="coverTitleEvent">THE CELEBRATION</h2>
+        <div id="coverNames" class="names" style="margin-top: 15px; font-size: 34px;">-</div>
+    </div>
+    <div class="cover-guest-box" data-aos="fade-up">
+        <p style="font-size: 11px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px;">Dear Honored Guest</p>
+        <span style="color: var(--text-white); font-weight: 500; font-size: 16px;">Bapak/Ibu/Saudara/i</span>
+        <button class="cover-btn" onclick="bukaUndangan()">
+            Open Invitation <i class="fa-solid fa-arrow-right-long"></i>
+        </button>
+    </div>
+</div>
+
+<!-- BACKGROUND AUDIO -->
+<audio id="bgMusic" loop>
+    <source src="akad.mp3" type="audio/mpeg">
+</audio>
+
+<!-- AUDIO CONTROLLER -->
+<button id="musicBtn" class="floating-music-btn hidden">
+    <i id="musicIcon" class="fa-solid fa-play"></i>
+</button>
+
+<div class="wrapper">
+    <!-- Dekorasi Blur Estetik -->
+    <div class="blur-circle blur-1"></div>
+    <div class="blur-circle blur-2"></div>
+    
+    <div id="mainContent" class="hidden">
+        <!-- HERO CONTAINER BOX -->
+        <div class="hero-container">
+            <div class="hero-frame" data-aos="zoom-out" data-aos-duration="1500">
+                <img id="viewFoto" class="hero-img" src="" alt="Main Image">
+                <div class="hero-overlay"></div>
+            </div>
+        </div>
+        
+        <!-- MAIN CONTENT CONTENT -->
+        <div class="content">
+            <div id="viewJenis" class="acara-type" data-aos="fade-up">-</div>
+            <h1 id="titleHeader" data-aos="fade-up" data-aos-delay="100">THE WEDDING</h1>
+            
+            <!-- SECTION PERNIKAHAN -->
+            <div id="viewPernikahanSection" class="hidden">
+                <div class="section-box" data-aos="fade-up">
+                    <div id="viewPria" class="names">-</div>
+                    <div id="viewPriaOrtu" class="parents">-</div>
+                    <div class="ampersand">and</div>
+                    <div id="viewWanita" class="names">-</div>
+                    <div id="viewWanitaOrtu" class="parents">-</div>
+                </div>
+
+                <div class="section-box" data-aos="fade-up">
+                    <h3 class="section-title">Date & Time</h3>
+                    <div class="time-row">
+                        <div class="time-card">
+                            <h4><i class="fa-solid fa-heart"></i> Holy Matrimony</h4>
+                            <p id="viewTglAkad">-</p>
+                        </div>
+                        <div class="time-card">
+                            <h4><i class="fa-solid fa-wand-magic-sparkles"></i> The Reception</h4>
+                            <p id="viewTglResepsi">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION KHITANAN -->
+            <div id="viewKhitananSection" class="hidden">
+                <div class="section-box" data-aos="fade-up">
+                    <p style="font-size: 13px; margin-bottom: 20px; font-weight: 300;">We invite you to join us in celebrating the khitanan of our son:</p>
+                    <div id="viewAnak" class="names">-</div>
+                    <div id="viewAnakOrtu" class="parents">-</div>
+                </div>
+
+                <div class="section-box" data-aos="fade-up">
+                    <h3 class="section-title">Date & Time</h3>
+                    <div class="time-row">
+                        <div class="time-card">
+                            <h4><i class="fa-solid fa-calendar"></i> Celebration Day</h4>
+                            <p id="viewTglKhitanan">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION LOKASI -->
+            <div class="section-box" data-aos="fade-up">
+                <h3 class="section-title">The Venue</h3>
+                <p id="viewLokasi" style="color: var(--text-white); font-size: 14px; margin-bottom: 10px; font-weight: 500;">-</p>
+                <div class="map-container">
+                    <iframe id="viewMap" src="https://maps.google.com/maps?q=Indonesia&t=&z=13&ie=UTF8&iwloc=&output=embed" allowfullscreen="" loading="lazy"></iframe>
+                </div>
+            </div>
+
+            <!-- SECTION GALERI ASIMETRIS -->
+            <div id="gallerySection" class="section-box hidden" data-aos="fade-up" style="padding-bottom: 50px;">
+                <h3 class="section-title">Moments</h3>
+                <div class="gallery-grid" id="galleryGrid"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPTS LOAD -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAREhPCc4WaFVecQN2_Lu4eoK0oXohZ7Fg",
+        authDomain: "ulangansains2025.firebaseapp.com",
+        databaseURL: "https://ulangansains2025-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "ulangansains2025",
+        storageBucket: "ulangansains2025.firebasestorage.app",
+        messagingSenderId: "514614164498",
+        appId: "1:514614164498:web:324090f888d301e831accb",
+        measurementId: "G-Y7027DY382"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    function getQueryParam(param) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(param);
+    }
+
+    function bukaUndangan() {
+        const cover = document.getElementById('coverScreen');
+        const music = document.getElementById('bgMusic');
+        const btn = document.getElementById('musicBtn');
+        const icon = document.getElementById('musicIcon');
+
+        cover.classList.add('slide-up');
+        btn.classList.remove('hidden');
+
+        music.volume = 0.4;
+        music.play().then(() => {
+            icon.className = "fa-solid fa-pause";
+            btn.classList.add('rotate-music');
+        }).catch(err => console.log("Audio play deferred"));
+
+        setTimeout(() => cover.style.display = 'none', 1200);
+    }
+
+    function inisialisasiTombolMusik() {
+        const music = document.getElementById('bgMusic');
+        const btn = document.getElementById('musicBtn');
+        const icon = document.getElementById('musicIcon');
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); 
+            if (music.paused) {
+                music.play();
+                icon.className = "fa-solid fa-pause";
+                btn.classList.add('rotate-music');
+            } else {
+                music.pause();
+                icon.className = "fa-solid fa-play";
+                btn.classList.remove('rotate-music');
+            }
+        });
+    }
+
+    async function loadUndangan() {
+        const idUndangan = getQueryParam('id');
+        const loadingDiv = document.getElementById('loading');
+        const coverScreen = document.getElementById('coverScreen');
+        const mainContent = document.getElementById('mainContent');
+
+        if (!idUndangan) {
+            loadingDiv.innerHTML = "<div style='color:#ffffff; font-size:12px;'>INVALID ID</div>";
+            return;
+        }
+
+        try {
+            const docRef = db.collection('undangan').doc(idUndangan);
+            const docSnap = await docRef.get();
+
+            if (!docSnap.exists) {
+                loadingDiv.innerHTML = "<div style='color:#ffffff; font-size:12px;'>NOT FOUND</div>";
+                return;
+            }
+
+            const data = docSnap.data();
+
+            document.getElementById('viewFoto').src = data.fotoUrl;
+            document.getElementById('viewLokasi').innerText = data.lokasi;
+            document.getElementById('viewJenis').innerText = data.jenisAcara;
+
+            if (data.lokasi) {
+                const encodedAddress = encodeURIComponent(data.lokasi);
+                document.getElementById('viewMap').src = `https://maps.google.com/maps?q=${encodedAddress}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+            }
+
+            if (data.jenisAcara === 'pernikahan') {
+                document.getElementById('titleHeader').innerText = "THE WEDDING";
+                document.getElementById('coverTitleEvent').innerText = "THE WEDDING OF";
+                document.getElementById('viewPernikahanSection').classList.remove('hidden');
+                
+                document.getElementById('coverNames').innerText = `${data.priaLengkap} & ${data.wanitaLengkap}`;
+                document.getElementById('viewPria').innerText = data.priaLengkap;
+                document.getElementById('viewPriaOrtu').innerText = "Son of " + data.priaOrtu;
+                document.getElementById('viewWanita').innerText = data.wanitaLengkap;
+                document.getElementById('viewWanitaOrtu').innerText = "Daughter of " + data.wanitaOrtu;
+                
+                document.getElementById('viewTglAkad').innerText = new Date(data.tglAkad).toLocaleString('id-ID', {dateStyle: 'full', timeStyle: 'short'}) + " WIB";
+                document.getElementById('viewTglResepsi').innerText = new Date(data.tglResepsi).toLocaleString('id-ID', {dateStyle: 'full', timeStyle: 'short'}) + " WIB";
+            } else {
+                document.getElementById('titleHeader').innerText = "KHITANAN";
+                document.getElementById('coverTitleEvent').innerText = "THE KHITANAN OF";
+                document.getElementById('viewKhitananSection').classList.remove('hidden');
+                
+                document.getElementById('coverNames').innerText = data.anakLengkap;
+                document.getElementById('viewAnak').innerText = data.anakLengkap;
+                document.getElementById('viewAnakOrtu').innerText = "Son of " + data.anakOrtu;
+                
+                document.getElementById('viewTglKhitanan').innerText = new Date(data.tglKhitanan).toLocaleString('id-ID', {dateStyle: 'full', timeStyle: 'short'}) + " WIB";
+            }
+
+            if (data.galeri && data.galeri.length > 0) {
+                const galleryGrid = document.getElementById('galleryGrid');
+                galleryGrid.innerHTML = ""; 
+                
+                data.galeri.forEach((url, index) => {
+                    const imgTag = document.createElement('img');
+                    imgTag.src = url;
+                    imgTag.className = 'gallery-item';
+                    imgTag.alt = `Gallery ${index + 1}`;
+                    imgTag.setAttribute('data-aos', 'fade-up');
+                    imgTag.setAttribute('data-aos-delay', `${index * 50}`);
+                    galleryGrid.appendChild(imgTag);
+                });
+                
+                document.getElementById('gallerySection').classList.remove('hidden');
+            }
+
+            loadingDiv.classList.add('hidden');
+            coverScreen.classList.remove('hidden');
+            mainContent.classList.remove('hidden');
+            
+            AOS.init({
+                duration: 1000,
+                once: true
+            });
+
+            inisialisasiTombolMusik();
+
+        } catch (error) {
+            loadingDiv.innerHTML = "<div>Error: " + error.message + "</div>";
+        }
+    }
+
+    window.onload = loadUndangan;
+</script>
+</body>
+</html>

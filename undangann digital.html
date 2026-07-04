@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Pembuat Undangan</title>
+    <style>
+        body { font-family: sans-serif; background: #f3f4f6; padding: 20px; color: #333; }
+        .form-container { max-width: 600px; background: white; padding: 30px; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        .sub-section { background: #f9f9f9; padding: 15px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #007bff; }
+        .sub-section h3 { margin-top: 0; margin-bottom: 10px; font-size: 16px; color: #007bff; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        
+        .btn-check { background: #6c757d; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+        .btn-check:hover { background: #5a6268; }
+        
+        button[type="submit"] { background: #007bff; color: white; padding: 12px; border: none; width: 100%; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button[type="submit"]:hover { background: #0056b3; }
+        
+        #status, #checkStatus { margin-top: 15px; font-weight: bold; text-align: center; }
+        #checkStatus { font-size: 14px; text-align: left; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>Buat Undangan Baru</h2>
+    <hr style="margin-bottom: 20px; border: 0; border-top: 1px solid #eee;">
+    
+    <div id="slugCheckSection" class="sub-section" style="border-left-color: #ffc107;">
+        <h3 style="color: #d39e00;">Langkah 1: Tentukan ID Unik Undangan Link</h3>
+        <div class="form-group">
+            <label>ID Unik Undangan (Misal: roni-sinta)</label>
+            <input type="text" id="slug" placeholder="Gunakan huruf kecil dan tanda strip saja" required>
+            <button type="button" class="btn-check" id="btnCheckSlug" onclick="cekKetersediaanId()">Cek Ketersediaan ID</button>
+            <div id="checkStatus"></div>
+        </div>
+    </div>
+
+    <form id="invitationForm" class="hidden">
+        <div class="sub-section" style="border-left-color: #28a745;">
+            <h3 style="color: #28a745;">Langkah 2: Isi Detail Acara</h3>
+            <div class="form-group">
+                <label>Jenis Acara</label>
+                <select id="jenisAcara" onchange="aturTampilanForm()">
+                    <option value="pernikahan">Pernikahan</option>
+                    <option value="khitanan">Khitanan</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="formPernikahan">
+            <div class="sub-section">
+                <h3>Mempelai Pria</h3>
+                <div class="form-group">
+                    <label>Nama Lengkap Pria</label>
+                    <input type="text" id="priaLengkap" placeholder="Contoh: Romeo Montague, S.Kom">
+                </div>
+                <div class="form-group">
+                    <label>Nama Orang Tua Pria</label>
+                    <input type="text" id="priaOrtu" placeholder="Contoh: Bpk. Montague & Ibu Montague">
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3>Mempelai Wanita</h3>
+                <div class="form-group">
+                    <label>Nama Lengkap Wanita</label>
+                    <input type="text" id="wanitaLengkap" placeholder="Contoh: Juliet Capulet, S.E">
+                </div>
+                <div class="form-group">
+                    <label>Nama Orang Tua Wanita</label>
+                    <input type="text" id="wanitaOrtu" placeholder="Contoh: Bpk. Capulet & Ibu Capulet">
+                </div>
+            </div>
+
+            <div class="sub-section">
+                <h3>Waktu Acara Pernikahan</h3>
+                <div class="form-group">
+                    <label>Tanggal & Jam Akad Nikah</label>
+                    <input type="datetime-local" id="tglAkad">
+                </div>
+                <div class="form-group">
+                    <label>Tanggal & Jam Resepsi</label>
+                    <input type="datetime-local" id="tglResepsi">
+                </div>
+            </div>
+        </div>
+
+        <div id="formKhitanan" class="hidden">
+            <div class="sub-section" style="border-left-color: #28a745;">
+                <h3 style="color: #28a745;">Detail Anak Khitan</h3>
+                <div class="form-group">
+                    <label>Nama Lengkap Anak</label>
+                    <input type="text" id="anakLengkap" placeholder="Contoh: Muhammad Fahri">
+                </div>
+                <div class="form-group">
+                    <label>Nama Orang Tua</label>
+                    <input type="text" id="anakOrtu" placeholder="Contoh: Bpk. Ahmad & Ibu Siti">
+                </div>
+                <div class="form-group">
+                    <label>Tanggal & Jam Acara Khitanan</label>
+                    <input type="datetime-local" id="tglKhitanan">
+                </div>
+            </div>
+        </div>
+
+        <div class="sub-section" style="border-left-color: #6c757d;">
+            <h3>Lokasi & Galeri Foto</h3>
+            <div class="form-group">
+                <label>Alamat Lengkap / Nama Gedung (Akan otomatis terbaca oleh Google Maps)</label>
+                <textarea id="lokasi" rows="3" placeholder="Contoh: Gedung Serbaguna, Jl. Mawar No. 123" required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Upload Foto Utama</label>
+                <input type="file" id="fotoFile" accept="image/*">
+            </div>
+            <div class="form-group">
+                <label>Upload Galeri Foto Tambahan (Bisa pilih beberapa foto sekaligus)</label>
+                <input type="file" id="galeriFiles" accept="image/*" multiple>
+            </div>
+        </div>
+
+        <button type="submit" id="submitBtn">Simpan & Buat Undangan</button>
+    </form>
+    
+    <div id="status"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAREhPCc4WaFVecQN2_Lu4eoK0oXohZ7Fg",
+        authDomain: "ulangansains2025.firebaseapp.com",
+        databaseURL: "https://ulangansains2025-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "ulangansains2025",
+        storageBucket: "ulangansains2025.firebasestorage.app",
+        messagingSenderId: "514614164498",
+        appId: "1:514614164498:web:324090f888d301e831accb",
+        measurementId: "G-Y7027DY382"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/yxumwyco/image/upload";
+    const CLOUDINARY_UPLOAD_PRESET = "undangan";
+
+    async function cekKetersediaanId() {
+        const slugInput = document.getElementById('slug');
+        const checkStatus = document.getElementById('checkStatus');
+        const btnCheck = document.getElementById('btnCheckSlug');
+        const mainForm = document.getElementById('invitationForm');
+        
+        const slug = slugInput.value.trim().toLowerCase();
+
+        if (slug === "") {
+            checkStatus.style.color = "red";
+            checkStatus.innerText = "Silakan masukkan ID unik terlebih dahulu.";
+            return;
+        }
+
+        btnCheck.disabled = true;
+        checkStatus.style.color = "orange";
+        checkStatus.innerText = "Memeriksa ID di database...";
+
+        try {
+            const docRef = db.collection('undangan').doc(slug);
+            const docSnap = await docRef.get();
+
+            if (docSnap.exists) {
+                checkStatus.style.color = "red";
+                checkStatus.innerText = `❌ ID "${slug}" sudah digunakan. Silakan cari ID lain!`;
+                mainForm.classList.add('hidden');
+                slugInput.disabled = false;
+            } else {
+                checkStatus.style.color = "green";
+                checkStatus.innerText = `✅ ID "${slug}" tersedia! Silakan isi detail di bawah.`;
+                slugInput.disabled = true;
+                btnCheck.classList.add('hidden');
+                mainForm.classList.remove('hidden');
+            }
+        } catch (error) {
+            checkStatus.style.color = "red";
+            checkStatus.innerText = "Gagal mengecek ID: " + error.message;
+        } finally {
+            btnCheck.disabled = false;
+        }
+    }
+
+    function aturTampilanForm() {
+        const jenis = document.getElementById('jenisAcara').value;
+        if(jenis === 'pernikahan') {
+            document.getElementById('formPernikahan').classList.remove('hidden');
+            document.getElementById('formKhitanan').classList.add('hidden');
+        } else {
+            document.getElementById('formPernikahan').classList.add('hidden');
+            document.getElementById('formKhitanan').classList.remove('hidden');
+        }
+    }
+
+    document.getElementById('invitationForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const statusDiv = document.getElementById('status');
+        
+        btn.disabled = true;
+        statusDiv.style.color = 'green';
+        statusDiv.innerText = "Sedang memproses...";
+
+        const slug = document.getElementById('slug').value.trim().toLowerCase();
+        const jenisAcara = document.getElementById('jenisAcara').value;
+        const lokasi = document.getElementById('lokasi').value;
+        const fileInput = document.getElementById('fotoFile');
+        const galeriInput = document.getElementById('galeriFiles');
+
+        let fotoUrl = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1000"; 
+        let galeriUrls = []; 
+        let payload = { jenisAcara, lokasi };
+
+        if (jenisAcara === 'pernikahan') {
+            payload.priaLengkap = document.getElementById('priaLengkap').value;
+            payload.priaOrtu = document.getElementById('priaOrtu').value;
+            payload.wanitaLengkap = document.getElementById('wanitaLengkap').value;
+            payload.wanitaOrtu = document.getElementById('wanitaOrtu').value;
+            payload.tglAkad = document.getElementById('tglAkad').value;
+            payload.tglResepsi = document.getElementById('tglResepsi').value;
+        } else {
+            payload.anakLengkap = document.getElementById('anakLengkap').value;
+            payload.anakOrtu = document.getElementById('anakOrtu').value;
+            payload.tglKhitanan = document.getElementById('tglKhitanan').value;
+        }
+
+        try {
+            // 1. Upload Foto Utama
+            if (fileInput.files.length > 0) {
+                statusDiv.innerText = "Mengunggah foto utama...";
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+                const response = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
+                const data = await response.json();
+                if(data.secure_url) fotoUrl = data.secure_url;
+            }
+            payload.fotoUrl = fotoUrl;
+
+            // 2. Upload Banyak Foto Galeri Sekaligus
+            if (galeriInput.files.length > 0) {
+                const totalFiles = galeriInput.files.length;
+                
+                for (let i = 0; i < totalFiles; i++) {
+                    statusDiv.innerText = `Mengunggah foto galeri ke-${i + 1} dari ${totalFiles}...`;
+                    
+                    const file = galeriInput.files[i];
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+                    const response = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
+                    const data = await response.json();
+                    
+                    if (data.secure_url) {
+                        galeriUrls.push(data.secure_url);
+                    }
+                }
+            }
+            payload.galeri = galeriUrls; // Dikirim ke Firestore dalam bentuk Array
+
+            // 3. Simpan Objek Data ke Firestore
+            statusDiv.innerText = "Menyimpan seluruh data ke database...";
+            await db.collection('undangan').doc(slug).set(payload);
+
+            statusDiv.innerHTML = `Sukses! Undangan siap di: <br><a href="undangan.html?id=${slug}" target="_blank">Lihat Undangan</a>`;
+            
+            // Reset Form State Kembali Semula
+            document.getElementById('invitationForm').reset();
+            document.getElementById('invitationForm').classList.add('hidden');
+            
+            const slugInput = document.getElementById('slug');
+            slugInput.disabled = false;
+            slugInput.value = "";
+            
+            document.getElementById('btnCheckSlug').classList.remove('hidden');
+            document.getElementById('checkStatus').innerText = "";
+            aturTampilanForm();
+
+        } catch (error) {
+            statusDiv.style.color = 'red';
+            statusDiv.innerText = "Error: " + error.message;
+        } finally {
+            btn.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>
