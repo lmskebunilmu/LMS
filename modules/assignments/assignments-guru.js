@@ -166,7 +166,6 @@ async function loadMaterialsData() {
   renderAssignmentPanel(filteredMaterials);
 }
 
-// Ambil status rincian dari exerciseGuru pusat agar ter-load di state lokal
 let assignedExercisesDetail = [];
 
 async function loadAssignments() {
@@ -188,12 +187,14 @@ async function loadAssignments() {
     const data = d.data();
     assignedExercisesDetail.push({ docId: d.id, ...data });
     if(data.isAssigned) {
-      assignedExercises.push(data.exerciseId); // Hanya ditandai aktif jika isAssigned true
+      assignedExercises.push(data.exerciseId);
     }
   });
 }
 
-// Update fungsi RENDER PANEL agar memuat Form Input Waktu Durasi
+// ==========================
+// RENDER PANEL LOGIC
+// ==========================
 function renderAssignmentPanel(data){
   const container = document.getElementById("assignmentGuruList");
   container.innerHTML = "";
@@ -222,10 +223,10 @@ function renderAssignmentPanel(data){
 
       <div class="subbab-list">
         ${grouped[bab].map(m => {
-          // 1. Ambil latihan yang sesuai dengan ID Materi
+          // 1. Filter latihan berdasarkan ID materi
           let materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
           
-          // 2. URUTKAN LATIHAN (Berdasarkan Judul/Title secara Alfabetis A-Z)
+          // 2. URUTKAN LATIHAN (Berdasarkan Judul Alfabetis A-Z)
           materialExercises.sort((a, b) => {
             const titleA = (a.title || "").toLowerCase();
             const titleB = (b.title || "").toLowerCase();
@@ -241,28 +242,11 @@ function renderAssignmentPanel(data){
                 📄 Sub-Bab: ${m.subChapter || m.title}
               </label>
 
-              <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 10px; border-radius: 4px;">
-                ${materialExercises.map(ex => {
-  const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
-  const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
-  
-  // Ambil data tanggal & waktu lama jika sudah pernah disimpan
-  const savedDeadlineDate = dbAssign ? dbAssign.deadlineDate || "" : "";
-  const savedDeadlineTime = dbAssign ? dbAssign.deadlineTime || "" : "";
-
- return `
-            <div class="subbab-item">
-              <label style="font-weight: bold;">
-                <input type="checkbox" class="subbab-check" value="${m.id}" ${isMaterialChecked} disabled>
-                📄 Sub-Bab: ${m.subChapter || m.title}
-              </label>
-
               <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 10px; border-radius: 4px; max-height: 250px; overflow-y: auto; border: 1px solid #e0e0e0;">
                 ${materialExercises.map(ex => {
                   const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
                   const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
                   
-                  // Ambil data tanggal & waktu lama jika sudah pernah disimpan
                   const savedDeadlineDate = dbAssign ? dbAssign.deadlineDate || "" : "";
                   const savedDeadlineTime = dbAssign ? dbAssign.deadlineTime || "" : "";
 
@@ -356,7 +340,7 @@ window.filterBySubject = () => {
 };
 
 // ==========================
-// PROSES UTAMA SIMPAN AKSES TUGAS (DI FILE ASSIGNMENTS-GURU.JS)
+// SAVE LOGIC
 // ==========================
 window.saveAssignmentStructure = async (bab) => {
   const classId = document.getElementById("classSelect").value;
@@ -370,18 +354,16 @@ window.saveAssignmentStructure = async (bab) => {
       const exerciseId = el.value;
       const isChecked = el.checked;
       
-      // Ambil nilai input tanggal dan jam menit
       const dateInput = document.querySelector(`.exercise-date[data-id="${exerciseId}"]`);
       const timeInput = document.querySelector(`.exercise-time[data-id="${exerciseId}"]`);
       
-      const deadlineDate = dateInput ? dateInput.value : ""; // format: YYYY-MM-DD
-      const deadlineTime = timeInput ? timeInput.value : ""; // format: HH:MM
+      const deadlineDate = dateInput ? dateInput.value : "";
+      const deadlineTime = timeInput ? timeInput.value : "";
 
       const matchDb = assignedExercisesDetail.find(e => e.exerciseId === exerciseId);
       if(matchDb) {
         const docRef = doc(db, "exerciseGuru", matchDb.docId);
         
-        // Simpan status aktif, tanggal batas, dan jam menit batas
         await updateDoc(docRef, {
           isAssigned: isChecked,
           deadlineDate: deadlineDate,
@@ -437,7 +419,6 @@ async function loadProfileHeader(user){
     if(schoolSnap.exists()){
       const schoolData = schoolSnap.data();
       
-      // Validasi status sekolah jika diperlukan
       if(schoolData.status !== "aktif"){
         showToast("Sekolah kamu nonaktif!", "error");
         return;
@@ -448,9 +429,8 @@ async function loadProfileHeader(user){
     }
   }
 
-  // Menyuntikkan ke HTML
   document.getElementById("headerNameHeader").innerText = name;
   document.getElementById("headerAvatarHeader").src = avatar;
-  document.getElementById("headerSchoolName").innerText = schoolName; // Amankan baris ini
-  document.getElementById("headerSchoolLogo").src = schoolLogo;       // Amankan baris ini
+  document.getElementById("headerSchoolName").innerText = schoolName; 
+  document.getElementById("headerSchoolLogo").src = schoolLogo;       
 }
