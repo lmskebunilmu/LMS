@@ -222,7 +222,16 @@ function renderAssignmentPanel(data){
 
       <div class="subbab-list">
         ${grouped[bab].map(m => {
-          const materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
+          // 1. Ambil latihan yang sesuai dengan ID Materi
+          let materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
+          
+          // 2. URUTKAN LATIHAN (Berdasarkan Judul/Title secara Alfabetis A-Z)
+          materialExercises.sort((a, b) => {
+            const titleA = (a.title || "").toLowerCase();
+            const titleB = (b.title || "").toLowerCase();
+            return titleA.localeCompare(titleB);
+          });
+
           const isMaterialChecked = assignedMaterials.includes(m.id) ? "checked" : "";
 
           return `
