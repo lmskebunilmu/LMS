@@ -250,40 +250,55 @@ function renderAssignmentPanel(data){
   const savedDeadlineDate = dbAssign ? dbAssign.deadlineDate || "" : "";
   const savedDeadlineTime = dbAssign ? dbAssign.deadlineTime || "" : "";
 
-  return `
-    <div class="exercise-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0; background: #fff; padding: 10px; border-radius:4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 10px;">
-      <label class="exercise-item" style="margin: 0; cursor:pointer; font-weight: 500;">
-        <input
-          type="checkbox"
-          class="exercise-check"
-          data-material="${m.id}"
-          value="${ex.id}"
-          ${isChecked} 
-        >
-        📝 Latihan: ${ex.title}
-      </label>
-      
-      <!-- INPUT TANGGAL & JAM MENIT DEADLINE -->
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
-        <span style="font-size:12px; color:gray;">Batas Pengumpulan:</span>
-        <input 
-          type="date" 
-          class="exercise-date" 
-          data-id="${ex.id}" 
-          value="${savedDeadlineDate}" 
-          style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
-        >
-        <input 
-          type="time" 
-          class="exercise-time" 
-          data-id="${ex.id}" 
-          value="${savedDeadlineTime}" 
-          style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
-        >
-      </div>
-    </div>
-  `;
-}).join("")}
+ return `
+            <div class="subbab-item">
+              <label style="font-weight: bold;">
+                <input type="checkbox" class="subbab-check" value="${m.id}" ${isMaterialChecked} disabled>
+                📄 Sub-Bab: ${m.subChapter || m.title}
+              </label>
+
+              <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 10px; border-radius: 4px; max-height: 250px; overflow-y: auto; border: 1px solid #e0e0e0;">
+                ${materialExercises.map(ex => {
+                  const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
+                  const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
+                  
+                  // Ambil data tanggal & waktu lama jika sudah pernah disimpan
+                  const savedDeadlineDate = dbAssign ? dbAssign.deadlineDate || "" : "";
+                  const savedDeadlineTime = dbAssign ? dbAssign.deadlineTime || "" : "";
+
+                  return `
+                    <div class="exercise-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0; background: #fff; padding: 10px; border-radius:4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 10px;">
+                      <label class="exercise-item" style="margin: 0; cursor:pointer; font-weight: 500;">
+                        <input
+                          type="checkbox"
+                          class="exercise-check"
+                          data-material="${m.id}"
+                          value="${ex.id}"
+                          ${isChecked} 
+                        >
+                        📝 Latihan: ${ex.title}
+                      </label>
+                      
+                      <div style="display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
+                        <span style="font-size:12px; color:gray;">Batas Pengumpulan:</span>
+                        <input 
+                          type="date" 
+                          class="exercise-date" 
+                          data-id="${ex.id}" 
+                          value="${savedDeadlineDate}" 
+                          style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
+                        >
+                        <input 
+                          type="time" 
+                          class="exercise-time" 
+                          data-id="${ex.id}" 
+                          value="${savedDeadlineTime}" 
+                          style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
+                        >
+                      </div>
+                    </div>
+                  `;
+                }).join("")}
                 ${materialExercises.length === 0 ? '<p style="font-size:12px; color:gray; margin:0;">Tidak ada latihan di sub-bab ini</p>' : ''}
               </div>
             </div>
