@@ -124,16 +124,32 @@
     .btn-doubt { background: #eab308; color: white; }
     .btn-finish { background: #16a34a; color: white; }
 
-    /* DRAWER / MODAL DAFTAR SOAL */
-    .nav-drawer-overlay {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
-      display: none; justify-content: flex-end; z-index: 1000; backdrop-filter: blur(2px);
-    }
+   /* DRAWER / MODAL DAFTAR SOAL */
+.nav-drawer-overlay {
+  position: fixed; 
+  inset: 0; 
+  background: rgba(15, 23, 42, 0.5);
+  display: none; 
+  justify-content: center; /* <<< Diubah dari flex-end ke center */
+  align-items: center;     /* <<< Ditambahkan agar berada di tengah secara vertikal */
+  z-index: 1000; 
+  backdrop-filter: blur(2px);
+  padding: 16px;           /* Ditambahkan padding agar tidak menempel di batas layar mobile */
+}
 
-    .nav-drawer {
-      background: white; width: 340px; height: 100%; padding: 20px;
-      box-shadow: -4px 0 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; justify-content: space-between;
-    }
+   .nav-drawer {
+  background: white; 
+  width: 100%;             /* Mengikuti lebar layar */
+  max-width: 420px;        /* Batas lebar maksimum modal di tengah */
+  height: auto;            /* <<< Diubah dari 100% agar tinggi mengikuti konten */
+  max-height: 85vh;        /* Mencegah modal melebihi tinggi layar */
+  padding: 24px;
+  border-radius: 20px;     /* Memberikan sudut membulat */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  display: flex; 
+  flex-direction: column; 
+  justify-content: space-between;
+}
 
     .grid-numbers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 15px; max-height: 60vh; overflow-y: auto; }
 
