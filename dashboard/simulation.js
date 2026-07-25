@@ -9,6 +9,7 @@ const simId = new URLSearchParams(window.location.search).get("id");
 let simData = null;
 let questions = [];
 let userAnswers = {}; // { 0: answer, 1: answer }
+let doubtStatus = {}; // { 0: true, 1: false } -> menyimpan status ragu-ragu
 let currentIndex = 0;
 let timerInterval = null;
 let timeRemaining = 0; 
@@ -54,7 +55,6 @@ async function loadSimulationData() {
       questions = shuffleArray([...questions]);
     }
 
-    // Set Info Modal & Header
     const titleText = simData.title || "Simulasi Ujian";
     const metaText = `⏱ Durasi: ${simData.durationMinutes || 60} Menit | 📝 Total: ${questions.length} Soal | KKM: ${simData.passingGrade || 75}%`;
 
@@ -79,22 +79,17 @@ async function loadSimulationData() {
    FULLSCREEN & START LOGIC
 ========================= */
 window.startExamWithFullscreen = function () {
-  // Request Fullscreen
   const docEl = document.documentElement;
   if (docEl.requestFullscreen) {
-    docEl.requestFullscreen().catch(err => console.log("Fullscreen diblokir browser/user"));
+    docEl.requestFullscreen().catch(err => console.log("Fullscreen diblokir"));
   } else if (docEl.webkitRequestFullscreen) {
     docEl.webkitRequestFullscreen();
-  } else if (docEl.msRequestFullscreen) {
-    docEl.msRequestFullscreen();
   }
 
-  // Sembunyikan Modal Start & Hilangkan Effect Blur
   document.getElementById("startModal").style.display = "none";
   document.getElementById("cbtHeader").classList.remove("blur-content");
   document.getElementById("cbtMainContainer").classList.remove("blur-content");
 
-  // Mulai Timer
   startTimer();
 };
 
@@ -193,7 +188,44 @@ function loadQuestion(index) {
     area.innerHTML = tableHtml;
   }
 
-  // 4. Tipe Isian
+  // 4. Tipe Menjodohkan (Matching)
+  else if (q.type === "matching" && q.leftItems && q.rightItems) {
+    const currentMatchingAns = userAnswers[index] || {};
+    let tableHtml = `
+      <div class="cbt-table-wrapper">
+        <table class="cbt-table">
+          <thead>
+            <tr>
+              <th style="width: 50%;">Pernyataan / Item</th>
+              <th style="width: 50%;">Pasangan Jawaban</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    q.leftItems.forEach((leftItem, lIdx) => {
+      tableHtml += `
+        <tr>
+          <td><b>${lIdx + 1}.</b> ${leftItem}</td>
+          <td>
+            <select style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;" onchange="saveMatchingAnswer(${lIdx}, this.value)">
+              <option value="">-- Pilih Pasangan --</option>
+              ${q.rightItems.map((rOpt, rIdx) => `
+                <option value="${rIdx}" ${currentMatchingAns[lIdx] == rIdx ? "selected" : ""}>
+                  ${String.fromCharCode(65 + rIdx)}. ${rOpt}
+                </option>
+              `).join('')}
+            </select>
+          </td>
+        </tr>
+      `;
+    });
+
+    tableHtml += `</tbody></table></div>`;
+    area.innerHTML = tableHtml;
+  }
+
+  // 5. Tipe Isian
   else if (q.type === "isian") {
     const val = userAnswers[index] || "";
     area.innerHTML = `
@@ -222,7 +254,7 @@ window.saveAnswer = function (val) {
 window.saveCheckboxAnswer = function () {
   const checkedEls = document.querySelectorAll('#answerOptionsArea input[type="checkbox"]:checked');
   const values = Array.from(checkedEls).map(el => parseInt(el.value));
-  userAnswers[currentIndex] = values;
+  userAnswers[currentIndex] = values.length > 0 ? values : undefined;
   updateGridNav();
 };
 
@@ -230,6 +262,29 @@ window.saveMatrixAnswer = function (rowIdx, colIdx) {
   if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
   userAnswers[currentIndex][rowIdx] = colIdx;
   updateGridNav();
+};
+
+window.saveMatchingAnswer = function (leftIdx, rightIdxVal) {
+  if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
+  if (rightIdxVal === "") {
+    delete userAnswers[currentIndex][leftIdx];
+  } else {
+    userAnswers[currentIndex][leftIdx] = parseInt(rightIdxVal);
+  }
+  updateGridNav();
+};
+
+/* =========================
+   TOGGLE RAGU-RAGU & DRAWER
+========================= */
+window.toggleDoubt = function () {
+  doubtStatus[currentIndex] = !doubtStatus[currentIndex];
+  updateGridNav();
+};
+
+window.toggleNavDrawer = function () {
+  const drawer = document.getElementById("navDrawerOverlay");
+  drawer.style.display = (drawer.style.display === "flex") ? "none" : "flex";
 };
 
 /* =========================
@@ -241,10 +296,13 @@ function renderGridNav() {
 
   questions.forEach((_, idx) => {
     const box = document.createElement("div");
-    box.className = `num-box ${idx === currentIndex ? "active" : ""}`;
+    box.className = `num-box`;
     box.id = `grid-num-${idx}`;
     box.innerText = idx + 1;
-    box.onclick = () => loadQuestion(idx);
+    box.onclick = () => {
+      loadQuestion(idx);
+      toggleNavDrawer(); // Tutup drawer setelah memilih nomor
+    };
     container.appendChild(box);
   });
 }
@@ -255,11 +313,29 @@ function updateGridNav() {
     if (!box) return;
 
     box.className = "num-box";
+    
+    const hasAnswered = userAnswers[idx] !== undefined && userAnswers[idx] !== "" && Object.keys(userAnswers[idx]).length > 0;
+    const isDoubt = doubtStatus[idx];
+
     if (idx === currentIndex) box.classList.add("active");
-    if (userAnswers[idx] !== undefined && userAnswers[idx] !== "" && Object.keys(userAnswers[idx]).length > 0) {
+
+    // Aturan Warna: Ragu = Kuning, Terjawab = Biru, Belum = Putih (Default)
+    if (isDoubt) {
+      box.classList.add("doubt");
+    } else if (hasAnswered) {
       box.classList.add("answered");
     }
   });
+
+  // Ganti style tombol ragu-ragu di bawah jika aktif
+  const btnDoubt = document.getElementById("btnDoubt");
+  if (doubtStatus[currentIndex]) {
+    btnDoubt.style.opacity = "0.7";
+    btnDoubt.innerText = "✓ Ragu-Ragu";
+  } else {
+    btnDoubt.style.opacity = "1";
+    btnDoubt.innerText = "🟧 Ragu-Ragu";
+  }
 }
 
 function updateNavButtons() {
@@ -274,7 +350,7 @@ window.prevQuestion = () => { if (currentIndex > 0) loadQuestion(currentIndex - 
    FINISH & PENILAIAN
 ========================= */
 window.confirmFinish = function () {
-  const totalAnswered = Object.keys(userAnswers).length;
+  const totalAnswered = Object.keys(userAnswers).filter(k => userAnswers[k] !== undefined && Object.keys(userAnswers[k]).length > 0).length;
   if (confirm(`Anda telah menjawab ${totalAnswered} dari ${questions.length} soal. Yakin ingin menyelesaikan simulasi?`)) {
     finishSimulation();
   }
@@ -283,14 +359,12 @@ window.confirmFinish = function () {
 async function finishSimulation() {
   clearInterval(timerInterval);
 
-  // Keluar dari Mode Fullscreen jika aktif
   if (document.exitFullscreen) {
     document.exitFullscreen().catch(() => {});
   }
 
   let totalCorrect = 0;
 
-  // Penghitungan Skor Otomatis
   questions.forEach((q, idx) => {
     const uAns = userAnswers[idx];
 
@@ -304,6 +378,13 @@ async function finishSimulation() {
         if (uAns[rIdx] !== r.answer) isAllRowCorrect = false;
       });
       if (isAllRowCorrect) totalCorrect++;
+    } else if (q.type === "matching" && typeof uAns === "object" && q.leftItems) {
+      // Penilaian Soal Menjodohkan
+      let isAllMatchCorrect = true;
+      q.leftItems.forEach((_, lIdx) => {
+        if (q.answers && uAns[lIdx] !== q.answers[lIdx]) isAllMatchCorrect = false;
+      });
+      if (isAllMatchCorrect) totalCorrect++;
     } else if (q.type === "isian" && typeof uAns === "string") {
       if (uAns.trim().toLowerCase() === String(q.answer || "").trim().toLowerCase()) totalCorrect++;
     }
@@ -312,7 +393,6 @@ async function finishSimulation() {
   const finalScore = Math.round((totalCorrect / questions.length) * 100);
   const isPassed = finalScore >= (simData.passingGrade || 75);
 
-  // Simpan Hasil ke Firestore
   try {
     await addDoc(collection(db, "simulation_results"), {
       simulationId: simId,
@@ -327,12 +407,12 @@ async function finishSimulation() {
     console.error("Gagal menyimpan hasil:", err);
   }
 
-  // Tampilkan Modal Hasil
   document.getElementById("finalScore").innerText = finalScore;
   const statusEl = document.getElementById("passingStatus");
   statusEl.innerText = isPassed ? "LULUS (Memenuhi KKM)" : "BELUM LULUS";
   statusEl.style.color = isPassed ? "#16a34a" : "#ef4444";
 
+  document.getElementById("navDrawerOverlay").style.display = "none";
   document.getElementById("resultModal").style.display = "flex";
 }
 
