@@ -282,8 +282,18 @@ window.toggleDoubt = function () {
   updateGridNav();
 };
 
+/* =========================
+   TOGGLE RAGU-RAGU & DRAWER
+========================= */
+window.toggleDoubt = function () {
+  doubtStatus[currentIndex] = !doubtStatus[currentIndex];
+  updateGridNav();
+};
+
+// 🛑 UBAH BAGIAN INI: Tambahkan 'window.' di depan toggleNavDrawer
 window.toggleNavDrawer = function () {
   const drawer = document.getElementById("navDrawerOverlay");
+  if (!drawer) return;
   drawer.style.display = (drawer.style.display === "flex") ? "none" : "flex";
 };
 
