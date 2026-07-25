@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulasi Ujian CBT</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
+
+  <!-- MathJax untuk Render Formula Matematika -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      background: #f8fafc; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      color: #0f172a; 
+      user-select: none; /* Mencegah seleksi teks saat ujian */
+    }
+
+    /* LAYOUT UTAMA */
+    .cbt-container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 20px;
+      transition: filter 0.3s ease;
+    }
+
+    /* KONDISI DI-BLUR SEBELUM MULAI */
+    .blur-content {
+      filter: blur(8px);
+      pointer-events: none;
+    }
+
+    /* HEADER TIMER & JUDUL */
+    .cbt-header {
+      background: white;
+      padding: 16px 24px;
+      border-radius: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+      grid-column: 1 / -1;
+    }
+
+    .timer-badge {
+      background: #fef2f2;
+      color: #ef4444;
+      border: 1px solid #fca5a5;
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    /* KARTU SOAL (KIRI) */
+    .cbt-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 480px;
+    }
+
+    .q-number { font-size: 14px; font-weight: 700; color: #2563eb; margin-bottom: 12px; }
+    .q-text { font-size: 16px; font-weight: 600; line-height: 1.6; margin-bottom: 20px; word-break: break-word; }
+
+    /* PILIHAN JAWABAN */
+    .options-wrapper { display: flex; flex-direction: column; gap: 10px; }
+
+    .opt-label {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; border: 1px solid #cbd5e1; border-radius: 10px;
+      cursor: pointer; transition: all 0.2s; font-size: 14px; background: #ffffff;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .opt-label:hover { border-color: #3b82f6; background: #eff6ff; }
+    .opt-label input[type="radio"], .opt-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
+
+    /* TABEL MATRIX RESPONSIF */
+    .cbt-table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+    }
+
+    .cbt-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+    .cbt-table th, .cbt-table td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; font-size: 14px; }
+    .cbt-table th { background: #f1f5f9; text-align: center; font-weight: 700; }
+
+    /* TOMBOL NAVIGASI SOAL */
+    .cbt-footer { display: flex; justify-content: space-between; margin-top: 30px; gap: 10px; }
+    .btn-nav { padding: 12px 20px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer; transition: background 0.2s; }
+    .btn-prev { background: #e2e8f0; color: #475569; }
+    .btn-next { background: #2563eb; color: white; }
+    .btn-finish { background: #16a34a; color: white; }
+
+    /* PANEL NAVIGASI NOMOR (KANAN) */
+    .nav-card {
+      background: white; border-radius: 16px; padding: 20px;
+      border: 1px solid #e2e8f0; height: fit-content;
+    }
+
+    .grid-numbers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 15px; }
+
+    .num-box {
+      aspect-ratio: 1; border-radius: 8px; border: 1px solid #cbd5e1;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; cursor: pointer; background: white;
+    }
+
+    .num-box.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; border-width: 2px; }
+    .num-box.answered { background: #2563eb; color: white; border-color: #2563eb; }
+
+    /* MODAL OVERLAYS (START & RESULT) */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85);
+      display: flex; align-items: center; justify-content: center; z-index: 999; padding: 16px;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-card { 
+      background: white; padding: 32px; border-radius: 20px; 
+      max-width: 480px; width: 100%; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-start {
+      background: #2563eb; color: white; border: none; padding: 14px 24px;
+      border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;
+      width: 100%; margin-top: 20px; transition: background 0.2s;
+    }
+    .btn-start:hover { background: #1d4ed8; }
+
+    /* ==========================================
+       OPTIMASI MOBILE RESPONSIF (HP)
+       ========================================== */
+    @media (max-width: 768px) {
+      .cbt-container { grid-template-columns: 1fr; margin: 10px auto; padding: 0 10px; gap: 12px; }
+      .cbt-header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px; }
+      .timer-badge { align-self: flex-end; font-size: 15px; padding: 6px 12px; }
+      .cbt-card { padding: 16px; min-height: auto; border-radius: 14px; }
+      .q-text { font-size: 15px; }
+      .opt-label { padding: 12px; font-size: 13.5px; }
+      .grid-numbers { grid-template-columns: repeat(6, 1fr); gap: 6px; }
+      .num-box { font-size: 13px; }
+      .cbt-footer { margin-top: 20px; }
+      .btn-nav { flex: 1; text-align: center; padding: 12px 8px; font-size: 13px; }
+      .modal-card { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MODAL KONFIRMASI MULAI (FULLSCREEN REQUIREMENT) -->
+  <div class="modal-overlay" id="startModal">
+    <div class="modal-card">
+      <h1 style="font-size: 40px; margin: 0 0 10px;">🎯</h1>
+      <h2 id="startSimTitle" style="margin: 0 0 8px; font-size: 20px; color: #0f172a;">Simulasi Ujian</h2>
+      <p id="startSimMeta" style="color: #64748b; font-size: 14px; margin: 0 0 20px;">Memuat informasi ujian...</p>
+      
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 14px; border-radius: 12px; text-align: left; font-size: 13px; color: #334155; margin-bottom: 20px;">
+        📌 <b>Petunjuk Pengerjaan:</b><br>
+        • Waktu akan berjalan otomatis begitu ujian dimulai.<br>
+        • Ujian disarankan dilakukan dalam layar penuh (Fullscreen).<br>
+        • Pastikan koneksi internet tetap stabil.
+      </div>
+
+      <button class="btn-start" onclick="startExamWithFullscreen()">🚀 Mulai Kerjakan Sekarang</button>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <div style="max-width: 1200px; margin: 15px auto 0; padding: 0 16px;">
+    <div class="cbt-header blur-content" id="cbtHeader">
+      <div>
+        <h2 id="simTitle" style="margin: 0; font-size: 18px;">Memuat Simulasi...</h2>
+        <span id="simMeta" style="font-size: 12px; color: #64748b;">-</span>
+      </div>
+      <div class="timer-badge" id="timerDisplay">00:00:00</div>
+    </div>
+  </div>
+
+  <!-- CONTAINER UTAMA -->
+  <div class="cbt-container blur-content" id="cbtMainContainer">
+    
+    <!-- KARTU SOAL (KIRI) -->
+    <div class="cbt-card">
+      <div>
+        <div class="q-number" id="questionNumberHeader">Soal No. 1</div>
+        <div class="q-text" id="questionText">Memuat pertanyaan...</div>
+        <div id="answerOptionsArea"></div>
+      </div>
+
+      <div class="cbt-footer">
+        <button class="btn-nav btn-prev" id="btnPrev" onclick="prevQuestion()">◀ Sebelumnya</button>
+        <button class="btn-nav btn-next" id="btnNext" onclick="nextQuestion()">Selanjutnya ▶</button>
+      </div>
+    </div>
+
+    <!-- PANEL NAVIGASI (KANAN) -->
+    <div class="nav-card">
+      <h3 style="margin: 0 0 10px; font-size: 15px;">Daftar Soal</h3>
+      <div style="font-size: 12px; color: #64748b; margin-bottom: 10px;">
+        <span style="color:#2563eb;">■</span> Terjawab &nbsp; <span>□</span> Belum
+      </div>
+      <div class="grid-numbers" id="gridNumbers"></div>
+      
+      <button class="btn-nav btn-finish" style="width: 100%; margin-top: 20px;" onclick="confirmFinish()">
+        🏁 Selesaikan Simulasi
+      </button>
+    </div>
+
+  </div>
+
+  <!-- MODAL HASIL / SKOR -->
+  <div class="modal-overlay" id="resultModal" style="display: none;">
+    <div class="modal-card">
+      <h1 style="font-size: 48px; margin: 0;">🎉</h1>
+      <h2 style="margin: 10px 0 5px;">Simulasi Selesai!</h2>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Hasil nilai akhir ujian Anda:</p>
+      
+      <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+        <div style="font-size: 12px; color: #64748b;">NILAI AKHIR</div>
+        <div id="finalScore" style="font-size: 48px; font-weight: 800; color: #2563eb;">0</div>
+        <div id="passingStatus" style="font-size: 14px; font-weight: 700; margin-top: 5px;">-</div>
+      </div>
+
+      <button class="btn-start" style="margin-top:0;" onclick="backToClass()">Kembali ke Kelas</button>
+    </div>
+  </div>
+
+  <!-- SCRIPT ENGINE -->
+  <script type="module" src="./simulation.js"></script>
+</body>
+</html>
