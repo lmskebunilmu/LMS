@@ -1,5 +1,3 @@
-
-
 import { auth, db } from "../firebase/firebase-config.js";
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -26,10 +24,10 @@ function waitForElement(id) {
     }, 50);
   });
 }
+
 /* =========================
    GET CLASS ID
 ========================= */
-
 const classId = new URLSearchParams(window.location.search).get("id");
 
 /* =========================
@@ -45,32 +43,30 @@ onAuthStateChanged(auth, async (user) => {
   try {
     await loadLayout("student");
 
-// 1. ambil data user dari firestore
-const userSnap = await getDoc(doc(db, "users", user.uid));
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    if (userSnap.exists()) {
+      studentData = userSnap.data();
+    }
 
-if (userSnap.exists()) {
-  studentData = userSnap.data();
-}
+    await Promise.all([
+      waitForElement("headerAvatarHeader"),
+      waitForElement("headerNameHeader"),
+      waitForElement("headerSchoolLogo"),
+      waitForElement("headerSchoolName")
+    ]);
 
-    
-// tunggu header benar-benar ready
-await Promise.all([
-  waitForElement("headerAvatarHeader"),
-  waitForElement("headerNameHeader"),
-  waitForElement("headerSchoolLogo"),
-  waitForElement("headerSchoolName")
-]);
+    loadProfile();
 
-loadProfile(); // 🔥 INI YANG HILANG
-
-await loadClassDetail(classId);
-await loadMaterials(classId);
+    await loadClassDetail(classId);
+    await loadMaterials(classId);
+    await loadSimulations(classId); // 🔥 LOAD SIMULASI
     
   } catch (err) {
     console.error(err);
     alert("Terjadi kesalahan");
   }
 });
+
 function loadProfile() {
   const headerName = document.getElementById("headerNameHeader");
   const headerAvatar = document.getElementById("headerAvatarHeader");
@@ -85,16 +81,14 @@ function loadProfile() {
       "../assets/images/default-avatar.png";
   }
 }
+
 /* =========================
    LOAD CLASS DETAIL
 ========================= */
-
 async function loadClassDetail(classId) {
-
   if (!classId) return alert("Class ID tidak ditemukan");
 
   const classSnap = await getDoc(doc(db, "classes", classId));
-
   if (!classSnap.exists()) return alert("Kelas tidak ditemukan");
 
   const data = classSnap.data();
@@ -104,7 +98,6 @@ async function loadClassDetail(classId) {
     "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=1200";
 
   const badge = document.getElementById("classBadge");
-
   badge.innerText = data.isPaid ? "PREMIUM" : "FREE";
   badge.className = `badge ${data.isPaid ? "badge-premium" : "badge-free"}`;
 
@@ -117,19 +110,65 @@ async function loadClassDetail(classId) {
 }
 
 /* =========================
+   LOAD SIMULATIONS (FITUR BARU)
+========================= */
+async function loadSimulations(classId) {
+  const card = document.getElementById("simulationsCard");
+  const container = document.getElementById("simulationContainer");
+
+  try {
+    const simRelSnap = await getDocs(
+      query(collection(db, "class_simulations"), where("classId", "==", classId))
+    );
+
+    if (simRelSnap.empty) {
+      card.style.display = "none"; // Sembunyikan section jika tidak ada simulasi
+      return;
+    }
+
+    card.style.display = "block";
+    container.innerHTML = "";
+
+    for (const rel of simRelSnap.docs) {
+      const simDoc = await getDoc(doc(db, "simulations", rel.data().simulationId));
+      if (!simDoc.exists()) continue;
+
+      const sim = simDoc.data();
+      const simId = simDoc.id;
+      const totalQuestions = sim.questions ? sim.questions.length : 0;
+
+      const item = document.createElement("div");
+      item.className = "simulation-item";
+      item.innerHTML = `
+        <div class="sim-info">
+          <h3>🎯 ${sim.title || "Simulasi Ujian"}</h3>
+          <div class="sim-meta">
+            <span>⏱ ${sim.durationMinutes || 60} Menit</span>
+            <span>📝 ${totalQuestions} Soal</span>
+            <span>📊 KKM ${sim.passingGrade || 75}%</span>
+          </div>
+        </div>
+        <button class="btn-start-sim" onclick="startSimulation('${simId}')">
+          🚀 Kerjakan
+        </button>
+      `;
+
+      container.appendChild(item);
+    }
+  } catch (err) {
+    console.error("Gagal load simulasi:", err);
+    container.innerHTML = "<p style='color:red;'>Gagal memuat simulasi kelas.</p>";
+  }
+}
+
+/* =========================
    LOAD MATERIAL + EXERCISE
 ========================= */
-
 async function loadMaterials(classId) {
-
   const container = document.getElementById("materialContainer");
   container.innerHTML = "Loading...";
 
   try {
-
-    /* =====================
-       1. GET MATERIALS
-    ===================== */
     const materialSnap = await getDocs(
       query(collection(db, "class_materials"), where("classId", "==", classId))
     );
@@ -140,7 +179,6 @@ async function loadMaterials(classId) {
     }
 
     const materials = [];
-
     for (const rel of materialSnap.docs) {
       const mDoc = await getDoc(doc(db, "materials", rel.data().materialId));
       if (!mDoc.exists()) continue;
@@ -151,40 +189,20 @@ async function loadMaterials(classId) {
       });
     }
 
-    /* =====================
-       2. BUILD EXERCISE MAP (FIX UTAMA)
-    ===================== */
-
     const exerciseSnap = await getDocs(collection(db, "exercises"));
-
     const exerciseMap = {};
 
     exerciseSnap.docs.forEach((docSnap) => {
       const ex = docSnap.data();
-
       const key = String(ex.materialId || "").trim();
       if (!key) return;
 
-      if (!exerciseMap[key]) {
-        exerciseMap[key] = [];
-      }
-
-      exerciseMap[key].push({
-        id: docSnap.id,
-        ...ex
-      });
+      if (!exerciseMap[key]) exerciseMap[key] = [];
+      exerciseMap[key].push({ id: docSnap.id, ...ex });
     });
 
-    console.log("EXERCISE MAP:", exerciseMap);
-
-    /* =====================
-       3. GROUP MATERIAL
-    ===================== */
-
     const grouped = {};
-
     materials.forEach((m) => {
-
       const chapter = m.chapter || "Tanpa Bab";
       const sub = m.subChapter || "Tanpa Sub Bab";
 
@@ -192,12 +210,7 @@ async function loadMaterials(classId) {
       if (!grouped[chapter][sub]) grouped[chapter][sub] = [];
 
       grouped[chapter][sub].push(m);
-
     });
-
-   /* =====================
-       4. RENDER UI
-    ===================== */
 
     container.innerHTML = "";
 
@@ -320,12 +333,18 @@ document.addEventListener("click", (e) => {
     return;
   }
 });
+
+/* =========================
+   GLOBAL ACTIONS
+========================= */
 window.openExercise = function (id) {
-  window.location.href =
-    `/LMS/dashboard/exercise.html?id=${encodeURIComponent(id)}`;
+  window.location.href = `/LMS/dashboard/exercise.html?id=${encodeURIComponent(id)}`;
 };
 
 window.openMaterial = function (id) {
-  window.location.href =
-    `/LMS/dashboard/material.html?id=${encodeURIComponent(id)}`;
+  window.location.href = `/LMS/dashboard/material.html?id=${encodeURIComponent(id)}`;
+};
+
+window.startSimulation = function (id) {
+  window.location.href = `/LMS/dashboard/simulation.html?id=${encodeURIComponent(id)}`;
 };
