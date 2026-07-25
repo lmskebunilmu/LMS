@@ -282,15 +282,6 @@ window.toggleDoubt = function () {
   updateGridNav();
 };
 
-/* =========================
-   TOGGLE RAGU-RAGU & DRAWER
-========================= */
-window.toggleDoubt = function () {
-  doubtStatus[currentIndex] = !doubtStatus[currentIndex];
-  updateGridNav();
-};
-
-// 🛑 UBAH BAGIAN INI: Tambahkan 'window.' di depan toggleNavDrawer
 window.toggleNavDrawer = function () {
   const drawer = document.getElementById("navDrawerOverlay");
   if (!drawer) return;
@@ -311,7 +302,7 @@ function renderGridNav() {
     box.innerText = idx + 1;
     box.onclick = () => {
       loadQuestion(idx);
-      toggleNavDrawer(); // Tutup drawer setelah memilih nomor
+      window.toggleNavDrawer(); // Menutup drawer setelah memilih nomor
     };
     container.appendChild(box);
   });
@@ -329,7 +320,7 @@ function updateGridNav() {
 
     if (idx === currentIndex) box.classList.add("active");
 
-    // Aturan Warna: Ragu = Kuning, Terjawab = Biru, Belum = Putih (Default)
+    // Aturan Warna: Ragu = Kuning, Terjawab = Biru, Belum = Putih
     if (isDoubt) {
       box.classList.add("doubt");
     } else if (hasAnswered) {
@@ -337,14 +328,16 @@ function updateGridNav() {
     }
   });
 
-  // Ganti style tombol ragu-ragu di bawah jika aktif
+  // Ganti style/label tombol ragu-ragu
   const btnDoubt = document.getElementById("btnDoubt");
-  if (doubtStatus[currentIndex]) {
-    btnDoubt.style.opacity = "0.7";
-    btnDoubt.innerText = "✓ Ragu-Ragu";
-  } else {
-    btnDoubt.style.opacity = "1";
-    btnDoubt.innerText = "🟧 Ragu-Ragu";
+  if (btnDoubt) {
+    if (doubtStatus[currentIndex]) {
+      btnDoubt.style.opacity = "0.7";
+      btnDoubt.innerText = "✓ Ragu-Ragu";
+    } else {
+      btnDoubt.style.opacity = "1";
+      btnDoubt.innerText = "🟧 Ragu-Ragu";
+    }
   }
 }
 
@@ -389,7 +382,6 @@ async function finishSimulation() {
       });
       if (isAllRowCorrect) totalCorrect++;
     } else if (q.type === "matching" && typeof uAns === "object" && q.leftItems) {
-      // Penilaian Soal Menjodohkan
       let isAllMatchCorrect = true;
       q.leftItems.forEach((_, lIdx) => {
         if (q.answers && uAns[lIdx] !== q.answers[lIdx]) isAllMatchCorrect = false;
@@ -422,7 +414,9 @@ async function finishSimulation() {
   statusEl.innerText = isPassed ? "LULUS (Memenuhi KKM)" : "BELUM LULUS";
   statusEl.style.color = isPassed ? "#16a34a" : "#ef4444";
 
-  document.getElementById("navDrawerOverlay").style.display = "none";
+  const drawer = document.getElementById("navDrawerOverlay");
+  if (drawer) drawer.style.display = "none";
+  
   document.getElementById("resultModal").style.display = "flex";
 }
 
