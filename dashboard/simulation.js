@@ -9,7 +9,7 @@ const simId = new URLSearchParams(window.location.search).get("id");
 let simData = null;
 let questions = [];
 let userAnswers = {}; // { 0: answer, 1: answer }
-let doubtStatus = {}; // { 0: true, 1: false } -> menyimpan status ragu-ragu
+let doubtStatus = {}; // { 0: true, 1: false }
 let currentIndex = 0;
 let timerInterval = null;
 let timeRemaining = 0; 
@@ -129,8 +129,10 @@ function loadQuestion(index) {
   const area = document.getElementById("answerOptionsArea");
   area.innerHTML = "";
 
-  // 1. Tipe PG (Radio Button)
-  if (q.type === "pg" && q.options) {
+  const qType = (q.type || "pg").toLowerCase();
+
+  // 1. Tipe Pilihan Ganda (PG)
+  if (qType === "pg" && q.options) {
     q.options.forEach((opt, optIdx) => {
       const isChecked = userAnswers[index] === optIdx;
       area.innerHTML += `
@@ -143,7 +145,7 @@ function loadQuestion(index) {
   }
 
   // 2. Tipe Checkbox (Multi Jawaban)
-  else if (q.type === "checkbox" && q.options) {
+  else if (qType === "checkbox" && q.options) {
     const selectedList = userAnswers[index] || [];
     q.options.forEach((opt, optIdx) => {
       const isChecked = selectedList.includes(optIdx);
@@ -157,7 +159,7 @@ function loadQuestion(index) {
   }
 
   // 3. Tipe Matrix (Tabel Pernyataan)
-  else if (q.type === "matrix" && q.columns && q.rows) {
+  else if (qType === "matrix" && q.columns && q.rows) {
     const currentMatrixAns = userAnswers[index] || {};
     let tableHtml = `
       <div class="cbt-table-wrapper">
@@ -188,14 +190,21 @@ function loadQuestion(index) {
     area.innerHTML = tableHtml;
   }
 
-  // 4. Tipe Menjodohkan (Matching) - Ditingkatkan toleransi struktur datanya
-  else if (q.type === "matching") {
-    const leftItems = q.leftItems || q.left || [];
-    const rightItems = q.rightItems || q.right || [];
+  // 4. Tipe Menjodohkan (Mendukung Tipe 'matching' maupun 'match')
+  else if (qType === "matching" || qType === "match") {
+    let leftItems = q.leftItems || [];
+    let rightItems = q.rightItems || [];
+
+    // Konversi jika format menggunakan `pairs` [{left: '..', right: '..'}]
+    if (q.pairs && Array.isArray(q.pairs)) {
+      leftItems = q.pairs.map(p => p.left);
+      rightItems = q.pairs.map(p => p.right);
+    }
+
     const currentMatchingAns = userAnswers[index] || {};
 
     if (leftItems.length === 0 || rightItems.length === 0) {
-      area.innerHTML = `<div style="color:#ef4444; padding:10px;">Data item soal menjodohkan belum lengkap.</div>`;
+      area.innerHTML = `<div style="color:#ef4444; padding:10px;">Item soal menjodohkan belum tersedia.</div>`;
     } else {
       let tableHtml = `
         <div class="cbt-table-wrapper">
@@ -233,7 +242,7 @@ function loadQuestion(index) {
   }
 
   // 5. Tipe Isian
-  else if (q.type === "isian") {
+  else if (qType === "isian") {
     const val = userAnswers[index] || "";
     area.innerHTML = `
       <input type="text" value="${val}" placeholder="Ketikkan jawaban Anda..." 
@@ -251,7 +260,7 @@ function loadQuestion(index) {
 }
 
 /* =========================
-   SAVE JAWABAN LOGIC (Didaftarkan ke window agar bisa diakses HTML)
+   SAVE JAWABAN LOGIC (GLOBAL SCOPE WINDOW)
 ========================= */
 window.saveAnswer = function (val) {
   userAnswers[currentIndex] = val;
@@ -309,7 +318,7 @@ function renderGridNav() {
     box.innerText = idx + 1;
     box.onclick = () => {
       loadQuestion(idx);
-      window.toggleNavDrawer(); // Menutup drawer setelah memilih nomor
+      window.toggleNavDrawer();
     };
     container.appendChild(box);
   });
@@ -327,7 +336,6 @@ function updateGridNav() {
 
     if (idx === currentIndex) box.classList.add("active");
 
-    // Aturan Warna: Ragu = Kuning, Terjawab = Biru, Belum = Putih
     if (isDoubt) {
       box.classList.add("doubt");
     } else if (hasAnswered) {
@@ -335,7 +343,6 @@ function updateGridNav() {
     }
   });
 
-  // Ganti style/label tombol ragu-ragu
   const btnDoubt = document.getElementById("btnDoubt");
   if (btnDoubt) {
     if (doubtStatus[currentIndex]) {
@@ -377,24 +384,31 @@ async function finishSimulation() {
 
   questions.forEach((q, idx) => {
     const uAns = userAnswers[idx];
+    const qType = (q.type || "pg").toLowerCase();
 
-    if (q.type === "pg" && uAns === q.answer) {
+    if (qType === "pg" && uAns === q.answer) {
       totalCorrect++;
-    } else if (q.type === "checkbox" && Array.isArray(uAns) && Array.isArray(q.answer)) {
+    } else if (qType === "checkbox" && Array.isArray(uAns) && Array.isArray(q.answer)) {
       if (JSON.stringify(uAns.sort()) === JSON.stringify(q.answer.sort())) totalCorrect++;
-    } else if (q.type === "matrix" && typeof uAns === "object" && q.rows) {
+    } else if (qType === "matrix" && typeof uAns === "object" && q.rows) {
       let isAllRowCorrect = true;
       q.rows.forEach((r, rIdx) => {
         if (uAns[rIdx] !== r.answer) isAllRowCorrect = false;
       });
       if (isAllRowCorrect) totalCorrect++;
-    } else if (q.type === "matching" && typeof uAns === "object" && q.leftItems) {
+    } else if ((qType === "matching" || qType === "match") && typeof uAns === "object") {
       let isAllMatchCorrect = true;
-      q.leftItems.forEach((_, lIdx) => {
-        if (q.answers && uAns[lIdx] !== q.answers[lIdx]) isAllMatchCorrect = false;
-      });
-      if (isAllMatchCorrect) totalCorrect++;
-    } else if (q.type === "isian" && typeof uAns === "string") {
+      let targetAnswers = q.answers;
+      if (!targetAnswers && q.pairs) {
+        targetAnswers = q.pairs.map((_, pIdx) => pIdx);
+      }
+      if (targetAnswers) {
+        Object.keys(targetAnswers).forEach((lIdx) => {
+          if (uAns[lIdx] !== targetAnswers[lIdx]) isAllMatchCorrect = false;
+        });
+        if (isAllMatchCorrect) totalCorrect++;
+      }
+    } else if (qType === "isian" && typeof uAns === "string") {
       if (uAns.trim().toLowerCase() === String(q.answer || "").trim().toLowerCase()) totalCorrect++;
     }
   });
