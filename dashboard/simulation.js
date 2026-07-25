@@ -135,7 +135,7 @@ function loadQuestion(index) {
       const isChecked = userAnswers[index] === optIdx;
       area.innerHTML += `
         <label class="opt-label">
-          <input type="radio" name="opt_pg" value="${optIdx}" ${isChecked ? "checked" : ""} onchange="saveAnswer(${optIdx})">
+          <input type="radio" name="opt_pg" value="${optIdx}" ${isChecked ? "checked" : ""} onchange="window.saveAnswer(${optIdx})">
           <span><b>${String.fromCharCode(65 + optIdx)}.</b> ${opt}</span>
         </label>
       `;
@@ -149,7 +149,7 @@ function loadQuestion(index) {
       const isChecked = selectedList.includes(optIdx);
       area.innerHTML += `
         <label class="opt-label">
-          <input type="checkbox" value="${optIdx}" ${isChecked ? "checked" : ""} onchange="saveCheckboxAnswer()">
+          <input type="checkbox" value="${optIdx}" ${isChecked ? "checked" : ""} onchange="window.saveCheckboxAnswer()">
           <span><b>${String.fromCharCode(65 + optIdx)}.</b> ${opt}</span>
         </label>
       `;
@@ -177,7 +177,7 @@ function loadQuestion(index) {
           <td>${row.statement}</td>
           ${q.columns.map((_, cIdx) => `
             <td style="text-align:center;">
-              <input type="radio" name="matrix_row_${rIdx}" ${currentMatrixAns[rIdx] === cIdx ? "checked" : ""} onchange="saveMatrixAnswer(${rIdx}, ${cIdx})">
+              <input type="radio" name="matrix_row_${rIdx}" ${currentMatrixAns[rIdx] === cIdx ? "checked" : ""} onchange="window.saveMatrixAnswer(${rIdx}, ${cIdx})">
             </td>
           `).join('')}
         </tr>
@@ -188,41 +188,48 @@ function loadQuestion(index) {
     area.innerHTML = tableHtml;
   }
 
-  // 4. Tipe Menjodohkan (Matching)
-  else if (q.type === "matching" && q.leftItems && q.rightItems) {
+  // 4. Tipe Menjodohkan (Matching) - Ditingkatkan toleransi struktur datanya
+  else if (q.type === "matching") {
+    const leftItems = q.leftItems || q.left || [];
+    const rightItems = q.rightItems || q.right || [];
     const currentMatchingAns = userAnswers[index] || {};
-    let tableHtml = `
-      <div class="cbt-table-wrapper">
-        <table class="cbt-table">
-          <thead>
-            <tr>
-              <th style="width: 50%;">Pernyataan / Item</th>
-              <th style="width: 50%;">Pasangan Jawaban</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
 
-    q.leftItems.forEach((leftItem, lIdx) => {
-      tableHtml += `
-        <tr>
-          <td><b>${lIdx + 1}.</b> ${leftItem}</td>
-          <td>
-            <select style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;" onchange="saveMatchingAnswer(${lIdx}, this.value)">
-              <option value="">-- Pilih Pasangan --</option>
-              ${q.rightItems.map((rOpt, rIdx) => `
-                <option value="${rIdx}" ${currentMatchingAns[lIdx] == rIdx ? "selected" : ""}>
-                  ${String.fromCharCode(65 + rIdx)}. ${rOpt}
-                </option>
-              `).join('')}
-            </select>
-          </td>
-        </tr>
+    if (leftItems.length === 0 || rightItems.length === 0) {
+      area.innerHTML = `<div style="color:#ef4444; padding:10px;">Data item soal menjodohkan belum lengkap.</div>`;
+    } else {
+      let tableHtml = `
+        <div class="cbt-table-wrapper">
+          <table class="cbt-table">
+            <thead>
+              <tr>
+                <th style="width: 50%;">Pernyataan / Item</th>
+                <th style="width: 50%;">Pasangan Jawaban</th>
+              </tr>
+            </thead>
+            <tbody>
       `;
-    });
 
-    tableHtml += `</tbody></table></div>`;
-    area.innerHTML = tableHtml;
+      leftItems.forEach((leftItem, lIdx) => {
+        tableHtml += `
+          <tr>
+            <td><b>${lIdx + 1}.</b> ${leftItem}</td>
+            <td>
+              <select style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;" onchange="window.saveMatchingAnswer(${lIdx}, this.value)">
+                <option value="">-- Pilih Pasangan --</option>
+                ${rightItems.map((rOpt, rIdx) => `
+                  <option value="${rIdx}" ${currentMatchingAns[lIdx] == rIdx ? "selected" : ""}>
+                    ${String.fromCharCode(65 + rIdx)}. ${rOpt}
+                  </option>
+                `).join('')}
+              </select>
+            </td>
+          </tr>
+        `;
+      });
+
+      tableHtml += `</tbody></table></div>`;
+      area.innerHTML = tableHtml;
+    }
   }
 
   // 5. Tipe Isian
@@ -231,7 +238,7 @@ function loadQuestion(index) {
     area.innerHTML = `
       <input type="text" value="${val}" placeholder="Ketikkan jawaban Anda..." 
         style="width:100%; padding:14px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px;"
-        oninput="saveAnswer(this.value)">
+        oninput="window.saveAnswer(this.value)">
     `;
   }
 
@@ -244,7 +251,7 @@ function loadQuestion(index) {
 }
 
 /* =========================
-   SAVE JAWABAN LOGIC
+   SAVE JAWABAN LOGIC (Didaftarkan ke window agar bisa diakses HTML)
 ========================= */
 window.saveAnswer = function (val) {
   userAnswers[currentIndex] = val;
