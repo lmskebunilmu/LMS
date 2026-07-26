@@ -42,13 +42,12 @@ async function loadExercise() {
 
   const ex = exSnap.data();
 
-  // 🔥 FILTER SISWA (INI YANG PENTING)
+  // 🔥 FILTER SISWA
   if (ex.level && ex.level !== studentData.level) {
     container.innerHTML = "❌ Latihan ini tidak untuk level kamu";
     return;
   }
 
-  // ✅ Perbaikan di sini: Kueri bersih dari teks bocor dan terurut secara kronologis
   const qSnap = await getDocs(
     query(
       collection(db, "questions"), 
@@ -57,7 +56,6 @@ async function loadExercise() {
     )
   );
 
-  // 🔥 FIX: ambil id juga
   questions = qSnap.docs.map(d => ({
     id: d.id,
     ...d.data()
@@ -72,17 +70,15 @@ function render(title) {
   let html = `
   <div class="question-card" style="display:flex;justify-content:space-between;align-items:center">
     <h3>📘 ${title}</h3>
-
     <div>
-      <button id="fsBtn" onclick="toggleFullscreen()" class="btn-full">
-   ⛶ Fullscreen
-</button>
+      <button id="fsBtn" onclick="toggleFullscreen()" class="btn-full">⛶ Fullscreen</button>
     </div>
   </div>
 `;
 
   questions.forEach((q, i) => {
 
+    // Render HTML langsung dari q.question
     html += `
       <div class="question-card">
         <div class="question-title">${i + 1}. ${q.question}</div>
@@ -92,9 +88,9 @@ function render(title) {
     if (q.type === "pg") {
       q.options.forEach((opt, idx) => {
         html += `
-          <label class="option">
+          <label class="option" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
             <input type="radio" name="q${i}" value="${idx}">
-            <span>${opt}</span>
+            <div>${opt}</div>
           </label>
         `;
       });
@@ -104,9 +100,9 @@ function render(title) {
     else if (q.type === "checkbox") {
       q.options.forEach((opt, idx) => {
         html += `
-          <label class="option">
+          <label class="option" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
             <input type="checkbox" name="q${i}" value="${idx}">
-            <span>${opt}</span>
+            <div>${opt}</div>
           </label>
         `;
       });
@@ -125,14 +121,17 @@ function render(title) {
 
       html += `<div class="multi-wrapper">`;
 
-      q.fields.forEach((f, idx) => {
+      // Menangani struktur fields atau daftar answers sederhana
+      const fields = q.fields || (q.answers ? q.answers.map((_, idx) => ({ label: `Isian ${idx + 1}`, answer: _ })) : []);
+
+      fields.forEach((f, idx) => {
         html += `
           <div style="margin-bottom:14px">
             <label style="display:block;margin-bottom:6px;font-weight:bold;">
               ${f.label}
             </label>
 
-            <input type="text" id="q${i}_${idx}" class="multi-input">
+            <input type="text" id="q${i}_${idx}" class="multi-input" style="padding:8px;border-radius:6px;border:1px solid #ddd;width:100%">
           </div>
         `;
       });
@@ -177,12 +176,14 @@ function render(title) {
 
     // ================= BUTTON =================
     html += `
-      <button class="btn-check" onclick="check(${i})">Cek Jawaban</button>
-      <button class="btn-explain" onclick="toggle(${i})">📘 Pembahasan</button>
+      <div style="margin-top:15px;">
+        <button class="btn-check" onclick="check(${i})">Cek Jawaban</button>
+        <button class="btn-explain" onclick="toggle(${i})">📘 Pembahasan</button>
+      </div>
 
-      <div class="result" id="res${i}"></div>
+      <div class="result" id="res${i}" style="margin-top:10px;"></div>
 
-      <div id="exp${i}" style="display:none;margin-top:10px">
+      <div id="exp${i}" style="display:none;margin-top:10px;padding:12px;background:#f8fafc;border-left:4px solid #3b82f6;border-radius:6px;">
         ${q.explanation || "Belum ada pembahasan"}
       </div>
     `;
@@ -192,9 +193,10 @@ function render(title) {
 
   container.innerHTML = html;
 
-  if (window.MathJax) {
+  // Re-render MathJax agar format HTML matematika/simbol terproses
+  if (window.MathJax && window.MathJax.typesetPromise) {
     MathJax.typesetClear();
-    MathJax.typesetPromise([container]);
+    MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
   }
 }
 
@@ -221,32 +223,36 @@ window.check = function (i) {
 
   else if (q.type === "isian") {
     const val = document.getElementById("q" + i).value;
-    correct = val.trim().toLowerCase() === String(q.answer).toLowerCase();
+    correct = val.trim().toLowerCase() === String(q.answer).trim().toLowerCase();
   }
 
   else if (q.type === "multi_isian") {
     correct = true;
+    const fields = q.fields || (q.answers ? q.answers.map((ans) => ({ answer: ans })) : []);
 
-    q.fields.forEach((f, idx) => {
-      const val = document.getElementById(`q${i}_${idx}`).value.trim().toLowerCase();
-      const ans = String(f.answer).trim().toLowerCase();
-
-      if (val !== ans) correct = false;
+    fields.forEach((f, idx) => {
+      const inputEl = document.getElementById(`q${i}_${idx}`);
+      if (inputEl) {
+        const val = inputEl.value.trim().toLowerCase();
+        const ans = String(f.answer).trim().toLowerCase();
+        if (val !== ans) correct = false;
+      }
     });
   }
+
   else if (q.type === "match") {
-
     const ans = window.matchAnswers[i] || {};
-
     correct = true;
 
-    q.pairs.forEach((p, idx) => {
-
-      if (String(ans[idx]) !== String(idx)) {
-        correct = false;
-      }
-
-    });
+    if (Object.keys(ans).length !== q.pairs.length) {
+      correct = false;
+    } else {
+      q.pairs.forEach((p, idx) => {
+        if (String(ans[idx]) !== String(idx)) {
+          correct = false;
+        }
+      });
+    }
   }
 
   const res = document.getElementById("res" + i);
@@ -263,25 +269,18 @@ window.toggle = function (i) {
   el.style.display = el.style.display === "block" ? "none" : "block";
 };
 
-
-
 // ================= MATCH LOGIC =================
-
 window.currentLeft = {};
 
 window.selectLeft = function(qIndex, el) {
-
-  // reset selected kiri
   document.querySelectorAll(`#matchWrap${qIndex} .left-item`)
     .forEach(x => x.classList.remove("selected"));
 
   el.classList.add("selected");
-
   window.currentLeft[qIndex] = el;
 };
 
 window.selectRight = function(qIndex, el) {
-
   const leftEl = window.currentLeft[qIndex];
 
   if (!leftEl) {
@@ -292,7 +291,6 @@ window.selectRight = function(qIndex, el) {
   const leftIndex = leftEl.dataset.index;
   const rightIndex = el.dataset.original;
 
-  // simpan jawaban
   if (!window.matchAnswers[qIndex]) {
     window.matchAnswers[qIndex] = {};
   }
@@ -300,37 +298,27 @@ window.selectRight = function(qIndex, el) {
   window.matchAnswers[qIndex][leftIndex] = rightIndex;
 
   leftEl.classList.remove("selected");
-
   leftEl.classList.add("connected");
   el.classList.add("connected");
 
   drawLines(qIndex);
-
   window.currentLeft[qIndex] = null;
 };
 
 // ================= DRAW SVG LINES =================
-
 function drawLines(qIndex) {
-
   const wrap = document.getElementById(`matchWrap${qIndex}`);
   const svg = document.getElementById(`svg${qIndex}`);
 
+  if (!wrap || !svg) return;
+
   svg.innerHTML = "";
-
   const wrapRect = wrap.getBoundingClientRect();
-
   const answers = window.matchAnswers[qIndex] || {};
 
   Object.entries(answers).forEach(([leftIdx, rightIdx]) => {
-
-    const leftEl = wrap.querySelector(
-      `.left-item[data-index="${leftIdx}"]`
-    );
-
-    const rightEl = wrap.querySelector(
-      `.right-item[data-original="${rightIdx}"]`
-    );
+    const leftEl = wrap.querySelector(`.left-item[data-index="${leftIdx}"]`);
+    const rightEl = wrap.querySelector(`.right-item[data-original="${rightIdx}"]`);
 
     if (!leftEl || !rightEl) return;
 
@@ -343,16 +331,12 @@ function drawLines(qIndex) {
     const x2 = rightRect.left - wrapRect.left;
     const y2 = rightRect.top + rightRect.height / 2 - wrapRect.top;
 
-    const line = document.createElementNS(
-      "http://www.w3.org/2000/svg",
-      "line"
-    );
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 
     line.setAttribute("x1", x1);
     line.setAttribute("y1", y1);
     line.setAttribute("x2", x2);
     line.setAttribute("y2", y2);
-
     line.setAttribute("stroke", "#2563eb");
     line.setAttribute("stroke-width", "3");
     line.setAttribute("stroke-linecap", "round");
@@ -362,7 +346,14 @@ function drawLines(qIndex) {
 }
 
 // ================= FULLSCREEN =================
-window.toggleFullscreen = function () { const el = document.documentElement; if (!document.fullscreenElement) { el.requestFullscreen(); } else { document.exitFullscreen(); } };
+window.toggleFullscreen = function () { 
+  const el = document.documentElement; 
+  if (!document.fullscreenElement) { 
+    el.requestFullscreen(); 
+  } else { 
+    document.exitFullscreen(); 
+  } 
+};
 
 document.addEventListener("fullscreenchange", () => {
   const btn = document.getElementById("fsBtn");
