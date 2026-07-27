@@ -13,9 +13,9 @@ let questions = [];
 let studentData = null;
 
 window.matchAnswers = {};
+window.currentLeftIndex = {}; // Menyimpan indeks item kiri yang sedang dipilih per soal
 
 // ================= HELPER HTML DECODER =================
-// Menggunakan DOMParser untuk keamanan dan rendering HTML/math yang aman
 function decodeHTML(html) {
   if (!html) return "";
   const parser = new DOMParser();
@@ -30,63 +30,71 @@ auth.onAuthStateChanged(async (user) => {
     return;
   }
 
-  const userSnap = await getDoc(doc(db, "users", user.uid));
-  studentData = userSnap.data();
-
-  await loadExercise();
+  try {
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    if (userSnap.exists()) {
+      studentData = userSnap.data();
+    }
+    await loadExercise();
+  } catch (err) {
+    console.error("Error loading user data:", err);
+  }
 });
 
 // ================= LOAD EXERCISE =================
 async function loadExercise() {
   if (!id) {
-    container.innerHTML = "ID tidak ditemukan";
+    container.innerHTML = "<p>❌ ID latihan tidak ditemukan di URL.</p>";
     return;
   }
 
-  const exSnap = await getDoc(doc(db, "exercises", id));
-  if (!exSnap.exists()) {
-    container.innerHTML = "Latihan tidak ditemukan";
-    return;
+  try {
+    const exSnap = await getDoc(doc(db, "exercises", id));
+    if (!exSnap.exists()) {
+      container.innerHTML = "<p>❌ Latihan tidak ditemukan.</p>";
+      return;
+    }
+
+    const ex = exSnap.data();
+
+    // FILTER LEVEL SISWA
+    if (ex.level && studentData && ex.level !== studentData.level) {
+      container.innerHTML = "<p>❌ Latihan ini tidak ditujukan untuk level kamu.</p>";
+      return;
+    }
+
+    const qSnap = await getDocs(
+      query(
+        collection(db, "questions"), 
+        where("exerciseId", "==", id),
+        orderBy("createdAt", "asc")
+      )
+    );
+
+    questions = qSnap.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
+
+    render(ex.title);
+  } catch (err) {
+    console.error("Error fetching exercise/questions:", err);
+    container.innerHTML = "<p>❌ Terjadi kesalahan saat memuat data latihan.</p>";
   }
-
-  const ex = exSnap.data();
-
-  // FILTER LEVEL SISWA
-  if (ex.level && studentData && ex.level !== studentData.level) {
-    container.innerHTML = "❌ Latihan ini tidak untuk level kamu";
-    return;
-  }
-
-  const qSnap = await getDocs(
-    query(
-      collection(db, "questions"), 
-      where("exerciseId", "==", id),
-      orderBy("createdAt", "asc")
-    )
-  );
-
-  questions = qSnap.docs.map(d => ({
-    id: d.id,
-    ...d.data()
-  }));
-
-  render(ex.title);
 }
 
 // ================= RENDER =================
 function render(title) {
-
   let html = `
-  <div class="question-card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-    <h3>📘 ${title}</h3>
-    <div>
-      <button id="fsBtn" onclick="toggleFullscreen()" class="btn-full">⛶ Fullscreen</button>
+    <div class="question-card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+      <h3>📘 ${decodeHTML(title || "Latihan Soal")}</h3>
+      <div>
+        <button id="fsBtn" onclick="toggleFullscreen()" class="btn-full">⛶ Fullscreen</button>
+      </div>
     </div>
-  </div>
-`;
+  `;
 
   questions.forEach((q, i) => {
-
     html += `
       <div class="question-card" style="margin-bottom:20px; padding:15px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
         <div class="question-title" style="display:flex;gap:6px;align-items:flex-start;margin-bottom:12px;">
@@ -154,7 +162,7 @@ function render(title) {
           <table class="matrix-table" style="width:100%; border-collapse:collapse; margin-top:10px;">
             <thead>
               <tr style="background:#f3f4f6;">
-                <th style="padding:10px; border:1px solid #d1d5db; text-align:left;">${statementHeader}</th>
+                <th style="padding:10px; border:1px solid #d1d5db; text-align:left;">${decodeHTML(statementHeader)}</th>
                 ${q.columns.map(col => `<th style="padding:10px; border:1px solid #d1d5db; text-align:center; min-width:100px;">${decodeHTML(col)}</th>`).join('')}
               </tr>
             </thead>
@@ -177,8 +185,9 @@ function render(title) {
 
     // ================= MATCH =================
     else if (q.type === "match" && q.pairs) {
-      const shuffled = [...q.pairs]
-        .map((p, idx) => ({ ...p, original: idx }))
+      // Mengacak pasangan kanan dengan mempertahankan indeks aslinya
+      const shuffled = q.pairs
+        .map((p, idx) => ({ ...p, originalIndex: idx }))
         .sort(() => Math.random() - 0.5);
 
       html += `
@@ -189,7 +198,7 @@ function render(title) {
             ${q.pairs.map((p, idx) => `
               <div class="match-item left-item"
                 data-index="${idx}"
-                onclick="selectLeft(${i}, this)"
+                onclick="selectLeft(${i}, ${idx}, this)"
                 style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc; cursor:pointer;">
                 ${decodeHTML(p.left)}
               </div>
@@ -199,8 +208,8 @@ function render(title) {
           <div class="match-column" style="flex:1; display:flex; flex-direction:column; gap:10px; z-index:2;">
             ${shuffled.map((p) => `
               <div class="match-item right-item"
-                data-original="${p.original}"
-                onclick="selectRight(${i}, this)"
+                data-original="${p.originalIndex}"
+                onclick="selectRight(${i}, ${p.originalIndex}, this)"
                 style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc; cursor:pointer;">
                 ${decodeHTML(p.right)}
               </div>
@@ -229,10 +238,10 @@ function render(title) {
 
   container.innerHTML = html;
 
-  // Trigger ulang MathJax
+  // Trigger ulang MathJax jika tersedia
   if (window.MathJax && window.MathJax.typesetPromise) {
     MathJax.typesetClear();
-    MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
+    MathJax.typesetPromise([container]).catch((err) => console.error('MathJax error:', err));
   }
 }
 
@@ -317,38 +326,34 @@ window.toggle = function (i) {
 };
 
 // ================= MATCH LOGIC =================
-window.currentLeft = {};
-
-window.selectLeft = function(qIndex, el) {
+window.selectLeft = function(qIndex, leftIdx, el) {
   document.querySelectorAll(`#matchWrap${qIndex} .left-item`)
     .forEach(x => x.style.borderColor = "#cbd5e1");
 
   el.style.borderColor = "#2563eb";
-  window.currentLeft[qIndex] = el;
+  window.currentLeftIndex[qIndex] = leftIdx;
 };
 
-window.selectRight = function(qIndex, el) {
-  const leftEl = window.currentLeft[qIndex];
+window.selectRight = function(qIndex, rightOriginalIdx, el) {
+  const leftIdx = window.currentLeftIndex[qIndex];
 
-  if (!leftEl) {
+  if (leftIdx === undefined || leftIdx === null) {
     alert("Pilih item di sebelah kiri terlebih dahulu!");
     return;
   }
-
-  const leftIndex = leftEl.dataset.index;
-  const rightIndex = el.dataset.original;
 
   if (!window.matchAnswers[qIndex]) {
     window.matchAnswers[qIndex] = {};
   }
 
-  window.matchAnswers[qIndex][leftIndex] = rightIndex;
+  window.matchAnswers[qIndex][leftIdx] = rightOriginalIdx;
 
-  leftEl.style.borderColor = "#10b981";
+  const leftEl = document.querySelector(`#matchWrap${qIndex} .left-item[data-index="${leftIdx}"]`);
+  if (leftEl) leftEl.style.borderColor = "#10b981";
   el.style.borderColor = "#10b981";
 
   drawLines(qIndex);
-  window.currentLeft[qIndex] = null;
+  window.currentLeftIndex[qIndex] = null;
 };
 
 // ================= DRAW SVG LINES =================
@@ -391,7 +396,7 @@ function drawLines(qIndex) {
   });
 }
 
-// Redraw garis jika window di-resize agar posisi garis tidak geser
+// Redraw garis jika window di-resize
 window.addEventListener("resize", () => {
   questions.forEach((q, idx) => {
     if (q.type === "match") drawLines(idx);
@@ -413,8 +418,7 @@ document.addEventListener("fullscreenchange", () => {
   if (btn) {
     btn.innerText = document.fullscreenElement ? "❌ Exit Fullscreen" : "⛶ Fullscreen";
   }
-  
-  // Redraw garis match saat fullscreen berganti
+
   setTimeout(() => {
     questions.forEach((q, idx) => {
       if (q.type === "match") drawLines(idx);
