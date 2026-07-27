@@ -321,12 +321,12 @@ window.toggleNavDrawer = function() {
   overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
 };
 
-// ================= PENGECEKAN STATUS TERJAWAB (FIX BLUE BUTTON) =================
+// ================= CHECKING TERJAWAB (FIX BLUE BUTTON) =================
 function isQuestionAnswered(idx) {
   const ans = userAnswers[idx];
   if (ans === undefined || ans === null) return false;
   if (typeof ans === "string") return ans.trim() !== "";
-  if (typeof ans === "number") return true; // Menangani angka 0 (opsi pilihan ganda A)
+  if (typeof ans === "number") return true; // Mengatasi indeks 0 (Pilihan A)
   if (Array.isArray(ans)) return ans.length > 0;
   if (typeof ans === "object") return Object.keys(ans).length > 0;
   return false;
@@ -348,7 +348,7 @@ function renderGridNumbers() {
 
     if (idx === currentIndex) btn.classList.add("active");
     
-    // Prioritas warna: Ragu-ragu (Kuning), Terjawab (Biru)
+    // Warna: Ragu (Kuning), Terjawab (Biru)
     if (isDoubt) {
       btn.classList.add("doubt");
     } else if (isAnswered) {
@@ -412,7 +412,7 @@ function calculateAndFinish() {
     const ans = userAnswers[idx];
     let isCorrect = false;
 
-    if (ans !== undefined) {
+    if (ans !== undefined && ans !== null) {
       // 1. PG
       if (q.type === "pg" && ans === q.answer) {
         isCorrect = true;
@@ -473,10 +473,114 @@ function calculateAndFinish() {
   statusEl.innerText = isPassed ? "LULUS (MEMENUHI PASSING GRADE)" : "TIDAK LULUS";
   statusEl.style.color = isPassed ? "#16a34a" : "#dc2626";
 
-  // Build tampilan detail pembahasan
+  // Build detail pembahasan
   renderReviewDetail(resultsDetail);
 
   document.getElementById("resultModal").style.display = "flex";
+}
+
+// ================= FORMATING TERJEMAHAN JAWABAN =================
+function formatUserAnswerText(q, ans) {
+  if (ans === undefined || ans === null || ans === "" || (typeof ans === "object" && Object.keys(ans).length === 0)) {
+    return `<i style="color:#94a3b8;">Tidak Dijawab</i>`;
+  }
+
+  // 1. PG
+  if (q.type === "pg" && q.options) {
+    const optText = q.options[ans] ? decodeHTML(q.options[ans]) : "-";
+    return `<b>${String.fromCharCode(65 + ans)}.</b> ${optText}`;
+  }
+
+  // 2. Checkbox
+  if (q.type === "checkbox" && q.options && Array.isArray(ans)) {
+    return ans.map(idx => `<b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(q.options[idx])}`).join("<br>");
+  }
+
+  // 3. Isian Singkat
+  if (q.type === "isian") {
+    return `<b>${ans}</b>`;
+  }
+
+  // 4. Multi Isian
+  if (q.type === "multi_isian") {
+    let textArr = [];
+    (q.answers || []).forEach((_, idx) => {
+      textArr.push(`Isian [${idx + 1}]: <b>${ans[idx] || "-"}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  // 5. Matrix
+  if (q.type === "matrix" && q.rows && q.columns) {
+    let textArr = [];
+    q.rows.forEach((row, rIdx) => {
+      const colIdx = ans[rIdx];
+      const selectedColName = colIdx !== undefined ? decodeHTML(q.columns[colIdx]) : "-";
+      textArr.push(`${decodeHTML(row.statement)} ➔ <b>${selectedColName}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  // 6. Match / Menjodohkan
+  if (q.type === "match" && q.pairs) {
+    let textArr = [];
+    q.pairs.forEach((pair, pIdx) => {
+      const rightIdx = ans[pIdx];
+      const selectedRightText = rightIdx !== undefined ? decodeHTML(q.pairs[rightIdx].right) : "-";
+      textArr.push(`${decodeHTML(pair.left)} ➔ <b>${selectedRightText}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  return JSON.stringify(ans);
+}
+
+function formatCorrectAnswerText(q) {
+  // 1. PG
+  if (q.type === "pg" && q.options) {
+    const optText = q.options[q.answer] ? decodeHTML(q.options[q.answer]) : "-";
+    return `<b>${String.fromCharCode(65 + q.answer)}.</b> ${optText}`;
+  }
+
+  // 2. Checkbox
+  if (q.type === "checkbox" && q.options && Array.isArray(q.answer)) {
+    return q.answer.map(idx => `<b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(q.options[idx])}`).join("<br>");
+  }
+
+  // 3. Isian Singkat
+  if (q.type === "isian") {
+    return `<b>${q.answer}</b>`;
+  }
+
+  // 4. Multi Isian
+  if (q.type === "multi_isian") {
+    let textArr = [];
+    (q.answers || []).forEach((exp, idx) => {
+      textArr.push(`Isian [${idx + 1}]: <b>${exp}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  // 5. Matrix
+  if (q.type === "matrix" && q.rows && q.columns) {
+    let textArr = [];
+    q.rows.forEach((row) => {
+      const colName = decodeHTML(q.columns[row.answer]);
+      textArr.push(`${decodeHTML(row.statement)} ➔ <b>${colName}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  // 6. Match / Menjodohkan
+  if (q.type === "match" && q.pairs) {
+    let textArr = [];
+    q.pairs.forEach((pair) => {
+      textArr.push(`${decodeHTML(pair.left)} ➔ <b>${decodeHTML(pair.right)}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  return "-";
 }
 
 // ================= RENDER REVIEW DETAIL =================
@@ -486,26 +590,56 @@ function renderReviewDetail(resultsDetail) {
 
   resultsDetail.forEach((item, idx) => {
     const q = item.question;
-    const statusClass = item.isCorrect ? "status-correct" : "status-wrong";
-    const statusText = item.isCorrect ? "✓ BENAR" : "✕ SALAH / BELUM DIISI";
+    const isCorrect = item.isCorrect;
+    const statusClass = isCorrect ? "status-correct" : "status-wrong";
+    const statusText = isCorrect ? "✓ BENAR" : "✕ SALAH / BELUM DIISI";
+
+    const userAnsText = formatUserAnswerText(q, item.userAnswer);
+    const correctAnsText = formatCorrectAnswerText(q);
+    const discussionText = q.explanation || q.discussion || q.pembahasan || "Tidak ada pembahasan khusus untuk soal ini.";
 
     html += `
-      <div class="review-item">
-        <span class="review-status ${statusClass}">${statusText}</span>
-        <div><b>Soal No. ${idx + 1}:</b> ${decodeHTML(q.question)}</div>
+      <div class="review-item" style="border-left: 5px solid ${isCorrect ? '#16a34a' : '#dc2626'};">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-weight:800; color:#1e293b;">Soal No. ${idx + 1}</span>
+          <span class="review-status ${statusClass}">${statusText}</span>
+        </div>
+
+        <!-- Teks Soal -->
+        <div style="margin-bottom: 12px; font-size:15px; color:#0f172a;">
+          ${decodeHTML(q.question)}
+        </div>
+
+        <!-- Info Jawaban -->
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 13px; margin-bottom: 10px;">
+          <div style="margin-bottom: 6px;">
+            <span style="color:#64748b; font-size:12px; display:block;">Jawaban Anda:</span>
+            <div style="color: ${isCorrect ? '#166534' : '#991b1b'}; font-size: 14px;">
+              ${userAnsText}
+            </div>
+          </div>
+          
+          <div style="border-top: 1px dashed #e2e8f0; padding-top: 6px; margin-top: 6px;">
+            <span style="color:#64748b; font-size:12px; display:block;">Kunci Jawaban Benar:</span>
+            <div style="color: #166534; font-size: 14px;">
+              ${correctAnsText}
+            </div>
+          </div>
+        </div>
+
+        <!-- Teks Pembahasan -->
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; font-size: 13px; color: #1e40af;">
+          💡 <b>Pembahasan:</b><br>
+          <div style="margin-top: 4px; color: #1e3a8a;">
+            ${decodeHTML(discussionText)}
+          </div>
+        </div>
+      </div>
     `;
-
-    // Penjelasan sederhana Jawaban Benar
-    if (q.type === "pg" && q.options) {
-      html += `<div style="margin-top:6px; font-size:13px; color:#475569;">Jawaban Benar: <b>${String.fromCharCode(65 + q.answer)}. ${decodeHTML(q.options[q.answer])}</b></div>`;
-    } else if (q.type === "isian") {
-      html += `<div style="margin-top:6px; font-size:13px; color:#475569;">Kunci Jawaban: <b>${q.answer}</b></div>`;
-    }
-
-    html += `</div>`;
   });
 
   container.innerHTML = html;
+  
   if (window.MathJax && window.MathJax.typesetPromise) {
     MathJax.typesetPromise([container]);
   }
@@ -523,7 +657,7 @@ window.toggleReviewDetail = function() {
   }
 };
 
-// ================= NAVIGASI KEMBALI KE HALAMAN SEBELUMNYA =================
+// ================= NAVIGASI KEMBALI SEBELUMNYA =================
 window.backToClass = function() {
   if (window.history.length > 1) {
     window.history.back();
