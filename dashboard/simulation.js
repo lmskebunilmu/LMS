@@ -12,6 +12,7 @@ const id = new URLSearchParams(location.search).get("id");
 let questions = [];
 let studentData = null;
 let exerciseData = null;
+let isDataLoaded = false; // Flag status load data
 
 let currentIndex = 0;
 let userAnswers = {}; // { 0: "0", 1: ["0", "2"], ... }
@@ -21,11 +22,12 @@ window.matchAnswers = {}; // Khusus tipe match per nomor soal
 let timerInterval = null;
 let timeRemaining = 0; // dalam detik
 
-// ================= HELPER RENDER HTML =================
-// Mengembalikan HTML string aman untuk dirender langsung tanpa merusak tag seperti <p>
-function renderHTML(html) {
+// ================= HELPER DECODER =================
+function decodeHTML(html) {
   if (!html) return "";
-  return String(html);
+  const txt = document.createElement("textarea");
+  txt.innerHTML = html;
+  return txt.value;
 }
 
 // ================= AUTH + LOAD =================
@@ -44,57 +46,79 @@ auth.onAuthStateChanged(async (user) => {
 // ================= LOAD EXERCISE =================
 async function loadExercise() {
   if (!id) {
-    alert("ID Latihan tidak ditemukan!");
+    alert("ID Latihan/Simulasi tidak ditemukan!");
     return;
   }
 
-  const exSnap = await getDoc(doc(db, "exercises", id));
+  // Coba cari di koleksi simulations terlebih dahulu, fallback ke exercises
+  let exSnap = await getDoc(doc(db, "simulations", id));
+  let isSimulationDoc = true;
+
   if (!exSnap.exists()) {
-    alert("Latihan tidak ditemukan!");
+    exSnap = await getDoc(doc(db, "exercises", id));
+    isSimulationDoc = false;
+  }
+
+  if (!exSnap.exists()) {
+    alert("Data simulasi/latihan tidak ditemukan di database!");
     return;
   }
 
   exerciseData = exSnap.data();
 
   // Filter Level Siswa
-  if (exerciseData.level && exerciseData.level !== studentData.level) {
-    alert("❌ Latihan ini tidak untuk level kamu");
+  if (exerciseData.level && studentData && exerciseData.level !== studentData.level) {
+    alert("❌ Simulasi ini tidak ditujukan untuk level kamu.");
     return;
   }
 
-  // Load Pertanyaan
-  const qSnap = await getDocs(
-    query(
-      collection(db, "questions"), 
-      where("exerciseId", "==", id),
-      orderBy("createdAt", "asc")
-    )
-  );
+  // Jika dokumen simulation memiliki array questions langsung di dalamnya
+  if (isSimulationDoc && Array.isArray(exerciseData.questions) && exerciseData.questions.length > 0) {
+    questions = exerciseData.questions;
+  } else {
+    // Jalankan query collection 'questions'
+    const qSnap = await getDocs(
+      query(
+        collection(db, "questions"), 
+        where("exerciseId", "==", id),
+        orderBy("createdAt", "asc")
+      )
+    );
 
-  questions = qSnap.docs.map(d => ({
-    id: d.id,
-    ...d.data()
-  }));
+    questions = qSnap.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
+  }
 
   if (questions.length === 0) {
-    alert("Belum ada soal dalam latihan ini.");
+    alert("Belum ada soal dalam simulasi ini.");
+    document.getElementById("startSimMeta").innerText = "❌ Soal tidak ditemukan";
     return;
   }
 
   // Set Info pada Modal Mulai
   document.getElementById("startSimTitle").innerText = exerciseData.title || "Simulasi Ujian";
-  document.getElementById("startSimMeta").innerText = `Jumlah Soal: ${questions.length} | Durasi: ${exerciseData.duration || 60} Menit`;
+  document.getElementById("startSimMeta").innerText = `Jumlah Soal: ${questions.length} | Durasi: ${exerciseData.durationMinutes || exerciseData.duration || 60} Menit`;
 
   document.getElementById("simTitle").innerText = exerciseData.title || "Simulasi Ujian";
   document.getElementById("simMeta").innerText = `Total ${questions.length} Soal`;
 
-  // Inisialisasi Timer (Default 60 Menit jika tidak ada di database)
-  const durationMinutes = exerciseData.duration || 60;
+  // Inisialisasi Timer
+  const durationMinutes = exerciseData.durationMinutes || exerciseData.duration || 60;
   timeRemaining = durationMinutes * 60;
+
+  // Flag data siap
+  isDataLoaded = true;
 }
 
 // ================= START EXAM =================
 window.startExamWithFullscreen = function () {
+  if (!isDataLoaded || questions.length === 0) {
+    alert("Data soal masih dimuat atau tidak ditemukan. Mohon tunggu sebentar...");
+    return;
+  }
+
   // Buka Fullscreen jika bisa
   const el = document.documentElement;
   if (el.requestFullscreen) {
@@ -148,9 +172,18 @@ function renderQuestion(index) {
   currentIndex = index;
   const q = questions[index];
 
-  // Set Nomor & Teks Soal (Render langsung sebagai HTML)
+  // Safety Guard: jika index melampaui batas atau soal undefined
+  if (!q) {
+    console.error(`Soal index ${index} tidak ditemukan!`);
+    document.getElementById("questionText").innerText = "Gagal memuat detail soal ini.";
+    return;
+  }
+
+  const questionContent = q.question || q.text || q.title || "Pertanyaan tidak memiliki teks";
+
+  // Set Nomor & Teks Soal
   document.getElementById("questionNumberHeader").innerText = `Soal No. ${index + 1} dari ${questions.length}`;
-  document.getElementById("questionText").innerHTML = renderHTML(q.question);
+  document.getElementById("questionText").innerHTML = decodeHTML(questionContent);
 
   const area = document.getElementById("answerOptionsArea");
   area.innerHTML = "";
@@ -163,7 +196,7 @@ function renderQuestion(index) {
       optHtml += `
         <label class="opt-label">
           <input type="radio" name="cbtOpt" value="${idx}" ${isChecked} onchange="saveAnswer(${index}, ${idx})">
-          <div><b>${String.fromCharCode(65 + idx)}.</b> ${renderHTML(opt)}</div>
+          <div>${decodeHTML(opt)}</div>
         </label>
       `;
     });
@@ -180,7 +213,7 @@ function renderQuestion(index) {
       optHtml += `
         <label class="opt-label">
           <input type="checkbox" name="cbtOpt" value="${idx}" ${isChecked} onchange="saveCheckboxAnswer(${index})">
-          <div><b>${String.fromCharCode(65 + idx)}.</b> ${renderHTML(opt)}</div>
+          <div>${decodeHTML(opt)}</div>
         </label>
       `;
     });
@@ -206,10 +239,11 @@ function renderQuestion(index) {
     let html = `<div class="multi-wrapper">`;
     fields.forEach((f, idx) => {
       const val = saved[idx] || "";
+      const labelText = typeof f === 'object' ? f.label : `Isian [${idx + 1}]`;
       html += `
         <div style="margin-bottom:14px">
           <label style="display:block;margin-bottom:6px;font-weight:bold;font-size:14px;">
-            ${renderHTML(f.label)}
+            ${decodeHTML(labelText)}
           </label>
           <input type="text" class="multi-input" value="${val}"
             style="padding:10px;border-radius:8px;border:1px solid #cbd5e1;width:100%;box-sizing:border-box;"
@@ -221,31 +255,32 @@ function renderQuestion(index) {
     area.innerHTML = html;
   }
 
-  // 5. MATRIX (BENAR / SALAH ATAU PILIHAN KOLOM)
+  // 5. MATRIX
   else if (q.type === "matrix" && q.columns && q.rows) {
+    const saved = userAnswers[index] || {};
     const statementHeader = q.statementTitle || "Pernyataan / Argumen";
-    const saved = userAnswers[index] || {}; // { 0: 1, 1: 0 }
 
     let html = `
-      <table style="width:100%; border-collapse:collapse; margin-top:10px;">
-        <thead>
-          <tr style="background:#f3f4f6;">
-            <th style="padding:10px; border:1px solid #d1d5db; text-align:left;">${renderHTML(statementHeader)}</th>
-            ${q.columns.map(col => `<th style="padding:10px; border:1px solid #d1d5db; text-align:center; width:120px;">${renderHTML(col)}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
+      <div class="cbt-table-wrapper">
+        <table class="cbt-table">
+          <thead>
+            <tr>
+              <th>${statementHeader}</th>
+              ${q.columns.map(col => `<th>${decodeHTML(col)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
     `;
 
     q.rows.forEach((row, rIdx) => {
       html += `
         <tr>
-          <td style="padding:10px; border:1px solid #d1d5db;">${renderHTML(row.statement)}</td>
+          <td>${decodeHTML(row.statement)}</td>
           ${q.columns.map((_, cIdx) => {
             const isChecked = saved[rIdx] == cIdx ? "checked" : "";
             return `
-              <td style="padding:10px; border:1px solid #d1d5db; text-align:center;">
-                <input type="radio" name="matrix_row_${index}_${rIdx}" value="${cIdx}" ${isChecked} onchange="saveMatrixAnswer(${index}, ${rIdx}, ${cIdx})">
+              <td style="text-align:center;">
+                <input type="radio" name="matrix_${index}_${rIdx}" value="${cIdx}" ${isChecked} onchange="saveMatrixAnswer(${index}, ${rIdx}, ${cIdx})">
               </td>
             `;
           }).join('')}
@@ -253,7 +288,7 @@ function renderQuestion(index) {
       `;
     });
 
-    html += `</tbody></table>`;
+    html += `</tbody></table></div>`;
     area.innerHTML = html;
   }
 
@@ -264,19 +299,19 @@ function renderQuestion(index) {
       .sort(() => Math.random() - 0.5);
 
     let html = `
-      <div class="match-wrapper" id="matchWrap${index}">
-        <svg class="match-lines" id="svg${index}"></svg>
-        <div class="match-column">
+      <div class="match-wrapper" id="matchWrap${index}" style="position:relative; display:flex; justify-content:space-between; gap:20px;">
+        <svg class="match-lines" id="svg${index}" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></svg>
+        <div class="match-column" style="flex:1;">
           ${q.pairs.map((p, idx) => `
-            <div class="match-item left-item" data-index="${idx}" onclick="selectLeft(${index}, this)">
-              ${renderHTML(p.left)}
+            <div class="match-item left-item" data-index="${idx}" onclick="selectLeft(${index}, this)" style="padding:10px; border:1px solid #cbd5e1; margin-bottom:8px; border-radius:6px; cursor:pointer;">
+              ${decodeHTML(p.left)}
             </div>
           `).join("")}
         </div>
-        <div class="match-column">
+        <div class="match-column" style="flex:1;">
           ${shuffled.map((p) => `
-            <div class="match-item right-item" data-original="${p.original}" onclick="selectRight(${index}, this)">
-              ${renderHTML(p.right)}
+            <div class="match-item right-item" data-original="${p.original}" onclick="selectRight(${index}, this)" style="padding:10px; border:1px solid #cbd5e1; margin-bottom:8px; border-radius:6px; cursor:pointer;">
+              ${decodeHTML(p.right)}
             </div>
           `).join("")}
         </div>
@@ -298,7 +333,7 @@ function renderQuestion(index) {
     btnDoubt.style.background = "#eab308";
   }
 
-  // Trigger MathJax untuk merender rumus matematika jika ada
+  // Trigger MathJax
   if (window.MathJax && window.MathJax.typesetPromise) {
     MathJax.typesetClear();
     MathJax.typesetPromise([document.getElementById("cbtMainContainer")]).catch((err) => console.log(err));
@@ -323,9 +358,9 @@ window.saveMultiIsianAnswer = function(qIdx, fIdx, val) {
   renderGridNumbers();
 };
 
-window.saveMatrixAnswer = function(qIdx, rowIdx, colIdx) {
+window.saveMatrixAnswer = function(qIdx, rIdx, cIdx) {
   if (!userAnswers[qIdx]) userAnswers[qIdx] = {};
-  userAnswers[qIdx][rowIdx] = colIdx;
+  userAnswers[qIdx][rIdx] = cIdx;
   renderGridNumbers();
 };
 
@@ -395,8 +430,8 @@ function hasAnswer(idx) {
 window.currentLeft = {};
 
 window.selectLeft = function(qIndex, el) {
-  document.querySelectorAll(`#matchWrap${qIndex} .left-item`).forEach(x => x.classList.remove("selected"));
-  el.classList.add("selected");
+  document.querySelectorAll(`#matchWrap${qIndex} .left-item`).forEach(x => x.style.borderColor = "#cbd5e1");
+  el.style.borderColor = "#2563eb";
   window.currentLeft[qIndex] = el;
 };
 
@@ -414,9 +449,8 @@ window.selectRight = function(qIndex, el) {
   window.matchAnswers[qIndex][leftIndex] = rightIndex;
   userAnswers[qIndex] = window.matchAnswers[qIndex];
 
-  leftEl.classList.remove("selected");
-  leftEl.classList.add("connected");
-  el.classList.add("connected");
+  leftEl.style.borderColor = "#10b981";
+  el.style.borderColor = "#10b981";
 
   drawLines(qIndex);
   window.currentLeft[qIndex] = null;
@@ -492,27 +526,27 @@ function finishExam() {
       let isAllCorrect = true;
       fields.forEach((f, idx) => {
         const uVal = String((userAns || {})[idx] || "").trim().toLowerCase();
-        const keyVal = String(f.answer).trim().toLowerCase();
+        const keyVal = String(typeof f === 'object' ? f.answer : f).trim().toLowerCase();
         if (uVal !== keyVal) isAllCorrect = false;
       });
       if (isAllCorrect && fields.length > 0) totalCorrect++;
     } 
-    else if (q.type === "matrix" && q.rows) {
+    else if (q.type === "matrix") {
       const answers = userAns || {};
-      let isMatrixAllCorrect = true;
-      if (Object.keys(answers).length !== q.rows.length) {
-        isMatrixAllCorrect = false;
+      let isMatrixCorrect = true;
+      if (!q.rows || Object.keys(answers).length !== q.rows.length) {
+        isMatrixCorrect = false;
       } else {
-        q.rows.forEach((r, rIdx) => {
-          if (String(answers[rIdx]) !== String(r.answer)) isMatrixAllCorrect = false;
+        q.rows.forEach((row, rIdx) => {
+          if (parseInt(answers[rIdx]) !== row.answer) isMatrixCorrect = false;
         });
       }
-      if (isMatrixAllCorrect && q.rows.length > 0) totalCorrect++;
+      if (isMatrixCorrect && q.rows.length > 0) totalCorrect++;
     }
     else if (q.type === "match") {
       const answers = userAns || {};
       let isMatchAll = true;
-      if (Object.keys(answers).length !== q.pairs.length) {
+      if (!q.pairs || Object.keys(answers).length !== q.pairs.length) {
         isMatchAll = false;
       } else {
         q.pairs.forEach((_, idx) => {
@@ -523,17 +557,18 @@ function finishExam() {
     }
   });
 
-  const finalScore = Math.round((totalCorrect / questions.length) * 100);
+  const finalScore = questions.length > 0 ? Math.round((totalCorrect / questions.length) * 100) : 0;
+  const passingGrade = exerciseData.passingGrade || 75;
 
   // Tampilkan Modal Hasil
   document.getElementById("finalScore").innerText = finalScore;
   const statusEl = document.getElementById("passingStatus");
 
-  if (finalScore >= 75) {
-    statusEl.innerText = "LULUS / SANGAT BAIK";
+  if (finalScore >= passingGrade) {
+    statusEl.innerText = `LULUS (Passing Grade: ${passingGrade}%)`;
     statusEl.style.color = "#16a34a";
   } else {
-    statusEl.innerText = "BELUM LULUS";
+    statusEl.innerText = `BELUM LULUS (Passing Grade: ${passingGrade}%)`;
     statusEl.style.color = "#dc2626";
   }
 
