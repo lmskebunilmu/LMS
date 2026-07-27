@@ -16,17 +16,16 @@ let exerciseData = null;
 let currentIndex = 0;
 let userAnswers = {}; // { 0: "0", 1: ["0", "2"], ... }
 let doubtStatus = {};  // { 0: true, 1: false, ... }
-window.matchAnswers = {}; // Kusus tipe match per nomor soal
+window.matchAnswers = {}; // Khusus tipe match per nomor soal
 
 let timerInterval = null;
 let timeRemaining = 0; // dalam detik
 
-// ================= HELPER DECODER =================
-function decodeHTML(html) {
+// ================= HELPER RENDER HTML =================
+// Mengembalikan HTML string aman untuk dirender langsung tanpa merusak tag seperti <p>
+function renderHTML(html) {
   if (!html) return "";
-  const txt = document.createElement("textarea");
-  txt.innerHTML = html;
-  return txt.value;
+  return String(html);
 }
 
 // ================= AUTH + LOAD =================
@@ -149,22 +148,22 @@ function renderQuestion(index) {
   currentIndex = index;
   const q = questions[index];
 
-  // Set Nomor & Teks Soal
+  // Set Nomor & Teks Soal (Render langsung sebagai HTML)
   document.getElementById("questionNumberHeader").innerText = `Soal No. ${index + 1} dari ${questions.length}`;
-  document.getElementById("questionText").innerHTML = decodeHTML(q.question);
+  document.getElementById("questionText").innerHTML = renderHTML(q.question);
 
   const area = document.getElementById("answerOptionsArea");
   area.innerHTML = "";
 
   // 1. PG
-  if (q.type === "pg") {
+  if (q.type === "pg" && q.options) {
     let optHtml = `<div class="options-wrapper">`;
     q.options.forEach((opt, idx) => {
       const isChecked = userAnswers[index] == idx ? "checked" : "";
       optHtml += `
         <label class="opt-label">
           <input type="radio" name="cbtOpt" value="${idx}" ${isChecked} onchange="saveAnswer(${index}, ${idx})">
-          <div>${decodeHTML(opt)}</div>
+          <div><b>${String.fromCharCode(65 + idx)}.</b> ${renderHTML(opt)}</div>
         </label>
       `;
     });
@@ -173,7 +172,7 @@ function renderQuestion(index) {
   }
 
   // 2. CHECKBOX
-  else if (q.type === "checkbox") {
+  else if (q.type === "checkbox" && q.options) {
     let optHtml = `<div class="options-wrapper">`;
     const saved = userAnswers[index] || [];
     q.options.forEach((opt, idx) => {
@@ -181,7 +180,7 @@ function renderQuestion(index) {
       optHtml += `
         <label class="opt-label">
           <input type="checkbox" name="cbtOpt" value="${idx}" ${isChecked} onchange="saveCheckboxAnswer(${index})">
-          <div>${decodeHTML(opt)}</div>
+          <div><b>${String.fromCharCode(65 + idx)}.</b> ${renderHTML(opt)}</div>
         </label>
       `;
     });
@@ -210,7 +209,7 @@ function renderQuestion(index) {
       html += `
         <div style="margin-bottom:14px">
           <label style="display:block;margin-bottom:6px;font-weight:bold;font-size:14px;">
-            ${decodeHTML(f.label)}
+            ${renderHTML(f.label)}
           </label>
           <input type="text" class="multi-input" value="${val}"
             style="padding:10px;border-radius:8px;border:1px solid #cbd5e1;width:100%;box-sizing:border-box;"
@@ -222,8 +221,44 @@ function renderQuestion(index) {
     area.innerHTML = html;
   }
 
-  // 5. MATCH
-  else if (q.type === "match") {
+  // 5. MATRIX (BENAR / SALAH ATAU PILIHAN KOLOM)
+  else if (q.type === "matrix" && q.columns && q.rows) {
+    const statementHeader = q.statementTitle || "Pernyataan / Argumen";
+    const saved = userAnswers[index] || {}; // { 0: 1, 1: 0 }
+
+    let html = `
+      <table style="width:100%; border-collapse:collapse; margin-top:10px;">
+        <thead>
+          <tr style="background:#f3f4f6;">
+            <th style="padding:10px; border:1px solid #d1d5db; text-align:left;">${renderHTML(statementHeader)}</th>
+            ${q.columns.map(col => `<th style="padding:10px; border:1px solid #d1d5db; text-align:center; width:120px;">${renderHTML(col)}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    q.rows.forEach((row, rIdx) => {
+      html += `
+        <tr>
+          <td style="padding:10px; border:1px solid #d1d5db;">${renderHTML(row.statement)}</td>
+          ${q.columns.map((_, cIdx) => {
+            const isChecked = saved[rIdx] == cIdx ? "checked" : "";
+            return `
+              <td style="padding:10px; border:1px solid #d1d5db; text-align:center;">
+                <input type="radio" name="matrix_row_${index}_${rIdx}" value="${cIdx}" ${isChecked} onchange="saveMatrixAnswer(${index}, ${rIdx}, ${cIdx})">
+              </td>
+            `;
+          }).join('')}
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table>`;
+    area.innerHTML = html;
+  }
+
+  // 6. MATCH
+  else if (q.type === "match" && q.pairs) {
     const shuffled = [...q.pairs]
       .map((p, idx) => ({ ...p, original: idx }))
       .sort(() => Math.random() - 0.5);
@@ -234,14 +269,14 @@ function renderQuestion(index) {
         <div class="match-column">
           ${q.pairs.map((p, idx) => `
             <div class="match-item left-item" data-index="${idx}" onclick="selectLeft(${index}, this)">
-              ${decodeHTML(p.left)}
+              ${renderHTML(p.left)}
             </div>
           `).join("")}
         </div>
         <div class="match-column">
           ${shuffled.map((p) => `
             <div class="match-item right-item" data-original="${p.original}" onclick="selectRight(${index}, this)">
-              ${decodeHTML(p.right)}
+              ${renderHTML(p.right)}
             </div>
           `).join("")}
         </div>
@@ -263,7 +298,7 @@ function renderQuestion(index) {
     btnDoubt.style.background = "#eab308";
   }
 
-  // Trigger MathJax
+  // Trigger MathJax untuk merender rumus matematika jika ada
   if (window.MathJax && window.MathJax.typesetPromise) {
     MathJax.typesetClear();
     MathJax.typesetPromise([document.getElementById("cbtMainContainer")]).catch((err) => console.log(err));
@@ -285,6 +320,12 @@ window.saveCheckboxAnswer = function(qIdx) {
 window.saveMultiIsianAnswer = function(qIdx, fIdx, val) {
   if (!userAnswers[qIdx]) userAnswers[qIdx] = {};
   userAnswers[qIdx][fIdx] = val;
+  renderGridNumbers();
+};
+
+window.saveMatrixAnswer = function(qIdx, rowIdx, colIdx) {
+  if (!userAnswers[qIdx]) userAnswers[qIdx] = {};
+  userAnswers[qIdx][rowIdx] = colIdx;
   renderGridNumbers();
 };
 
@@ -456,6 +497,18 @@ function finishExam() {
       });
       if (isAllCorrect && fields.length > 0) totalCorrect++;
     } 
+    else if (q.type === "matrix" && q.rows) {
+      const answers = userAns || {};
+      let isMatrixAllCorrect = true;
+      if (Object.keys(answers).length !== q.rows.length) {
+        isMatrixAllCorrect = false;
+      } else {
+        q.rows.forEach((r, rIdx) => {
+          if (String(answers[rIdx]) !== String(r.answer)) isMatrixAllCorrect = false;
+        });
+      }
+      if (isMatrixAllCorrect && q.rows.length > 0) totalCorrect++;
+    }
     else if (q.type === "match") {
       const answers = userAns || {};
       let isMatchAll = true;
@@ -490,5 +543,5 @@ function finishExam() {
 }
 
 window.backToClass = function () {
-  window.location.href = "./index.html"; // Atau sesuaikan halaman tujuan Anda
+  window.location.href = "./index.html";
 };
