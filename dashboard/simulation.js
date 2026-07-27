@@ -138,16 +138,15 @@ function render(title) {
     // ================= MULTI ISIAN =================
     else if (q.type === "multi_isian") {
       html += `<div class="multi-wrapper">`;
-      const fields = q.fields || (q.answers ? q.answers.map((ans, idx) => ({ label: `Isian [${idx + 1}]`, answer: ans })) : []);
+      const answersList = q.answers || (q.fields ? q.fields.map(f => typeof f === 'object' ? f.answer : f) : []);
 
-      fields.forEach((f, idx) => {
-        const labelText = typeof f === 'object' ? f.label : `Isian [${idx + 1}]`;
+      answersList.forEach((_, idx) => {
         html += `
           <div style="margin-bottom:12px">
             <label style="display:block;margin-bottom:4px;font-weight:bold;font-size:13px;">
-              ${decodeHTML(labelText)}
+              Isian [${idx + 1}]
             </label>
-            <input type="text" id="q${i}_${idx}" class="multi-input" style="padding:8px;border-radius:6px;border:1px solid #ddd;width:100%;box-sizing:border-box;">
+            <input type="text" id="q${i}_${idx}" class="multi-input" placeholder="Ketik jawaban..." style="padding:8px;border-radius:6px;border:1px solid #ddd;width:100%;box-sizing:border-box;">
           </div>
         `;
       });
@@ -185,7 +184,6 @@ function render(title) {
 
     // ================= MATCH =================
     else if (q.type === "match" && q.pairs) {
-      // Mengacak pasangan kanan dengan mempertahankan indeks aslinya
       const shuffled = q.pairs
         .map((p, idx) => ({ ...p, originalIndex: idx }))
         .sort(() => Math.random() - 0.5);
@@ -238,7 +236,6 @@ function render(title) {
 
   container.innerHTML = html;
 
-  // Trigger ulang MathJax jika tersedia
   if (window.MathJax && window.MathJax.typesetPromise) {
     MathJax.typesetClear();
     MathJax.typesetPromise([container]).catch((err) => console.error('MathJax error:', err));
@@ -271,18 +268,22 @@ window.check = function (i) {
 
   else if (q.type === "multi_isian") {
     correct = true;
-    const fields = q.fields || (q.answers ? q.answers.map(ans => ({ answer: ans })) : []);
+    const expectedAnswers = q.answers || (q.fields ? q.fields.map(f => typeof f === 'object' ? f.answer : f) : []);
 
-    fields.forEach((f, idx) => {
-      const inputEl = document.getElementById(`q${i}_${idx}`);
-      if (inputEl) {
-        const val = inputEl.value.trim().toLowerCase();
-        const expectedAns = String(typeof f === 'object' ? f.answer : f).trim().toLowerCase();
-        if (val !== expectedAns) correct = false;
-      } else {
-        correct = false;
-      }
-    });
+    if (expectedAnswers.length === 0) {
+      correct = false;
+    } else {
+      expectedAnswers.forEach((expectedAns, idx) => {
+        const inputEl = document.getElementById(`q${i}_${idx}`);
+        if (inputEl) {
+          const studentVal = inputEl.value.trim().toLowerCase();
+          const targetAns = String(expectedAns).trim().toLowerCase();
+          if (studentVal !== targetAns) correct = false;
+        } else {
+          correct = false;
+        }
+      });
+    }
   }
 
   else if (q.type === "matrix") {
@@ -396,7 +397,6 @@ function drawLines(qIndex) {
   });
 }
 
-// Redraw garis jika window di-resize
 window.addEventListener("resize", () => {
   questions.forEach((q, idx) => {
     if (q.type === "match") drawLines(idx);
