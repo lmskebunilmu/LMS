@@ -6,28 +6,21 @@ import {
   query, where, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// ================= GLOBAL STATE =================
 const id = new URLSearchParams(location.search).get("id");
+const container = document.getElementById("exerciseContainer");
 
 let questions = [];
 let studentData = null;
-let exerciseData = null;
-let isDataLoaded = false; // Flag status load data
 
-let currentIndex = 0;
-let userAnswers = {}; // { 0: "0", 1: ["0", "2"], ... }
-let doubtStatus = {};  // { 0: true, 1: false, ... }
-window.matchAnswers = {}; // Khusus tipe match per nomor soal
+window.matchAnswers = {};
 
-let timerInterval = null;
-let timeRemaining = 0; // dalam detik
-
-// ================= HELPER DECODER =================
+// ================= HELPER HTML DECODER =================
+// Menggunakan DOMParser untuk keamanan dan rendering HTML/math yang aman
 function decodeHTML(html) {
   if (!html) return "";
-  const txt = document.createElement("textarea");
-  txt.innerHTML = html;
-  return txt.value;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  return doc.body.innerHTML;
 }
 
 // ================= AUTH + LOAD =================
@@ -46,420 +39,323 @@ auth.onAuthStateChanged(async (user) => {
 // ================= LOAD EXERCISE =================
 async function loadExercise() {
   if (!id) {
-    alert("ID Latihan/Simulasi tidak ditemukan!");
+    container.innerHTML = "ID tidak ditemukan";
     return;
   }
 
-  // Coba cari di koleksi simulations terlebih dahulu, fallback ke exercises
-  let exSnap = await getDoc(doc(db, "simulations", id));
-  let isSimulationDoc = true;
-
+  const exSnap = await getDoc(doc(db, "exercises", id));
   if (!exSnap.exists()) {
-    exSnap = await getDoc(doc(db, "exercises", id));
-    isSimulationDoc = false;
-  }
-
-  if (!exSnap.exists()) {
-    alert("Data simulasi/latihan tidak ditemukan di database!");
+    container.innerHTML = "Latihan tidak ditemukan";
     return;
   }
 
-  exerciseData = exSnap.data();
+  const ex = exSnap.data();
 
-  // Filter Level Siswa
-  if (exerciseData.level && studentData && exerciseData.level !== studentData.level) {
-    alert("❌ Simulasi ini tidak ditujukan untuk level kamu.");
+  // FILTER LEVEL SISWA
+  if (ex.level && studentData && ex.level !== studentData.level) {
+    container.innerHTML = "❌ Latihan ini tidak untuk level kamu";
     return;
   }
 
-  // Jika dokumen simulation memiliki array questions langsung di dalamnya
-  if (isSimulationDoc && Array.isArray(exerciseData.questions) && exerciseData.questions.length > 0) {
-    questions = exerciseData.questions;
-  } else {
-    // Jalankan query collection 'questions'
-    const qSnap = await getDocs(
-      query(
-        collection(db, "questions"), 
-        where("exerciseId", "==", id),
-        orderBy("createdAt", "asc")
-      )
-    );
+  const qSnap = await getDocs(
+    query(
+      collection(db, "questions"), 
+      where("exerciseId", "==", id),
+      orderBy("createdAt", "asc")
+    )
+  );
 
-    questions = qSnap.docs.map(d => ({
-      id: d.id,
-      ...d.data()
-    }));
-  }
+  questions = qSnap.docs.map(d => ({
+    id: d.id,
+    ...d.data()
+  }));
 
-  if (questions.length === 0) {
-    alert("Belum ada soal dalam simulasi ini.");
-    document.getElementById("startSimMeta").innerText = "❌ Soal tidak ditemukan";
-    return;
-  }
-
-  // Set Info pada Modal Mulai
-  document.getElementById("startSimTitle").innerText = exerciseData.title || "Simulasi Ujian";
-  document.getElementById("startSimMeta").innerText = `Jumlah Soal: ${questions.length} | Durasi: ${exerciseData.durationMinutes || exerciseData.duration || 60} Menit`;
-
-  document.getElementById("simTitle").innerText = exerciseData.title || "Simulasi Ujian";
-  document.getElementById("simMeta").innerText = `Total ${questions.length} Soal`;
-
-  // Inisialisasi Timer
-  const durationMinutes = exerciseData.durationMinutes || exerciseData.duration || 60;
-  timeRemaining = durationMinutes * 60;
-
-  // Flag data siap
-  isDataLoaded = true;
+  render(ex.title);
 }
 
-// ================= START EXAM =================
-window.startExamWithFullscreen = function () {
-  if (!isDataLoaded || questions.length === 0) {
-    alert("Data soal masih dimuat atau tidak ditemukan. Mohon tunggu sebentar...");
-    return;
-  }
+// ================= RENDER =================
+function render(title) {
 
-  // Buka Fullscreen jika bisa
-  const el = document.documentElement;
-  if (el.requestFullscreen) {
-    el.requestFullscreen().catch(() => {});
-  }
+  let html = `
+  <div class="question-card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+    <h3>📘 ${title}</h3>
+    <div>
+      <button id="fsBtn" onclick="toggleFullscreen()" class="btn-full">⛶ Fullscreen</button>
+    </div>
+  </div>
+`;
 
-  // Sembunyikan Modal Start & Hilangkan Blur
-  document.getElementById("startModal").style.display = "none";
-  document.getElementById("cbtHeader").classList.remove("blur-content");
-  document.getElementById("cbtMainContainer").classList.remove("blur-content");
+  questions.forEach((q, i) => {
 
-  // Jalankan Timer
-  startTimer();
-
-  // Render Soal Pertama & Grid
-  renderQuestion(0);
-  renderGridNumbers();
-};
-
-// ================= TIMER LOGIC =================
-function startTimer() {
-  updateTimerDisplay();
-  timerInterval = setInterval(() => {
-    timeRemaining--;
-    updateTimerDisplay();
-
-    if (timeRemaining <= 0) {
-      clearInterval(timerInterval);
-      alert("⏰ Waktu ujian telah habis!");
-      finishExam();
-    }
-  }, 1000);
-}
-
-function updateTimerDisplay() {
-  const hours = Math.floor(timeRemaining / 3600);
-  const minutes = Math.floor((timeRemaining % 3600) / 60);
-  const seconds = timeRemaining % 60;
-
-  const formatted = [
-    hours.toString().padStart(2, '0'),
-    minutes.toString().padStart(2, '0'),
-    seconds.toString().padStart(2, '0')
-  ].join(':');
-
-  document.getElementById("timerDisplay").innerText = formatted;
-}
-
-// ================= RENDER QUESTION =================
-function renderQuestion(index) {
-  currentIndex = index;
-  const q = questions[index];
-
-  // Safety Guard: jika index melampaui batas atau soal undefined
-  if (!q) {
-    console.error(`Soal index ${index} tidak ditemukan!`);
-    document.getElementById("questionText").innerText = "Gagal memuat detail soal ini.";
-    return;
-  }
-
-  const questionContent = q.question || q.text || q.title || "Pertanyaan tidak memiliki teks";
-
-  // Set Nomor & Teks Soal
-  document.getElementById("questionNumberHeader").innerText = `Soal No. ${index + 1} dari ${questions.length}`;
-  document.getElementById("questionText").innerHTML = decodeHTML(questionContent);
-
-  const area = document.getElementById("answerOptionsArea");
-  area.innerHTML = "";
-
-  // 1. PG
-  if (q.type === "pg" && q.options) {
-    let optHtml = `<div class="options-wrapper">`;
-    q.options.forEach((opt, idx) => {
-      const isChecked = userAnswers[index] == idx ? "checked" : "";
-      optHtml += `
-        <label class="opt-label">
-          <input type="radio" name="cbtOpt" value="${idx}" ${isChecked} onchange="saveAnswer(${index}, ${idx})">
-          <div>${decodeHTML(opt)}</div>
-        </label>
-      `;
-    });
-    optHtml += `</div>`;
-    area.innerHTML = optHtml;
-  }
-
-  // 2. CHECKBOX
-  else if (q.type === "checkbox" && q.options) {
-    let optHtml = `<div class="options-wrapper">`;
-    const saved = userAnswers[index] || [];
-    q.options.forEach((opt, idx) => {
-      const isChecked = saved.includes(String(idx)) ? "checked" : "";
-      optHtml += `
-        <label class="opt-label">
-          <input type="checkbox" name="cbtOpt" value="${idx}" ${isChecked} onchange="saveCheckboxAnswer(${index})">
-          <div>${decodeHTML(opt)}</div>
-        </label>
-      `;
-    });
-    optHtml += `</div>`;
-    area.innerHTML = optHtml;
-  }
-
-  // 3. ISIAN
-  else if (q.type === "isian") {
-    const saved = userAnswers[index] || "";
-    area.innerHTML = `
-      <input type="text" value="${saved}" placeholder="Ketik jawaban Anda di sini..."
-        style="padding:12px 16px; border-radius:10px; border:1px solid #cbd5e1; width:100%; font-size:15px;"
-        oninput="saveAnswer(${index}, this.value)">
+    html += `
+      <div class="question-card" style="margin-bottom:20px; padding:15px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
+        <div class="question-title" style="display:flex;gap:6px;align-items:flex-start;margin-bottom:12px;">
+          <span style="font-weight:bold;">${i + 1}.</span>
+          <div class="q-content" style="flex:1;">${decodeHTML(q.question)}</div>
+        </div>
     `;
-  }
 
-  // 4. MULTI ISIAN
-  else if (q.type === "multi_isian") {
-    const fields = q.fields || (q.answers ? q.answers.map((_, idx) => ({ label: `Isian [${idx + 1}]` })) : []);
-    const saved = userAnswers[index] || {};
-
-    let html = `<div class="multi-wrapper">`;
-    fields.forEach((f, idx) => {
-      const val = saved[idx] || "";
-      const labelText = typeof f === 'object' ? f.label : `Isian [${idx + 1}]`;
-      html += `
-        <div style="margin-bottom:14px">
-          <label style="display:block;margin-bottom:6px;font-weight:bold;font-size:14px;">
-            ${decodeHTML(labelText)}
+    // ================= PG =================
+    if (q.type === "pg" && q.options) {
+      q.options.forEach((opt, idx) => {
+        html += `
+          <label class="option" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer;">
+            <input type="radio" name="q${i}" value="${idx}">
+            <div>${decodeHTML(opt)}</div>
           </label>
-          <input type="text" class="multi-input" value="${val}"
-            style="padding:10px;border-radius:8px;border:1px solid #cbd5e1;width:100%;box-sizing:border-box;"
-            oninput="saveMultiIsianAnswer(${index}, ${idx}, this.value)">
-        </div>
-      `;
-    });
-    html += `</div>`;
-    area.innerHTML = html;
-  }
+        `;
+      });
+    }
 
-  // 5. MATRIX
-  else if (q.type === "matrix" && q.columns && q.rows) {
-    const saved = userAnswers[index] || {};
-    const statementHeader = q.statementTitle || "Pernyataan / Argumen";
+    // ================= CHECKBOX =================
+    else if (q.type === "checkbox" && q.options) {
+      q.options.forEach((opt, idx) => {
+        html += `
+          <label class="option" style="display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" name="q${i}" value="${idx}">
+            <div>${decodeHTML(opt)}</div>
+          </label>
+        `;
+      });
+    }
 
-    let html = `
-      <div class="cbt-table-wrapper">
-        <table class="cbt-table">
-          <thead>
-            <tr>
-              <th>${statementHeader}</th>
-              ${q.columns.map(col => `<th>${decodeHTML(col)}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-    `;
-
-    q.rows.forEach((row, rIdx) => {
+    // ================= ISIAN =================
+    else if (q.type === "isian") {
       html += `
-        <tr>
-          <td>${decodeHTML(row.statement)}</td>
-          ${q.columns.map((_, cIdx) => {
-            const isChecked = saved[rIdx] == cIdx ? "checked" : "";
-            return `
-              <td style="text-align:center;">
-                <input type="radio" name="matrix_${index}_${rIdx}" value="${cIdx}" ${isChecked} onchange="saveMatrixAnswer(${index}, ${rIdx}, ${cIdx})">
-              </td>
-            `;
-          }).join('')}
-        </tr>
+        <input type="text" id="q${i}" placeholder="Jawaban..."
+        style="padding:10px;border-radius:6px;border:1px solid #ddd;width:100%;box-sizing:border-box;">
       `;
-    });
+    }
 
-    html += `</tbody></table></div>`;
-    area.innerHTML = html;
-  }
+    // ================= MULTI ISIAN =================
+    else if (q.type === "multi_isian") {
+      html += `<div class="multi-wrapper">`;
+      const fields = q.fields || (q.answers ? q.answers.map((ans, idx) => ({ label: `Isian [${idx + 1}]`, answer: ans })) : []);
 
-  // 6. MATCH
-  else if (q.type === "match" && q.pairs) {
-    const shuffled = [...q.pairs]
-      .map((p, idx) => ({ ...p, original: idx }))
-      .sort(() => Math.random() - 0.5);
+      fields.forEach((f, idx) => {
+        const labelText = typeof f === 'object' ? f.label : `Isian [${idx + 1}]`;
+        html += `
+          <div style="margin-bottom:12px">
+            <label style="display:block;margin-bottom:4px;font-weight:bold;font-size:13px;">
+              ${decodeHTML(labelText)}
+            </label>
+            <input type="text" id="q${i}_${idx}" class="multi-input" style="padding:8px;border-radius:6px;border:1px solid #ddd;width:100%;box-sizing:border-box;">
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
 
-    let html = `
-      <div class="match-wrapper" id="matchWrap${index}" style="position:relative; display:flex; justify-content:space-between; gap:20px;">
-        <svg class="match-lines" id="svg${index}" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></svg>
-        <div class="match-column" style="flex:1;">
-          ${q.pairs.map((p, idx) => `
-            <div class="match-item left-item" data-index="${idx}" onclick="selectLeft(${index}, this)" style="padding:10px; border:1px solid #cbd5e1; margin-bottom:8px; border-radius:6px; cursor:pointer;">
-              ${decodeHTML(p.left)}
-            </div>
-          `).join("")}
+    // ================= MATRIX =================
+    else if (q.type === "matrix" && q.columns && q.rows) {
+      const statementHeader = q.statementTitle || "Pernyataan / Argumen";
+      html += `
+        <div style="overflow-x:auto;">
+          <table class="matrix-table" style="width:100%; border-collapse:collapse; margin-top:10px;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="padding:10px; border:1px solid #d1d5db; text-align:left;">${statementHeader}</th>
+                ${q.columns.map(col => `<th style="padding:10px; border:1px solid #d1d5db; text-align:center; min-width:100px;">${decodeHTML(col)}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      q.rows.forEach((row, rIdx) => {
+        html += `
+          <tr>
+            <td style="padding:10px; border:1px solid #d1d5db;">${decodeHTML(row.statement)}</td>
+            ${q.columns.map((_, cIdx) => `
+              <td style="padding:10px; border:1px solid #d1d5db; text-align:center;">
+                <input type="radio" name="q${i}_m${rIdx}" value="${cIdx}">
+              </td>
+            `).join('')}
+          </tr>
+        `;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    // ================= MATCH =================
+    else if (q.type === "match" && q.pairs) {
+      const shuffled = [...q.pairs]
+        .map((p, idx) => ({ ...p, original: idx }))
+        .sort(() => Math.random() - 0.5);
+
+      html += `
+        <div class="match-wrapper" id="matchWrap${i}" style="position:relative; display:flex; justify-content:space-between; gap:20px; margin-top:10px;">
+          <svg class="match-lines" id="svg${i}" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1;"></svg>
+
+          <div class="match-column" style="flex:1; display:flex; flex-direction:column; gap:10px; z-index:2;">
+            ${q.pairs.map((p, idx) => `
+              <div class="match-item left-item"
+                data-index="${idx}"
+                onclick="selectLeft(${i}, this)"
+                style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc; cursor:pointer;">
+                ${decodeHTML(p.left)}
+              </div>
+            `).join("")}
+          </div>
+
+          <div class="match-column" style="flex:1; display:flex; flex-direction:column; gap:10px; z-index:2;">
+            ${shuffled.map((p) => `
+              <div class="match-item right-item"
+                data-original="${p.original}"
+                onclick="selectRight(${i}, this)"
+                style="padding:10px; border:1px solid #cbd5e1; border-radius:6px; background:#f8fafc; cursor:pointer;">
+                ${decodeHTML(p.right)}
+              </div>
+            `).join("")}
+          </div>
         </div>
-        <div class="match-column" style="flex:1;">
-          ${shuffled.map((p) => `
-            <div class="match-item right-item" data-original="${p.original}" onclick="selectRight(${index}, this)" style="padding:10px; border:1px solid #cbd5e1; margin-bottom:8px; border-radius:6px; cursor:pointer;">
-              ${decodeHTML(p.right)}
-            </div>
-          `).join("")}
-        </div>
+      `;
+    }
+
+    // ================= BUTTON & PEMBAHASAN =================
+    html += `
+      <div style="margin-top:15px;display:flex;gap:10px;">
+        <button class="btn-check" onclick="check(${i})" style="padding:8px 16px; background:#2563eb; color:white; border:none; border-radius:6px; cursor:pointer;">Cek Jawaban</button>
+        <button class="btn-explain" onclick="toggle(${i})" style="padding:8px 16px; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer;">📘 Pembahasan</button>
+      </div>
+
+      <div class="result" id="res${i}" style="margin-top:10px;"></div>
+
+      <div id="exp${i}" style="display:none;margin-top:10px;padding:12px;background:#f8fafc;border-left:4px solid #3b82f6;border-radius:6px;">
+        ${decodeHTML(q.explanation || "Belum ada pembahasan")}
       </div>
     `;
-    area.innerHTML = html;
-    setTimeout(() => drawLines(index), 100);
-  }
 
-  // Update Navigasi Tombol
-  document.getElementById("btnPrev").style.visibility = index === 0 ? "hidden" : "visible";
-  document.getElementById("btnNext").innerText = index === questions.length - 1 ? "Selesai 🏁" : "Selanjutnya ▶";
+    html += `</div>`;
+  });
 
-  // Update Status Ragu-ragu
-  const btnDoubt = document.getElementById("btnDoubt");
-  if (doubtStatus[index]) {
-    btnDoubt.style.background = "#d97706";
-  } else {
-    btnDoubt.style.background = "#eab308";
-  }
+  container.innerHTML = html;
 
-  // Trigger MathJax
+  // Trigger ulang MathJax
   if (window.MathJax && window.MathJax.typesetPromise) {
     MathJax.typesetClear();
-    MathJax.typesetPromise([document.getElementById("cbtMainContainer")]).catch((err) => console.log(err));
+    MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
   }
 }
 
-// ================= SIMPAN JAWABAN =================
-window.saveAnswer = function(qIdx, val) {
-  userAnswers[qIdx] = val;
-  renderGridNumbers();
-};
+// ================= CHECK JAWABAN =================
+window.check = function (i) {
+  const q = questions[i];
+  let correct = false;
 
-window.saveCheckboxAnswer = function(qIdx) {
-  const checked = [...document.querySelectorAll('input[name="cbtOpt"]:checked')].map(x => x.value);
-  userAnswers[qIdx] = checked;
-  renderGridNumbers();
-};
-
-window.saveMultiIsianAnswer = function(qIdx, fIdx, val) {
-  if (!userAnswers[qIdx]) userAnswers[qIdx] = {};
-  userAnswers[qIdx][fIdx] = val;
-  renderGridNumbers();
-};
-
-window.saveMatrixAnswer = function(qIdx, rIdx, cIdx) {
-  if (!userAnswers[qIdx]) userAnswers[qIdx] = {};
-  userAnswers[qIdx][rIdx] = cIdx;
-  renderGridNumbers();
-};
-
-// ================= NAVIGASI =================
-window.nextQuestion = function () {
-  if (currentIndex < questions.length - 1) {
-    renderQuestion(currentIndex + 1);
-  } else {
-    confirmFinish();
+  if (q.type === "pg") {
+    const sel = document.querySelector(`input[name="q${i}"]:checked`);
+    if (!sel) return alert("Pilih jawaban terlebih dahulu!");
+    correct = parseInt(sel.value) === q.answer;
   }
-};
 
-window.prevQuestion = function () {
-  if (currentIndex > 0) {
-    renderQuestion(currentIndex - 1);
+  else if (q.type === "checkbox") {
+    const sel = [...document.querySelectorAll(`input[name="q${i}"]:checked`)]
+      .map(x => parseInt(x.value));
+
+    const expected = (Array.isArray(q.answer) ? q.answer : []).map(Number).sort();
+    correct = JSON.stringify(sel.sort()) === JSON.stringify(expected);
   }
+
+  else if (q.type === "isian") {
+    const val = document.getElementById("q" + i).value;
+    correct = val.trim().toLowerCase() === String(q.answer).trim().toLowerCase();
+  }
+
+  else if (q.type === "multi_isian") {
+    correct = true;
+    const fields = q.fields || (q.answers ? q.answers.map(ans => ({ answer: ans })) : []);
+
+    fields.forEach((f, idx) => {
+      const inputEl = document.getElementById(`q${i}_${idx}`);
+      if (inputEl) {
+        const val = inputEl.value.trim().toLowerCase();
+        const expectedAns = String(typeof f === 'object' ? f.answer : f).trim().toLowerCase();
+        if (val !== expectedAns) correct = false;
+      } else {
+        correct = false;
+      }
+    });
+  }
+
+  else if (q.type === "matrix") {
+    correct = true;
+    for (let rIdx = 0; rIdx < q.rows.length; rIdx++) {
+      const sel = document.querySelector(`input[name="q${i}_m${rIdx}"]:checked`);
+      if (!sel || parseInt(sel.value) !== q.rows[rIdx].answer) {
+        correct = false;
+        break;
+      }
+    }
+  }
+
+  else if (q.type === "match") {
+    const ans = window.matchAnswers[i] || {};
+    correct = true;
+
+    if (Object.keys(ans).length !== q.pairs.length) {
+      correct = false;
+    } else {
+      q.pairs.forEach((_, idx) => {
+        if (String(ans[idx]) !== String(idx)) {
+          correct = false;
+        }
+      });
+    }
+  }
+
+  const res = document.getElementById("res" + i);
+  res.innerHTML = correct ? "✅ Benar" : "❌ Salah";
+  res.style.color = correct ? "#15803d" : "#b91c1c";
+  res.style.padding = "8px 12px";
+  res.style.background = correct ? "#dcfce7" : "#fee2e2";
+  res.style.borderRadius = "8px";
+  res.style.fontWeight = "bold";
 };
 
-window.toggleDoubt = function () {
-  doubtStatus[currentIndex] = !doubtStatus[currentIndex];
-  renderQuestion(currentIndex);
-  renderGridNumbers();
+window.toggle = function (i) {
+  const el = document.getElementById("exp" + i);
+  el.style.display = el.style.display === "block" ? "none" : "block";
 };
-
-// ================= DRAWER & GRID NUMBERS =================
-window.toggleNavDrawer = function () {
-  const drawer = document.getElementById("navDrawerOverlay");
-  drawer.style.display = (drawer.style.display === "flex") ? "none" : "flex";
-};
-
-function renderGridNumbers() {
-  const grid = document.getElementById("gridNumbers");
-  grid.innerHTML = "";
-
-  questions.forEach((_, idx) => {
-    const box = document.createElement("div");
-    box.className = "num-box";
-    box.innerText = idx + 1;
-
-    // Cek Status Jawaban
-    const isAnswered = hasAnswer(idx);
-    const isDoubt = doubtStatus[idx];
-
-    if (isDoubt) box.classList.add("doubt");
-    else if (isAnswered) box.classList.add("answered");
-
-    if (idx === currentIndex) box.classList.add("active");
-
-    box.onclick = () => {
-      renderQuestion(idx);
-      toggleNavDrawer();
-    };
-
-    grid.appendChild(box);
-  });
-}
-
-function hasAnswer(idx) {
-  const ans = userAnswers[idx];
-  if (ans === undefined || ans === null || ans === "") return false;
-  if (Array.isArray(ans) && ans.length === 0) return false;
-  if (typeof ans === 'object' && Object.keys(ans).length === 0) return false;
-  return true;
-}
 
 // ================= MATCH LOGIC =================
 window.currentLeft = {};
 
 window.selectLeft = function(qIndex, el) {
-  document.querySelectorAll(`#matchWrap${qIndex} .left-item`).forEach(x => x.style.borderColor = "#cbd5e1");
+  document.querySelectorAll(`#matchWrap${qIndex} .left-item`)
+    .forEach(x => x.style.borderColor = "#cbd5e1");
+
   el.style.borderColor = "#2563eb";
   window.currentLeft[qIndex] = el;
 };
 
 window.selectRight = function(qIndex, el) {
   const leftEl = window.currentLeft[qIndex];
+
   if (!leftEl) {
-    alert("Pilih sisi kiri terlebih dahulu!");
+    alert("Pilih item di sebelah kiri terlebih dahulu!");
     return;
   }
 
   const leftIndex = leftEl.dataset.index;
   const rightIndex = el.dataset.original;
 
-  if (!window.matchAnswers[qIndex]) window.matchAnswers[qIndex] = {};
+  if (!window.matchAnswers[qIndex]) {
+    window.matchAnswers[qIndex] = {};
+  }
+
   window.matchAnswers[qIndex][leftIndex] = rightIndex;
-  userAnswers[qIndex] = window.matchAnswers[qIndex];
 
   leftEl.style.borderColor = "#10b981";
   el.style.borderColor = "#10b981";
 
   drawLines(qIndex);
   window.currentLeft[qIndex] = null;
-  renderGridNumbers();
 };
 
+// ================= DRAW SVG LINES =================
 function drawLines(qIndex) {
   const wrap = document.getElementById(`matchWrap${qIndex}`);
   const svg = document.getElementById(`svg${qIndex}`);
+
   if (!wrap || !svg) return;
 
   svg.innerHTML = "";
@@ -477,10 +373,12 @@ function drawLines(qIndex) {
 
     const x1 = leftRect.right - wrapRect.left;
     const y1 = leftRect.top + leftRect.height / 2 - wrapRect.top;
+
     const x2 = rightRect.left - wrapRect.left;
     const y2 = rightRect.top + rightRect.height / 2 - wrapRect.top;
 
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+
     line.setAttribute("x1", x1);
     line.setAttribute("y1", y1);
     line.setAttribute("x2", x2);
@@ -493,90 +391,33 @@ function drawLines(qIndex) {
   });
 }
 
-// ================= FINISH & HITUNG NILAI =================
-window.confirmFinish = function () {
-  if (confirm("Apakah Anda yakin ingin menyelesaikan simulasi ini?")) {
-    finishExam();
-  }
-};
-
-function finishExam() {
-  clearInterval(timerInterval);
-
-  let totalCorrect = 0;
-
-  questions.forEach((q, i) => {
-    const userAns = userAnswers[i];
-
-    if (q.type === "pg" && userAns == q.answer) {
-      totalCorrect++;
-    } 
-    else if (q.type === "checkbox") {
-      const arrAns = (userAns || []).map(String).sort();
-      const keyAns = (q.answer || []).map(String).sort();
-      if (JSON.stringify(arrAns) === JSON.stringify(keyAns)) totalCorrect++;
-    } 
-    else if (q.type === "isian") {
-      if (String(userAns || "").trim().toLowerCase() === String(q.answer).trim().toLowerCase()) {
-        totalCorrect++;
-      }
-    } 
-    else if (q.type === "multi_isian") {
-      const fields = q.fields || (q.answers ? q.answers.map(ans => ({ answer: ans })) : []);
-      let isAllCorrect = true;
-      fields.forEach((f, idx) => {
-        const uVal = String((userAns || {})[idx] || "").trim().toLowerCase();
-        const keyVal = String(typeof f === 'object' ? f.answer : f).trim().toLowerCase();
-        if (uVal !== keyVal) isAllCorrect = false;
-      });
-      if (isAllCorrect && fields.length > 0) totalCorrect++;
-    } 
-    else if (q.type === "matrix") {
-      const answers = userAns || {};
-      let isMatrixCorrect = true;
-      if (!q.rows || Object.keys(answers).length !== q.rows.length) {
-        isMatrixCorrect = false;
-      } else {
-        q.rows.forEach((row, rIdx) => {
-          if (parseInt(answers[rIdx]) !== row.answer) isMatrixCorrect = false;
-        });
-      }
-      if (isMatrixCorrect && q.rows.length > 0) totalCorrect++;
-    }
-    else if (q.type === "match") {
-      const answers = userAns || {};
-      let isMatchAll = true;
-      if (!q.pairs || Object.keys(answers).length !== q.pairs.length) {
-        isMatchAll = false;
-      } else {
-        q.pairs.forEach((_, idx) => {
-          if (String(answers[idx]) !== String(idx)) isMatchAll = false;
-        });
-      }
-      if (isMatchAll && q.pairs.length > 0) totalCorrect++;
-    }
+// Redraw garis jika window di-resize agar posisi garis tidak geser
+window.addEventListener("resize", () => {
+  questions.forEach((q, idx) => {
+    if (q.type === "match") drawLines(idx);
   });
+});
 
-  const finalScore = questions.length > 0 ? Math.round((totalCorrect / questions.length) * 100) : 0;
-  const passingGrade = exerciseData.passingGrade || 75;
-
-  // Tampilkan Modal Hasil
-  document.getElementById("finalScore").innerText = finalScore;
-  const statusEl = document.getElementById("passingStatus");
-
-  if (finalScore >= passingGrade) {
-    statusEl.innerText = `LULUS (Passing Grade: ${passingGrade}%)`;
-    statusEl.style.color = "#16a34a";
-  } else {
-    statusEl.innerText = `BELUM LULUS (Passing Grade: ${passingGrade}%)`;
-    statusEl.style.color = "#dc2626";
-  }
-
-  // Sembunyikan Drawer jika terbuka
-  document.getElementById("navDrawerOverlay").style.display = "none";
-  document.getElementById("resultModal").style.display = "flex";
-}
-
-window.backToClass = function () {
-  window.location.href = "./index.html";
+// ================= FULLSCREEN =================
+window.toggleFullscreen = function () { 
+  const el = document.documentElement; 
+  if (!document.fullscreenElement) { 
+    el.requestFullscreen(); 
+  } else { 
+    document.exitFullscreen(); 
+  } 
 };
+
+document.addEventListener("fullscreenchange", () => {
+  const btn = document.getElementById("fsBtn");
+  if (btn) {
+    btn.innerText = document.fullscreenElement ? "❌ Exit Fullscreen" : "⛶ Fullscreen";
+  }
+  
+  // Redraw garis match saat fullscreen berganti
+  setTimeout(() => {
+    questions.forEach((q, idx) => {
+      if (q.type === "match") drawLines(idx);
+    });
+  }, 200);
+});
