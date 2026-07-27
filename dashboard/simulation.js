@@ -7,13 +7,17 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const id = new URLSearchParams(location.search).get("id");
-const container = document.getElementById("exerciseContainer");
+
+// Helper untuk mengambil container secara aman
+function getContainer() {
+  return document.getElementById("exerciseContainer");
+}
 
 let questions = [];
 let studentData = null;
 
 window.matchAnswers = {};
-window.currentLeftIndex = {}; // Menyimpan indeks item kiri yang sedang dipilih per soal
+window.currentLeftIndex = {}; 
 
 // ================= HELPER HTML DECODER =================
 function decodeHTML(html) {
@@ -43,15 +47,17 @@ auth.onAuthStateChanged(async (user) => {
 
 // ================= LOAD EXERCISE =================
 async function loadExercise() {
+  const container = getContainer();
+
   if (!id) {
-    container.innerHTML = "<p>❌ ID latihan tidak ditemukan di URL.</p>";
+    if (container) container.innerHTML = "<p>❌ ID latihan tidak ditemukan di URL.</p>";
     return;
   }
 
   try {
     const exSnap = await getDoc(doc(db, "exercises", id));
     if (!exSnap.exists()) {
-      container.innerHTML = "<p>❌ Latihan tidak ditemukan.</p>";
+      if (container) container.innerHTML = "<p>❌ Latihan tidak ditemukan.</p>";
       return;
     }
 
@@ -59,7 +65,7 @@ async function loadExercise() {
 
     // FILTER LEVEL SISWA
     if (ex.level && studentData && ex.level !== studentData.level) {
-      container.innerHTML = "<p>❌ Latihan ini tidak ditujukan untuk level kamu.</p>";
+      if (container) container.innerHTML = "<p>❌ Latihan ini tidak ditujukan untuk level kamu.</p>";
       return;
     }
 
@@ -79,12 +85,18 @@ async function loadExercise() {
     render(ex.title);
   } catch (err) {
     console.error("Error fetching exercise/questions:", err);
-    container.innerHTML = "<p>❌ Terjadi kesalahan saat memuat data latihan.</p>";
+    if (container) container.innerHTML = "<p>❌ Terjadi kesalahan saat memuat data latihan.</p>";
   }
 }
 
 // ================= RENDER =================
 function render(title) {
+  const container = getContainer();
+  if (!container) {
+    console.error("Elemen #exerciseContainer tidak ditemukan di HTML!");
+    return;
+  }
+
   let html = `
     <div class="question-card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
       <h3>📘 ${decodeHTML(title || "Latihan Soal")}</h3>
@@ -313,17 +325,19 @@ window.check = function (i) {
   }
 
   const res = document.getElementById("res" + i);
-  res.innerHTML = correct ? "✅ Benar" : "❌ Salah";
-  res.style.color = correct ? "#15803d" : "#b91c1c";
-  res.style.padding = "8px 12px";
-  res.style.background = correct ? "#dcfce7" : "#fee2e2";
-  res.style.borderRadius = "8px";
-  res.style.fontWeight = "bold";
+  if (res) {
+    res.innerHTML = correct ? "✅ Benar" : "❌ Salah";
+    res.style.color = correct ? "#15803d" : "#b91c1c";
+    res.style.padding = "8px 12px";
+    res.style.background = correct ? "#dcfce7" : "#fee2e2";
+    res.style.borderRadius = "8px";
+    res.style.fontWeight = "bold";
+  }
 };
 
 window.toggle = function (i) {
   const el = document.getElementById("exp" + i);
-  el.style.display = el.style.display === "block" ? "none" : "block";
+  if (el) el.style.display = el.style.display === "block" ? "none" : "block";
 };
 
 // ================= MATCH LOGIC =================
@@ -403,14 +417,23 @@ window.addEventListener("resize", () => {
   });
 });
 
-// ================= FULLSCREEN =================
+// ================= FULLSCREEN & START SIMULATION =================
 window.toggleFullscreen = function () { 
   const el = document.documentElement; 
   if (!document.fullscreenElement) { 
-    el.requestFullscreen(); 
+    el.requestFullscreen().catch(err => console.log(err)); 
   } else { 
-    document.exitFullscreen(); 
+    document.exitFullscreen().catch(err => console.log(err)); 
   } 
+};
+
+// Mencegah error 'startExamWithFullscreen is not defined' di simulation.html
+window.startExamWithFullscreen = function () {
+  window.toggleFullscreen();
+  const startModal = document.getElementById("startModal") || document.getElementById("instructionModal");
+  if (startModal) {
+    startModal.style.display = "none";
+  }
 };
 
 document.addEventListener("fullscreenchange", () => {
