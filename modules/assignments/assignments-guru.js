@@ -193,7 +193,7 @@ async function loadAssignments() {
 }
 
 // ==========================
-// RENDER PANEL LOGIC
+// RENDER PANEL LOGIC (FIXED)
 // ==========================
 function renderAssignmentPanel(data){
   const container = document.getElementById("assignmentGuruList");
@@ -214,19 +214,18 @@ function renderAssignmentPanel(data){
   Object.keys(grouped).forEach(bab => {
     const babDiv = document.createElement("div");
     babDiv.className = "bab-box";
+    babDiv.style.marginBottom = "15px";
 
     babDiv.innerHTML = `
-      <h3 class="bab-title">
+      <h3 class="bab-title" style="display: flex; justify-content: space-between; align-items: center;">
         <span>📘 ${bab}</span>
-        <button class="toggle-btn">Lihat Materi & Latihan</button>
+        <button class="toggle-btn" style="cursor: pointer; padding: 6px 12px;">Lihat Materi & Latihan</button>
       </h3>
 
-      <div class="subbab-list">
+      <div class="subbab-list" style="display: none; margin-top: 10px;">
         ${grouped[bab].map(m => {
-          // 1. Filter latihan berdasarkan ID materi
           let materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
           
-          // 2. URUTKAN LATIHAN (Berdasarkan Judul Alfabetis A-Z)
           materialExercises.sort((a, b) => {
             const titleA = (a.title || "").toLowerCase();
             const titleB = (b.title || "").toLowerCase();
@@ -236,13 +235,14 @@ function renderAssignmentPanel(data){
           const isMaterialChecked = assignedMaterials.includes(m.id) ? "checked" : "";
 
           return `
-            <div class="subbab-item">
-              <label style="font-weight: bold;">
+            <div class="subbab-item" style="margin-bottom: 15px;">
+              <label style="font-weight: bold; display: block; margin-bottom: 8px;">
                 <input type="checkbox" class="subbab-check" value="${m.id}" ${isMaterialChecked} disabled>
                 📄 Sub-Bab: ${m.subChapter || m.title}
               </label>
 
-              <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 10px; border-radius: 4px; max-height: 250px; overflow-y: auto; border: 1px solid #e0e0e0;">
+              <!-- FIX: max-height diperbesar dari 250px ke 450px + auto scroll -->
+              <div class="exercise-list" style="margin-left: 10px; background: #fafafa; padding: 10px; border-radius: 4px; max-height: 450px; overflow-y: auto; border: 1px solid #e0e0e0;">
                 ${materialExercises.map(ex => {
                   const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
                   const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
@@ -252,7 +252,7 @@ function renderAssignmentPanel(data){
 
                   return `
                     <div class="exercise-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0; background: #fff; padding: 10px; border-radius:4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 10px;">
-                      <label class="exercise-item" style="margin: 0; cursor:pointer; font-weight: 500;">
+                      <label class="exercise-item" style="margin: 0; cursor:pointer; font-weight: 500; flex: 1; min-width: 180px;">
                         <input
                           type="checkbox"
                           class="exercise-check"
@@ -288,20 +288,32 @@ function renderAssignmentPanel(data){
             </div>
           `;
         }).join("")}
-      </div>
 
-      <button onclick="saveAssignmentStructure('${bab}')">
-        💾 Tugaskan & Aktifkan Latihan Durasi
-      </button>
+        <button onclick="saveAssignmentStructure('${bab}')" style="margin-top: 10px; padding: 8px 16px; cursor: pointer;">
+          💾 Tugaskan & Aktifkan Latihan Durasi
+        </button>
+      </div>
     `;
 
+    // FIX: Toggle display manual melalui JavaScript agar pasti terbuka/tertutup
     const btn = babDiv.querySelector(".toggle-btn");
+    const subbabList = babDiv.querySelector(".subbab-list");
+
     btn.onclick = () => {
-      document.querySelectorAll(".bab-box").forEach(b => {
-        if (b !== babDiv) b.classList.remove("active");
-      });
-      babDiv.classList.toggle("active");
-      btn.textContent = babDiv.classList.contains("active") ? "Tutup" : "Lihat Materi & Latihan";
+      const isVisible = subbabList.style.display === "block";
+      
+      // Tutup semua bab lain (opsional)
+      document.querySelectorAll(".subbab-list").forEach(list => list.style.display = "none");
+      document.querySelectorAll(".toggle-btn").forEach(b => b.textContent = "Lihat Materi & Latihan");
+
+      // Toggle bab ini
+      if (!isVisible) {
+        subbabList.style.display = "block";
+        btn.textContent = "Tutup";
+      } else {
+        subbabList.style.display = "none";
+        btn.textContent = "Lihat Materi & Latihan";
+      }
     };
 
     container.appendChild(babDiv);
