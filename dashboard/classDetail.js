@@ -110,7 +110,7 @@ async function loadClassDetail(classId) {
 }
 
 /* =========================
-   LOAD SIMULATIONS (FITUR BARU)
+   LOAD SIMULATIONS (BERURUTAN ABJAD)
 ========================= */
 async function loadSimulations(classId) {
   const card = document.getElementById("simulationsCard");
@@ -126,15 +126,36 @@ async function loadSimulations(classId) {
       return;
     }
 
-    card.style.display = "block";
-    container.innerHTML = "";
-
+    // 1. Ambil semua data simulasi terlebih dahulu
+    const simulationsList = [];
     for (const rel of simRelSnap.docs) {
       const simDoc = await getDoc(doc(db, "simulations", rel.data().simulationId));
       if (!simDoc.exists()) continue;
 
-      const sim = simDoc.data();
-      const simId = simDoc.id;
+      simulationsList.push({
+        id: simDoc.id,
+        ...simDoc.data()
+      });
+    }
+
+    if (simulationsList.length === 0) {
+      card.style.display = "none";
+      return;
+    }
+
+    // 2. Urutkan simulasi berdasarkan title secara alfabetis (A-Z)
+    simulationsList.sort((a, b) => {
+      const titleA = (a.title || "Simulasi Ujian").toLowerCase();
+      const titleB = (b.title || "Simulasi Ujian").toLowerCase();
+      return titleA.localeCompare(titleB, 'id', { sensitivity: 'base' });
+    });
+
+    // 3. Render elemen ke HTML setelah diurutkan
+    card.style.display = "block";
+    container.innerHTML = "";
+
+    simulationsList.forEach((sim) => {
+      const simId = sim.id;
       const totalQuestions = sim.questions ? sim.questions.length : 0;
 
       const item = document.createElement("div");
@@ -154,7 +175,8 @@ async function loadSimulations(classId) {
       `;
 
       container.appendChild(item);
-    }
+    });
+
   } catch (err) {
     console.error("Gagal load simulasi:", err);
     container.innerHTML = "<p style='color:red;'>Gagal memuat simulasi kelas.</p>";
