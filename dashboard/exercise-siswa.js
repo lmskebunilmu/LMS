@@ -138,7 +138,37 @@ function render(title) {
 
       html += `</div>`;
     }
+// ================= MATRIX (TABEL PILIHAN BARIS) =================
+    else if (q.type === "matrix") {
+      const columns = q.columns || ["Sesuai", "Tidak Sesuai"];
+      const rows = q.rows || q.statements || [];
 
+      html += `
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Pernyataan</th>
+              ${columns.map(col => `<th class="matrix-radio-cell">${col}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row, rIdx) => {
+              const statementText = typeof row === 'object' ? (row.statement || row.text) : row;
+              return `
+                <tr>
+                  <td class="matrix-statement">${statementText}</td>
+                  ${columns.map((_, cIdx) => `
+                    <td class="matrix-radio-cell">
+                      <input type="radio" name="q${i}_row${rIdx}" value="${cIdx}">
+                    </td>
+                  `).join("")}
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      `;
+    }
     // ================= MATCH =================
     else if (q.type === "match") {
 
