@@ -140,15 +140,17 @@ function render(title) {
     }
 // ================= MATRIX (TABEL PILIHAN BARIS) =================
     else if (q.type === "matrix") {
-      const columns = q.columns || ["Sesuai", "Tidak Sesuai"];
-      const rows = q.rows || q.statements || [];
+      // ✅ Ambil data dari q.matrix jika ada, atau gunakan fallback ke q.columns / q.rows
+      const matrixData = q.matrix || {};
+      const columns = matrixData.columns || q.columns || ["Benar", "Salah"];
+      const rows = matrixData.rows || q.rows || q.statements || [];
 
       html += `
-        <table class="matrix-table">
+        <table class="matrix-table" style="width:100%; border-collapse:collapse; margin-top:10px;">
           <thead>
             <tr>
-              <th style="text-align:left;">Pernyataan</th>
-              ${columns.map(col => `<th class="matrix-radio-cell">${col}</th>`).join("")}
+              <th style="text-align:left; padding:8px; border-bottom:2px solid #e2e8f0;">Pernyataan</th>
+              ${columns.map(col => `<th class="matrix-radio-cell" style="padding:8px; text-align:center; border-bottom:2px solid #e2e8f0;">${col}</th>`).join("")}
             </tr>
           </thead>
           <tbody>
@@ -156,9 +158,9 @@ function render(title) {
               const statementText = typeof row === 'object' ? (row.statement || row.text) : row;
               return `
                 <tr>
-                  <td class="matrix-statement">${statementText}</td>
+                  <td class="matrix-statement" style="padding:8px; border-bottom:1px solid #e2e8f0;">${statementText}</td>
                   ${columns.map((_, cIdx) => `
-                    <td class="matrix-radio-cell">
+                    <td class="matrix-radio-cell" style="padding:8px; text-align:center; border-bottom:1px solid #e2e8f0;">
                       <input type="radio" name="q${i}_row${rIdx}" value="${cIdx}">
                     </td>
                   `).join("")}
@@ -269,7 +271,33 @@ window.check = function (i) {
       }
     });
   }
+// ✅ TAMBAHAN PENILAIAN DENGAN TIPE MATRIX
+  else if (q.type === "matrix") {
+    const matrixData = q.matrix || {};
+    const rows = matrixData.rows || q.rows || [];
+    
+    correct = true;
+    let answeredAll = true;
 
+    rows.forEach((row, rIdx) => {
+      const selected = document.querySelector(`input[name="q${i}_row${rIdx}"]:checked`);
+      
+      if (!selected) {
+        answeredAll = false;
+      } else {
+        const studentAns = parseInt(selected.value);
+        const keyAns = parseInt(row.answerKey !== undefined ? row.answerKey : row.answer);
+        
+        if (studentAns !== keyAns) {
+          correct = false;
+        }
+      }
+    });
+
+    if (!answeredAll) {
+      return alert("Jawab semua baris pernyataan terlebih dahulu!");
+    }
+  }
   else if (q.type === "match") {
     const ans = window.matchAnswers[i] || {};
     correct = true;
