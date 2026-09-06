@@ -298,7 +298,60 @@ img{
   }
 
 }
+/* MATRIX / TABLE CHOICE */
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
 
+.matrix-table th {
+  background: #2563eb;
+  color: white;
+  padding: 12px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.matrix-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+
+.matrix-statement {
+  text-align: left;
+  font-weight: 500;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.matrix-radio-cell {
+  text-align: center;
+  width: 100px;
+}
+
+.matrix-radio-cell input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #2563eb;
+}
+
+@media (max-width: 768px) {
+  .matrix-table th, 
+  .matrix-table td {
+    padding: 8px 6px;
+    font-size: 13px;
+  }
+  .matrix-radio-cell {
+    width: 60px;
+  }
+}
 </style>
 <body>
 
