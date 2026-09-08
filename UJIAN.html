@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulasi Ujian CBT Modern</title>
+  
+  <!-- Google Fonts & FontAwesome Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- MathJax untuk Render Rumus Matematika -->
+  <script>
+    window.MathJax = {
+      tex: { 
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --primary-light: #eef2ff;
+      --bg-slate: #f8fafc;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body { 
+      font-family: 'Plus Jakarta Sans', sans-serif; 
+      font-size: 14px; 
+      color: var(--text-main); 
+      background: #f1f5f9;
+      min-height: 100vh;
+      user-select: none;
+    }
+    
+    .app-viewport { 
+      width: 100%;
+      max-width: 680px; 
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+
+    /* Container Slide Form Setup */
+    .slide-card {
+      background: #ffffff;
+      padding: 32px;
+      border-radius: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+      border: 1px solid var(--border-color);
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+
+    .slide-active { display: block; animation: slideInRight 0.3s forwards; }
+    .slide-hidden { display: none !important; }
+    
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Header Step */
+    .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .step-icon {
+      width: 44px; height: 44px; background: var(--primary-light); color: var(--primary);
+      border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .step-title h2 { font-size: 20px; font-weight: 800; color: var(--text-main); }
+    .step-title p { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+
+    /* Controls UI */
+    .form-group { margin-bottom: 18px; }
+    .form-group label { 
+      display: block; font-weight: 700; margin-bottom: 6px; color: #334155; 
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    
+    .form-control { 
+      width: 100%; padding: 12px 16px; border-radius: 10px; border: 1.5px solid var(--border-color); 
+      font-size: 14px; outline: none; font-family: inherit; color: var(--text-main);
+      background: #f8fafc; transition: all 0.2s ease;
+    }
+    .form-control:focus { border-color: var(--primary); background: #ffffff; box-shadow: 0 0 0 4px var(--primary-light); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Buttons */
+    .btn { 
+      background: var(--primary); color: white; border: none; padding: 14px 24px; 
+      border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 14px; 
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px; 
+      width: 100%; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
+    
+    .btn-secondary { background: #f1f5f9; color: #475569; box-shadow: none; }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    /* CBT SIMULATION ENGINE STYLES */
+    .cbt-container {
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .cbt-header {
+      background: white; padding: 16px 24px; border-radius: 16px; display: flex;
+      justify-content: space-between; align-items: center; border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-toggle-list { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; padding: 8px 14px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; }
+    .timer-badge { background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; padding: 8px 16px; border-radius: 12px; font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+
+    .cbt-card {
+      background: white; border-radius: 16px; padding: 24px; border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; min-height: 480px;
+    }
+
+    .q-number { font-size: 14px; font-weight: 700; color: #2563eb; margin-bottom: 12px; }
+    .q-text { font-size: 16px; font-weight: 600; line-height: 1.6; margin-bottom: 20px; word-break: break-word; }
+
+    /* OPTIONS & TABLES */
+    .options-wrapper { display: flex; flex-direction: column; gap: 10px; }
+    .opt-label {
+      display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid #cbd5e1;
+      border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 14px; background: #ffffff;
+    }
+    .opt-label:hover { border-color: #3b82f6; background: #eff6ff; }
+    .opt-label input[type="radio"], .opt-label input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; flex-shrink: 0; }
+
+    .cbt-table-wrapper { overflow-x: auto; margin-top: 10px; border-radius: 8px; border: 1px solid #cbd5e1; }
+    .cbt-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+    .cbt-table th, .cbt-table td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; font-size: 14px; }
+    .cbt-table th { background: #f1f5f9; text-align: center; font-weight: 700; }
+
+    .cbt-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; gap: 10px; flex-wrap: wrap; }
+    .btn-nav { padding: 12px 20px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer; transition: background 0.2s; }
+    .btn-prev { background: #e2e8f0; color: #475569; }
+    .btn-next { background: #2563eb; color: white; }
+    .btn-doubt { background: #eab308; color: white; }
+    .btn-finish { background: #16a34a; color: white; }
+
+    /* DRAWER DAFTAR SOAL */
+    .nav-drawer-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); display: none;
+      justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); padding: 16px;
+    }
+    .nav-drawer {
+      background: white; width: 100%; max-width: 420px; max-height: 85vh; padding: 24px;
+      border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .grid-numbers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 15px; max-height: 60vh; overflow-y: auto; }
+    .num-box {
+      aspect-ratio: 1; border-radius: 8px; border: 1px solid #cbd5e1; display: flex;
+      align-items: center; justify-content: center; font-weight: 700; font-size: 14px;
+      cursor: pointer; background: #ffffff; color: #0f172a;
+    }
+    .num-box.active { border: 2px solid #2563eb !important; }
+    .num-box.answered { background: #2563eb !important; color: white !important; border-color: #2563eb !important; }
+    .num-box.doubt { background: #eab308 !important; color: white !important; border-color: #eab308 !important; }
+
+    /* MODAL HASIL UJIAN */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); display: flex;
+      align-items: center; justify-content: center; z-index: 999; padding: 16px; backdrop-filter: blur(4px);
+    }
+    .modal-card { 
+      background: white; padding: 36px 32px; border-radius: 24px; max-width: 480px; width: 100%;
+      text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    #loadingState { text-align: center; padding: 40px; color: var(--text-muted); font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <!-- AREA FORM SETUP (SLIDE 1 & SLIDE 2) -->
+  <div class="app-viewport" id="setupViewport">
+
+    <!-- SLIDE 1: FILTER SIMULASI -->
+    <div id="slide1" class="slide-card slide-active">
+      <div class="step-header">
+        <div class="step-icon"><i class="fa-solid fa-layer-group"></i></div>
+        <div class="step-title">
+          <h2>Pilih Ujian Simulasi</h2>
+          <p>Langkah 1 dari 2: Tentukan mata pelajaran</p>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Kurikulum</label>
+        <select id="curriculumSelect" class="form-control">
+          <option value="">-- Pilih Kurikulum --</option>
+        </select>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>Tingkat / Level</label>
+          <select id="levelSelect" class="form-control" disabled>
+            <option value="">-- Pilih Level --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Mata Pelajaran</label>
+          <select id="subjectSelect" class="form-control" disabled>
+            <option value="">-- Pilih Mapel --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Judul Simulasi</label>
+        <select id="simulationSelect" class="form-control" disabled>
+          <option value="">-- Pilih Judul Simulasi --</option>
+        </select>
+      </div>
+
+      <button class="btn" id="toSlide2Btn" disabled style="margin-top: 10px;">
+        Lanjut Isi Data Diri <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+
+    <!-- SLIDE 2: FORM DATA DIRI SISWA -->
+    <div id="slide2" class="slide-card slide-hidden">
+      <div class="step-header">
+        <div class="step-icon"><i class="fa-solid fa-user-pen"></i></div>
+        <div class="step-title">
+          <h2>Data Diri Siswa</h2>
+          <p>Langkah 2 dari 2: Lengkapi profil Anda</p>
+        </div>
+      </div>
+
+      <form id="studentDataForm">
+        <div class="form-group">
+          <label>Nama Lengkap</label>
+          <input type="text" id="studentName" class="form-control" placeholder="Contoh: Budi Santoso" required>
+        </div>
+
+        <div class="grid-2">
+          <!-- DROPDOWN SEKOLAH -->
+          <div class="form-group">
+            <label>Asal Sekolah</label>
+            <select id="studentSchool" class="form-control" required>
+              <option value="MTs Ma'arif NU 9 Pende" selected>MTs Ma'arif NU 9 Pende</option>
+            </select>
+          </div>
+
+          <!-- DROPDOWN KELAS -->
+          <div class="form-group">
+            <label>Kelas</label>
+            <select id="studentClass" class="form-control" required>
+              <option value="">-- Pilih Kelas --</option>
+              <optgroup label="Kelas 7">
+                <option value="7A">Kelas 7A</option>
+                <option value="7B">Kelas 7B</option>
+                <option value="7C">Kelas 7C</option>
+                <option value="7D">Kelas 7D</option>
+              </optgroup>
+              <optgroup label="Kelas 8">
+                <option value="8A">Kelas 8A</option>
+                <option value="8B">Kelas 8B</option>
+                <option value="8C">Kelas 8C</option>
+                <option value="8D">Kelas 8D</option>
+              </optgroup>
+              <optgroup label="Kelas 9">
+                <option value="9A">Kelas 9A</option>
+                <option value="9B">Kelas 9B</option>
+                <option value="9C">Kelas 9C</option>
+                <option value="9D">Kelas 9D</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 15px;">
+          <button type="button" class="btn btn-secondary" id="backToSlide1Btn">
+            <i class="fa-solid fa-arrow-left"></i> Kembali
+          </button>
+          <button type="submit" class="btn">
+            Mulai Ujian <i class="fa-solid fa-expand"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+
+  <div id="loadingState">Memuat data dari sistem...</div>
+
+  <!-- CBT ENGINE INTERACTIVE AREA (TAMPILAN CBT LENGKAP) -->
+  <div id="cbtEngineArea" class="slide-hidden">
+    <!-- HEADER -->
+    <div style="max-width: 1000px; margin: 15px auto 0; padding: 0 16px;">
+      <div class="cbt-header" id="cbtHeader">
+        <div>
+          <h2 id="simTitle" style="margin: 0; font-size: 18px;">Memuat Simulasi...</h2>
+          <span id="simMeta" style="font-size: 12px; color: #64748b;">-</span>
+        </div>
+        <div class="header-actions">
+          <button class="btn-toggle-list" id="btnToggleList">📋 Daftar Soal</button>
+          <div class="timer-badge" id="timerDisplay">00:00:00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN CONTAINER SOAL -->
+    <div class="cbt-container" id="cbtMainContainer">
+      <div class="cbt-card">
+        <div>
+          <div class="q-number" id="questionNumberHeader">Soal No. 1</div>
+          <div class="q-text" id="questionText">Memuat pertanyaan...</div>
+          <div id="answerOptionsArea"></div>
+        </div>
+
+        <div class="cbt-footer">
+          <button class="btn-nav btn-prev" id="btnPrev">◀ Sebelumnya</button>
+          <button class="btn-nav btn-doubt" id="btnDoubt">🟧 Ragu-Ragu</button>
+          <button class="btn-nav btn-next" id="btnNext">Selanjutnya ▶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DRAWER DAFTAR SOAL -->
+  <div class="nav-drawer-overlay" id="navDrawerOverlay">
+    <div class="nav-drawer" onclick="event.stopPropagation()">
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="margin: 0; font-size: 16px;">Daftar Soal</h3>
+          <button id="btnCloseDrawer" style="border:none; background:none; font-size:18px; cursor:pointer;">✖</button>
+        </div>
+        <div style="font-size: 12px; margin: 12px 0; display:flex; gap:10px;">
+          <span>⚪ Belum</span>
+          <span style="color:#2563eb;">🔵 Sudah</span>
+          <span style="color:#eab308;">🟡 Ragu</span>
+        </div>
+        <div class="grid-numbers" id="gridNumbers"></div>
+      </div>
+
+      <button class="btn-nav btn-finish" id="btnConfirmFinish" style="width: 100%; margin-top: 20px;">
+        🏁 Selesaikan Simulasi
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL HASIL AKHIR (TANPA PEMBAHASAN) -->
+  <div class="modal-overlay" id="resultModal" style="display: none;">
+    <div class="modal-card">
+      <h1 style="font-size: 48px; margin: 0 0 10px;">🎉</h1>
+      <h2 style="margin: 0 0 5px; color: #0f172a;">Simulasi Selesai!</h2>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;" id="resultStudentMeta">-</p>
+      
+      <div style="background: #f1f5f9; padding: 24px; border-radius: 16px; margin-bottom: 24px;">
+        <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase;">NILAI AKHIR ANDA</div>
+        <div id="finalScore" style="font-size: 56px; font-weight: 800; color: #2563eb; line-height: 1.2;">0</div>
+        <div id="passingStatus" style="font-size: 14px; font-weight: 700; margin-top: 6px;">-</div>
+      </div>
+
+      <button class="btn" onclick="location.reload()">
+        <i class="fa-solid fa-rotate-right"></i> Kerjakan Ujian Lain
+      </button>
+    </div>
+  </div>
+
+  <!-- SCRIPT UTAMA UNTUK LOGIK DATABASE & CBT SIMULASI -->
+  <script type="module">
+    import { auth, db } from "../../firebase/firebase-config.js";
+    import { collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let rawSimulations = [];
+    let simulationData = null;
+    let questions = [];
+    let currentIndex = 0;
+    let userAnswers = {}; 
+    let doubtStatus = {};  
+    let timerInterval = null;
+    let timeRemaining = 0; 
+    let studentProfile = {};
+
+    function decodeHTML(html) {
+      if (!html) return "";
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      return doc.body.innerHTML;
+    }
+
+    function sortAlphabetically(array) {
+      return array.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    }
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) {
+        alert("Silakan login terlebih dahulu.");
+        window.location = "../../login.html";
+        return;
+      }
+      await fetchAllSimulations();
+    });
+
+    async function fetchAllSimulations() {
+      try {
+        const snap = await getDocs(collection(db, "simulations"));
+        if (snap.empty) {
+          document.getElementById("loadingState").innerHTML = "<b style='color:red;'>Tidak ada data simulasi.</b>";
+          return;
+        }
+
+        rawSimulations = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        document.getElementById("loadingState").style.display = "none";
+        initFilters();
+
+      } catch (err) {
+        document.getElementById("loadingState").innerHTML = `<b style='color:red;'>Gagal memuat: ${err.message}</b>`;
+      }
+    }
+
+    function initFilters() {
+      populateCurriculums();
+
+      document.getElementById("curriculumSelect").addEventListener("change", onCurriculumChange);
+      document.getElementById("levelSelect").addEventListener("change", onLevelChange);
+      document.getElementById("subjectSelect").addEventListener("change", onSubjectChange);
+      document.getElementById("simulationSelect").addEventListener("change", onSimulationChange);
+
+      document.getElementById("toSlide2Btn").addEventListener("click", () => {
+        document.getElementById("slide1").className = "slide-card slide-hidden";
+        document.getElementById("slide2").className = "slide-card slide-active";
+      });
+
+      document.getElementById("backToSlide1Btn").addEventListener("click", () => {
+        document.getElementById("slide2").className = "slide-card slide-hidden";
+        document.getElementById("slide1").className = "slide-card slide-active";
+      });
+
+      document.getElementById("studentDataForm").addEventListener("submit", startExamEngine);
+    }
+
+    function populateCurriculums() {
+      const select = document.getElementById("curriculumSelect");
+      const curriculums = sortAlphabetically([...new Set(rawSimulations.map(s => s.curriculum || "Lainnya"))]);
+
+      select.innerHTML = '<option value="">-- Pilih Kurikulum --</option>';
+      curriculums.forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
+    }
+
+    function onCurriculumChange() {
+      const curVal = document.getElementById("curriculumSelect").value;
+      const levelSelect = document.getElementById("levelSelect");
+
+      let filtered = rawSimulations;
+      if (curVal) filtered = filtered.filter(s => (s.curriculum || "Lainnya") === curVal);
+
+      const levels = sortAlphabetically([...new Set(filtered.map(s => s.level || "Lainnya"))]);
+
+      levelSelect.innerHTML = '<option value="">-- Pilih Level --</option>';
+      levels.forEach(l => levelSelect.innerHTML += `<option value="${l}">${l}</option>`);
+      levelSelect.disabled = false;
+      
+      resetSubDropdowns(1);
+    }
+
+    function onLevelChange() {
+      const curVal = document.getElementById("curriculumSelect").value;
+      const levelVal = document.getElementById("levelSelect").value;
+      const subjectSelect = document.getElementById("subjectSelect");
+
+      let filtered = rawSimulations;
+      if (curVal) filtered = filtered.filter(s => (s.curriculum || "Lainnya") === curVal);
+      if (levelVal) filtered = filtered.filter(s => (s.level || "Lainnya") === levelVal);
+
+      const subjects = sortAlphabetically([...new Set(filtered.map(s => s.subject || "Lainnya"))]);
+
+      subjectSelect.innerHTML = '<option value="">-- Pilih Mapel --</option>';
+      subjects.forEach(sub => subjectSelect.innerHTML += `<option value="${sub}">${sub}</option>`);
+      subjectSelect.disabled = false;
+
+      resetSubDropdowns(2);
+    }
+
+    function onSubjectChange() {
+      const curVal = document.getElementById("curriculumSelect").value;
+      const levelVal = document.getElementById("levelSelect").value;
+      const subVal = document.getElementById("subjectSelect").value;
+      const simSelect = document.getElementById("simulationSelect");
+
+      let filtered = rawSimulations;
+      if (curVal) filtered = filtered.filter(s => (s.curriculum || "Lainnya") === curVal);
+      if (levelVal) filtered = filtered.filter(s => (s.level || "Lainnya") === levelVal);
+      if (subVal) filtered = filtered.filter(s => (s.subject || "Lainnya") === subVal);
+
+      simSelect.innerHTML = '<option value="">-- Pilih Judul Simulasi --</option>';
+      filtered.forEach(sim => {
+        const qCount = (sim.questions || []).length;
+        simSelect.innerHTML += `<option value="${sim.id}">${sim.title || 'Tanpa Judul'} (${qCount} Soal)</option>`;
+      });
+
+      simSelect.disabled = false;
+    }
+
+    function onSimulationChange() {
+      const simId = document.getElementById("simulationSelect").value;
+      document.getElementById("toSlide2Btn").disabled = !simId;
+    }
+
+    function resetSubDropdowns(level) {
+      if (level <= 1) {
+        document.getElementById("subjectSelect").innerHTML = '<option value="">-- Pilih Mapel --</option>';
+        document.getElementById("subjectSelect").disabled = true;
+      }
+      document.getElementById("simulationSelect").innerHTML = '<option value="">-- Pilih Judul Simulasi --</option>';
+      document.getElementById("simulationSelect").disabled = true;
+      document.getElementById("toSlide2Btn").disabled = true;
+    }
+
+    // MULAI EXAM CBT ENGINE (FULLSCREEN)
+    function startExamEngine(e) {
+      e.preventDefault();
+
+      const simId = document.getElementById("simulationSelect").value;
+      simulationData = rawSimulations.find(s => s.id === simId);
+      if (!simulationData) return;
+
+      studentProfile = {
+        name: document.getElementById("studentName").value,
+        school: document.getElementById("studentSchool").value,
+        class: document.getElementById("studentClass").value
+      };
+
+      questions = simulationData.questions || [];
+      if (questions.length === 0) {
+        alert("Simulasi ini belum memiliki soal!");
+        return;
+      }
+
+      if (simulationData.randomizeQuestions) {
+        questions = questions.sort(() => Math.random() - 0.5);
+      }
+
+      // Minta Fullscreen
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+
+      // Sembunyikan Form Setup & Tampilkan CBT Engine
+      document.getElementById("setupViewport").style.display = "none";
+      document.getElementById("cbtEngineArea").classList.remove("slide-hidden");
+
+      document.getElementById("simTitle").innerText = simulationData.title || "Simulasi Ujian";
+      document.getElementById("simMeta").innerText = `${studentProfile.name} • ${studentProfile.school} (${studentProfile.class})`;
+
+      timeRemaining = (simulationData.durationMinutes || 60) * 60;
+
+      // Event Listeners Navigasi CBT
+      document.getElementById("btnPrev").onclick = prevQuestion;
+      document.getElementById("btnNext").onclick = nextQuestion;
+      document.getElementById("btnDoubt").onclick = toggleDoubt;
+      document.getElementById("btnToggleList").onclick = toggleNavDrawer;
+      document.getElementById("btnCloseDrawer").onclick = toggleNavDrawer;
+      document.getElementById("navDrawerOverlay").onclick = toggleNavDrawer;
+      document.getElementById("btnConfirmFinish").onclick = confirmFinish;
+
+      renderCurrentQuestion();
+      startTimer();
+    }
+
+    // RENDER SOAL SESUAI TIPE
+    function renderCurrentQuestion() {
+      const q = questions[currentIndex];
+      if (!q) return;
+
+      document.getElementById("questionNumberHeader").innerText = `Soal No. ${currentIndex + 1} dari ${questions.length}`;
+      document.getElementById("questionText").innerHTML = decodeHTML(q.question);
+
+      const container = document.getElementById("answerOptionsArea");
+      container.innerHTML = "";
+
+      // 1. PILIHAN GANDA (PG)
+      if (q.type === "pg" && q.options) {
+        let html = `<div class="options-wrapper">`;
+        q.options.forEach((opt, idx) => {
+          const isChecked = userAnswers[currentIndex] === idx ? "checked" : "";
+          html += `
+            <label class="opt-label">
+              <input type="radio" name="opt_pg" value="${idx}" ${isChecked} onchange="window.saveAnswer(${idx})">
+              <span><b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(opt)}</span>
+            </label>
+          `;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+      }
+
+      // 2. CHECKBOX MULTI OPTION
+      else if (q.type === "checkbox" && q.options) {
+        let html = `<div class="options-wrapper">`;
+        const currentAns = userAnswers[currentIndex] || [];
+        q.options.forEach((opt, idx) => {
+          const isChecked = currentAns.includes(idx) ? "checked" : "";
+          html += `
+            <label class="opt-label">
+              <input type="checkbox" name="opt_chk" value="${idx}" ${isChecked} onchange="window.saveAnswerCheckbox()">
+              <span><b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(opt)}</span>
+            </label>
+          `;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+      }
+
+      // 3. ISIAN SINGKAT
+      else if (q.type === "isian") {
+        const val = userAnswers[currentIndex] !== undefined ? userAnswers[currentIndex] : "";
+        container.innerHTML = `
+          <input type="text" value="${val}" placeholder="Ketik jawaban Anda di sini..." 
+            oninput="window.saveAnswer(this.value)"
+            style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px;">
+        `;
+      }
+
+      // 4. MULTI ISIAN
+      else if (q.type === "multi_isian") {
+        const expectedAns = q.answers || [];
+        const currentAns = userAnswers[currentIndex] || {};
+        let html = `<div style="display:flex; flex-direction:column; gap:12px;">`;
+        expectedAns.forEach((_, idx) => {
+          const val = currentAns[idx] || "";
+          html += `
+            <div>
+              <label style="font-size:13px; font-weight:700; margin-bottom:4px; display:block;">Isian [${idx + 1}]</label>
+              <input type="text" value="${val}" placeholder="Jawaban..." 
+                oninput="window.saveAnswerMultiIsian(${idx}, this.value)"
+                style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px;">
+            </div>
+          `;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+      }
+
+      // 5. MATRIX
+      else if (q.type === "matrix" && q.columns && q.rows) {
+        const currentAns = userAnswers[currentIndex] || {};
+        let html = `
+          <div class="cbt-table-wrapper">
+            <table class="cbt-table">
+              <thead>
+                <tr>
+                  <th>${decodeHTML(q.statementTitle || "Pernyataan")}</th>
+                  ${q.columns.map(col => `<th>${decodeHTML(col)}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        q.rows.forEach((row, rIdx) => {
+          html += `
+            <tr>
+              <td>${decodeHTML(row.statement)}</td>
+              ${q.columns.map((_, cIdx) => {
+                const isChecked = currentAns[rIdx] === cIdx ? "checked" : "";
+                return `
+                  <td style="text-align:center;">
+                    <input type="radio" name="matrix_row_${rIdx}" value="${cIdx}" ${isChecked} onchange="window.saveAnswerMatrix(${rIdx}, ${cIdx})">
+                  </td>
+                `;
+              }).join('')}
+            </tr>
+          `;
+        });
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+      }
+
+      // 6. MATCHING / MENJODOHKAN
+      else if (q.type === "match" && q.pairs) {
+        const currentAns = userAnswers[currentIndex] || {};
+        let html = `
+          <div class="cbt-table-wrapper">
+            <table class="cbt-table">
+              <thead>
+                <tr>
+                  <th style="width:50%;">Pernyataan (Kiri)</th>
+                  <th style="width:50%;">Pasangan Jawaban (Kanan)</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        q.pairs.forEach((p, idx) => {
+          const selectedVal = currentAns[idx] !== undefined ? currentAns[idx] : "";
+          html += `
+            <tr>
+              <td>${decodeHTML(p.left)}</td>
+              <td>
+                <select style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;" onchange="window.saveAnswerMatch(${idx}, this.value)">
+                  <option value="">-- Pilih Pasangan --</option>
+                  ${q.pairs.map((pOpt, optIdx) => `
+                    <option value="${optIdx}" ${selectedVal == optIdx ? 'selected' : ''}>
+                      ${decodeHTML(pOpt.right)}
+                    </option>
+                  `).join('')}
+                </select>
+              </td>
+            </tr>
+          `;
+        });
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+      }
+
+      const btnDoubt = document.getElementById("btnDoubt");
+      if (doubtStatus[currentIndex]) {
+        btnDoubt.style.background = "#d97706";
+        btnDoubt.innerText = "🟧 Ragu-Ragu (Aktif)";
+      } else {
+        btnDoubt.style.background = "#eab308";
+        btnDoubt.innerText = "🟧 Ragu-Ragu";
+      }
+
+      document.getElementById("btnPrev").disabled = currentIndex === 0;
+      document.getElementById("btnNext").innerText = currentIndex === questions.length - 1 ? "Selesai 🏁" : "Selanjutnya ▶";
+
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        MathJax.typesetPromise([document.getElementById("cbtMainContainer")]);
+      }
+
+      renderGridNumbers();
+    }
+
+    // HELPER PENYIMPANAN JAWABAN
+    window.saveAnswer = function(val) {
+      userAnswers[currentIndex] = val;
+      renderGridNumbers();
+    };
+
+    window.saveAnswerCheckbox = function() {
+      const checked = [...document.querySelectorAll('input[name="opt_chk"]:checked')].map(x => parseInt(x.value));
+      if (checked.length > 0) {
+        userAnswers[currentIndex] = checked;
+      } else {
+        delete userAnswers[currentIndex];
+      }
+      renderGridNumbers();
+    };
+
+    window.saveAnswerMultiIsian = function(subIdx, val) {
+      if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
+      if (val.trim() === "") {
+        delete userAnswers[currentIndex][subIdx];
+      } else {
+        userAnswers[currentIndex][subIdx] = val;
+      }
+      renderGridNumbers();
+    };
+
+    window.saveAnswerMatrix = function(rowIdx, colIdx) {
+      if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
+      userAnswers[currentIndex][rowIdx] = colIdx;
+      renderGridNumbers();
+    };
+
+    window.saveAnswerMatch = function(leftIdx, selectedRightIdx) {
+      if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
+      if (selectedRightIdx === "") {
+        delete userAnswers[currentIndex][leftIdx];
+      } else {
+        userAnswers[currentIndex][leftIdx] = parseInt(selectedRightIdx);
+      }
+      renderGridNumbers();
+    };
+
+    // NAVIGASI DARI TOMBOL SOAL
+    function prevQuestion() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderCurrentQuestion();
+      }
+    }
+
+    function nextQuestion() {
+      if (currentIndex < questions.length - 1) {
+        currentIndex++;
+        renderCurrentQuestion();
+      } else {
+        toggleNavDrawer();
+      }
+    }
+
+    function toggleDoubt() {
+      doubtStatus[currentIndex] = !doubtStatus[currentIndex];
+      renderCurrentQuestion();
+    }
+
+    function toggleNavDrawer() {
+      const overlay = document.getElementById("navDrawerOverlay");
+      overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
+    }
+
+    function isQuestionAnswered(idx) {
+      const ans = userAnswers[idx];
+      if (ans === undefined || ans === null) return false;
+      if (typeof ans === "string") return ans.trim() !== "";
+      if (typeof ans === "number") return true; 
+      if (Array.isArray(ans)) return ans.length > 0;
+      if (typeof ans === "object") return Object.keys(ans).length > 0;
+      return false;
+    }
+
+    function renderGridNumbers() {
+      const grid = document.getElementById("gridNumbers");
+      if (!grid) return;
+      grid.innerHTML = "";
+
+      questions.forEach((_, idx) => {
+        const btn = document.createElement("div");
+        btn.className = "num-box";
+        btn.innerText = idx + 1;
+
+        const isAnswered = isQuestionAnswered(idx);
+        const isDoubt = doubtStatus[idx];
+
+        if (idx === currentIndex) btn.classList.add("active");
+        
+        if (isDoubt) {
+          btn.classList.add("doubt");
+        } else if (isAnswered) {
+          btn.classList.add("answered");
+        }
+
+        btn.onclick = () => {
+          currentIndex = idx;
+          renderCurrentQuestion();
+          toggleNavDrawer();
+        };
+        grid.appendChild(btn);
+      });
+    }
+
+    // HITUNG TIMER
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        if (timeRemaining <= 0) {
+          clearInterval(timerInterval);
+          alert("Waktu pengerjaan telah habis!");
+          calculateAndFinish();
+          return;
+        }
+
+        timeRemaining--;
+        const h = Math.floor(timeRemaining / 3600).toString().padStart(2, '0');
+        const m = Math.floor((timeRemaining % 3600) / 60).toString().padStart(2, '0');
+        const s = (timeRemaining % 60).toString().padStart(2, '0');
+
+        document.getElementById("timerDisplay").innerText = `${h}:${m}:${s}`;
+      }, 1000);
+    }
+
+    // HITUNG NILAI, SIMPAN KE FIRESTORE, DAN TAMPILKAN HASIL
+    function confirmFinish() {
+      if (confirm("Apakah Anda yakin ingin menyelesaikan simulasi ujian ini?")) {
+        toggleNavDrawer();
+        calculateAndFinish();
+      }
+    }
+
+    async function calculateAndFinish() {
+      clearInterval(timerInterval);
+
+      let totalCorrect = 0;
+
+      questions.forEach((q, idx) => {
+        const ans = userAnswers[idx];
+        let isCorrect = false;
+
+        if (ans !== undefined && ans !== null) {
+          if (q.type === "pg" && ans === q.answer) {
+            isCorrect = true;
+          }
+          else if (q.type === "checkbox") {
+            const expected = (Array.isArray(q.answer) ? q.answer : []).slice().sort();
+            const userSel = (Array.isArray(ans) ? ans : []).slice().sort();
+            if (JSON.stringify(expected) === JSON.stringify(userSel)) isCorrect = true;
+          }
+          else if (q.type === "isian") {
+            if (String(ans).trim().toLowerCase() === String(q.answer).trim().toLowerCase()) isCorrect = true;
+          }
+          else if (q.type === "multi_isian") {
+            const expectedArr = q.answers || [];
+            let isAllCorrect = true;
+            expectedArr.forEach((exp, subIdx) => {
+              if (!ans[subIdx] || String(ans[subIdx]).trim().toLowerCase() !== String(exp).trim().toLowerCase()) {
+                isAllCorrect = false;
+              }
+            });
+            if (isAllCorrect && expectedArr.length > 0) isCorrect = true;
+          }
+          else if (q.type === "matrix") {
+            let isAllCorrect = true;
+            q.rows.forEach((row, rIdx) => {
+              if (ans[rIdx] !== row.answer) isAllCorrect = false;
+            });
+            if (isAllCorrect) isCorrect = true;
+          }
+          else if (q.type === "match") {
+            let isAllCorrect = true;
+            if (Object.keys(ans).length !== q.pairs.length) {
+              isAllCorrect = false;
+            } else {
+              q.pairs.forEach((_, pIdx) => {
+                if (ans[pIdx] !== pIdx) isAllCorrect = false;
+              });
+            }
+            if (isAllCorrect) isCorrect = true;
+          }
+        }
+
+        if (isCorrect) totalCorrect++;
+      });
+
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+
+      const finalScore = Math.round((totalCorrect / questions.length) * 100) || 0;
+      const passingGrade = simulationData.passingGrade || 75;
+      const isPassed = finalScore >= passingGrade;
+
+      // SIMPAN OTOMATIS KE FIRESTORE (Koleksi 'simulation_results')
+      try {
+        await addDoc(collection(db, "simulation_results"), {
+          studentName: studentProfile.name,
+          studentSchool: studentProfile.school,
+          studentClass: studentProfile.class,
+          simulationId: simulationData.id || "unknown",
+          simulationTitle: simulationData.title || "Tanpa Judul",
+          subject: simulationData.subject || "-",
+          score: finalScore,
+          totalCorrect: totalCorrect,
+          totalQuestions: questions.length,
+          isPassed: isPassed,
+          submittedAt: serverTimestamp()
+        });
+        console.log("Hasil ujian berhasil disimpan ke database!");
+      } catch (err) {
+        console.error("Gagal menyimpan hasil ujian ke database:", err);
+      }
+
+      // TAMPILKAN KE MODAL LAYAR
+      document.getElementById("finalScore").innerText = finalScore;
+      document.getElementById("resultStudentMeta").innerText = `${studentProfile.name} • ${studentProfile.school} (${studentProfile.class})`;
+      
+      const statusEl = document.getElementById("passingStatus");
+      statusEl.innerText = isPassed ? "LULUS (MEMENUHI PASSING GRADE)" : "TIDAK LULUS";
+      statusEl.style.color = isPassed ? "#16a34a" : "#dc2626";
+
+      document.getElementById("resultModal").style.display = "flex";
+    }
+  </script>
+</body>
+</html>

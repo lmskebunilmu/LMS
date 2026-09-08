@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rekap Hasil Ujian CBT</title>
+  
+  <!-- Google Fonts & FontAwesome Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- SheetJS Library (Untuk Export ke Excel) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --success: #16a34a;
+      --success-hover: #15803d;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --bg-slate: #f8fafc;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #f1f5f9;
+      color: var(--text-main);
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header-card {
+      background: white;
+      padding: 24px 32px;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header-title h1 { font-size: 22px; font-weight: 800; }
+    .header-title p { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+
+    .header-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Controls & Filter Panel */
+    .filter-card {
+      background: white;
+      padding: 20px 24px;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .filter-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .search-box {
+      position: relative;
+    }
+
+    .search-box i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-color);
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+      background: #f8fafc;
+      color: var(--text-main);
+    }
+
+    .form-control-search {
+      padding-left: 38px;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+      background: white;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-excel { background: var(--success); color: white; }
+    .btn-excel:hover { background: var(--success-hover); }
+
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: var(--danger-hover); }
+
+    .btn-secondary { background: #e2e8f0; color: #334155; }
+    .btn-secondary:hover { background: #cbd5e1; }
+
+    /* Table Styling */
+    .table-card {
+      background: white;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+      overflow: hidden;
+    }
+
+    .table-wrapper { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      background: #f8fafc;
+      font-weight: 700;
+      color: #334155;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    tr:hover { background: #f8fafc; }
+
+    .badge {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-block;
+    }
+
+    .badge-passed { background: #dcfce7; color: #15803d; }
+    .badge-failed { background: #fee2e2; color: #b91c1c; }
+
+    .btn-delete-row {
+      background: #fee2e2;
+      color: #ef4444;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .btn-delete-row:hover { background: #fca5a5; color: #991b1b; }
+
+    #loadingState {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- HEADER -->
+    <div class="header-card">
+      <div class="header-title">
+        <h1>📊 Rekapitulasi Hasil Ujian CBT</h1>
+        <p>Daftar seluruh nilai siswa yang tersimpan di sistem</p>
+      </div>
+      <div class="header-buttons">
+        <button class="btn btn-excel" id="btnExportExcel">
+          <i class="fa-solid fa-file-excel"></i> Export Excel
+        </button>
+        <button class="btn btn-danger" id="btnClearAll">
+          <i class="fa-solid fa-trash-can"></i> Hapus Semua
+        </button>
+      </div>
+    </div>
+
+    <!-- PANEL FILTER & PENCARIAN -->
+    <div class="filter-card">
+      <div class="filter-grid">
+        <!-- FILTER SEKOLAH -->
+        <div class="filter-group">
+          <label>Filter Sekolah</label>
+          <select id="filterSchool" class="form-control">
+            <option value="">-- Semua Sekolah --</option>
+          </select>
+        </div>
+
+        <!-- FILTER KELAS -->
+        <div class="filter-group">
+          <label>Filter Kelas</label>
+          <select id="filterClass" class="form-control">
+            <option value="">-- Semua Kelas --</option>
+          </select>
+        </div>
+
+        <!-- FILTER JUDUL SIMULASI -->
+        <div class="filter-group">
+          <label>Filter Judul Ujian</label>
+          <select id="filterTitle" class="form-control">
+            <option value="">-- Semua Judul Ujian --</option>
+          </select>
+        </div>
+
+        <!-- PENCARIAN TEKS -->
+        <div class="filter-group">
+          <label>Cari Nama Siswa</label>
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="searchInput" class="form-control form-control-search" placeholder="Ketik nama siswa...">
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border-color); padding-top: 12px;">
+        <span id="filterStats" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Menampilkan: 0 data</span>
+        <button class="btn btn-secondary" id="btnResetFilter" style="padding: 6px 14px; font-size: 12px;">
+          <i class="fa-solid fa-rotate-left"></i> Reset Filter
+        </button>
+      </div>
+    </div>
+
+    <!-- TABEL HASIL -->
+    <div class="table-card">
+      <div id="loadingState">Memuat data rekap nilai...</div>
+      
+      <div class="table-wrapper" id="tableWrapper" style="display: none;">
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama Siswa</th>
+              <th>Asal Sekolah</th>
+              <th>Kelas</th>
+              <th>Judul Simulasi</th>
+              <th>Benar / Total</th>
+              <th>Skor</th>
+              <th>Status</th>
+              <th>Waktu Selesai</th>
+              <th style="text-align: center;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="resultsTableBody">
+            <!-- Data dimasukkan via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <i class="fa-solid fa-folder-open" style="font-size: 36px; margin-bottom: 10px; opacity: 0.5;"></i>
+        <p>Belum ada data nilai yang tersimpan.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT UTAMA FIREBASE FIRESTORE -->
+  <script type="module">
+    import { auth, db } from "../../firebase/firebase-config.js";
+    import { collection, getDocs, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    let allResults = [];
+    let currentFilteredResults = [];
+
+    // CEK AUTH
+    onAuthStateChanged(auth, async user => {
+      if (!user) {
+        alert("Silakan login sebagai admin/guru terlebih dahulu.");
+        window.location = "../../login.html";
+        return;
+      }
+      await loadResultsData();
+    });
+
+    // LOAD DATA FIRESTORE
+    async function loadResultsData() {
+      try {
+        const snap = await getDocs(collection(db, "simulation_results"));
+        
+        document.getElementById("loadingState").style.display = "none";
+
+        if (snap.empty) {
+          document.getElementById("emptyState").style.display = "block";
+          document.getElementById("tableWrapper").style.display = "none";
+          return;
+        }
+
+        allResults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Urutkan berdasarkan waktu pengerjaan terbaru
+        allResults.sort((a, b) => {
+          const timeA = a.submittedAt ? a.submittedAt.toMillis() : 0;
+          const timeB = b.submittedAt ? b.submittedAt.toMillis() : 0;
+          return timeB - timeA;
+        });
+
+        populateFilterDropdowns();
+        applyFilters();
+        document.getElementById("tableWrapper").style.display = "block";
+
+      } catch (err) {
+        console.error("Gagal mengambil data:", err);
+        document.getElementById("loadingState").innerHTML = `<b style="color:red;">Gagal memuat data: ${err.message}</b>`;
+      }
+    }
+
+    // MEMUAT PILIHAN ISI DROPDOWN FILTER OLEH DATA YANG ADA
+    function populateFilterDropdowns() {
+      const schools = [...new Set(allResults.map(i => i.studentSchool).filter(Boolean))].sort();
+      const classes = [...new Set(allResults.map(i => i.studentClass).filter(Boolean))].sort();
+      const titles = [...new Set(allResults.map(i => i.simulationTitle).filter(Boolean))].sort();
+
+      const schoolSel = document.getElementById("filterSchool");
+      const classSel = document.getElementById("filterClass");
+      const titleSel = document.getElementById("filterTitle");
+
+      schoolSel.innerHTML = '<option value="">-- Semua Sekolah --</option>';
+      schools.forEach(s => schoolSel.innerHTML += `<option value="${s}">${s}</option>`);
+
+      classSel.innerHTML = '<option value="">-- Semua Kelas --</option>';
+      classes.forEach(c => classSel.innerHTML += `<option value="${c}">${c}</option>`);
+
+      titleSel.innerHTML = '<option value="">-- Semua Judul Ujian --</option>';
+      titles.forEach(t => titleSel.innerHTML += `<option value="${t}">${t}</option>`);
+    }
+
+    // MENERAPKAN FILTER KOORDINATIF
+    function applyFilters() {
+      const selectedSchool = document.getElementById("filterSchool").value;
+      const selectedClass = document.getElementById("filterClass").value;
+      const selectedTitle = document.getElementById("filterTitle").value;
+      const searchQuery = document.getElementById("searchInput").value.toLowerCase().trim();
+
+      currentFilteredResults = allResults.filter(item => {
+        const matchSchool = !selectedSchool || item.studentSchool === selectedSchool;
+        const matchClass = !selectedClass || item.studentClass === selectedClass;
+        const matchTitle = !selectedTitle || item.simulationTitle === selectedTitle;
+        const matchSearch = !searchQuery || (item.studentName || "").toLowerCase().includes(searchQuery);
+
+        return matchSchool && matchClass && matchTitle && matchSearch;
+      });
+
+      document.getElementById("filterStats").innerText = `Menampilkan: ${currentFilteredResults.length} dari ${allResults.length} data`;
+      renderTable(currentFilteredResults);
+    }
+
+    // EVENT LISTENERS UNTUK FILTER
+    document.getElementById("filterSchool").addEventListener("change", applyFilters);
+    document.getElementById("filterClass").addEventListener("change", applyFilters);
+    document.getElementById("filterTitle").addEventListener("change", applyFilters);
+    document.getElementById("searchInput").addEventListener("input", applyFilters);
+
+    document.getElementById("btnResetFilter").addEventListener("click", () => {
+      document.getElementById("filterSchool").value = "";
+      document.getElementById("filterClass").value = "";
+      document.getElementById("filterTitle").value = "";
+      document.getElementById("searchInput").value = "";
+      applyFilters();
+    });
+
+    // RENDER TABEL
+    function renderTable(dataList) {
+      const tbody = document.getElementById("resultsTableBody");
+      tbody.innerHTML = "";
+
+      if (dataList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#64748b; padding:20px;">Data tidak ditemukan sesuai filter.</td></tr>`;
+        return;
+      }
+
+      dataList.forEach((item, index) => {
+        const dateStr = item.submittedAt ? new Date(item.submittedAt.toMillis()).toLocaleString("id-ID") : "-";
+        const badgeClass = item.isPassed ? "badge-passed" : "badge-failed";
+        const statusText = item.isPassed ? "LULUS" : "TIDAK LULUS";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td><b>${item.studentName || "-"}</b></td>
+          <td>${item.studentSchool || "-"}</td>
+          <td><b style="color:#4f46e5;">${item.studentClass || "-"}</b></td>
+          <td>${item.simulationTitle || "-"}</td>
+          <td>${item.totalCorrect || 0} / ${item.totalQuestions || 0}</td>
+          <td><b style="font-size:16px; color:#2563eb;">${item.score || 0}</b></td>
+          <td><span class="badge ${badgeClass}">${statusText}</span></td>
+          <td style="font-size:12px; color:#64748b;">${dateStr}</td>
+          <td style="text-align:center;">
+            <button class="btn-delete-row" title="Hapus Data Ini" onclick="window.deleteSingleResult('${item.id}', '${item.studentName}')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // EXPORT KE EXCEL (SESUAI DATA HASIL FILTER)
+    document.getElementById("btnExportExcel").addEventListener("click", () => {
+      if (currentFilteredResults.length === 0) {
+        alert("Tidak ada data untuk di-export!");
+        return;
+      }
+
+      const excelData = currentFilteredResults.map((item, index) => ({
+        "No": index + 1,
+        "Nama Siswa": item.studentName || "-",
+        "Asal Sekolah": item.studentSchool || "-",
+        "Kelas": item.studentClass || "-",
+        "Judul Ujian": item.simulationTitle || "-",
+        "Jumlah Benar": item.totalCorrect || 0,
+        "Total Soal": item.totalQuestions || 0,
+        "Nilai Akhir": item.score || 0,
+        "Status": item.isPassed ? "LULUS" : "TIDAK LULUS",
+        "Waktu Selesai": item.submittedAt ? new Date(item.submittedAt.toMillis()).toLocaleString("id-ID") : "-"
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Ujian");
+
+      worksheet["!cols"] = [
+        { wch: 5 },  // No
+        { wch: 25 }, // Nama Siswa
+        { wch: 25 }, // Asal Sekolah
+        { wch: 10 }, // Kelas
+        { wch: 30 }, // Judul Ujian
+        { wch: 15 }, // Jumlah Benar
+        { wch: 12 }, // Total Soal
+        { wch: 12 }, // Nilai Akhir
+        { wch: 15 }, // Status
+        { wch: 22 }  // Waktu Selesai
+      ];
+
+      const today = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `Rekap_Nilai_CBT_${today}.xlsx`);
+    });
+
+    // HAPUS SATU DATA RESULT
+    window.deleteSingleResult = async function(docId, studentName) {
+      if (confirm(`Apakah Anda yakin ingin menghapus hasil ujian siswa "${studentName}"?`)) {
+        try {
+          await deleteDoc(doc(db, "simulation_results", docId));
+          alert("Data berhasil dihapus.");
+          await loadResultsData();
+        } catch (err) {
+          alert("Gagal menghapus data: " + err.message);
+        }
+      }
+    };
+
+    // HAPUS SEMUA DATA RESULT
+    document.getElementById("btnClearAll").addEventListener("click", async () => {
+      if (allResults.length === 0) {
+        alert("Tidak ada data untuk dihapus.");
+        return;
+      }
+
+      if (confirm("🚨 PERINGATAN!\n\nApakah Anda YAKIN ingin menghapus SELURUH hasil ujian siswa? Data yang dihapus tidak bisa dikembalikan.")) {
+        try {
+          const batch = writeBatch(db);
+          allResults.forEach(item => {
+            batch.delete(doc(db, "simulation_results", item.id));
+          });
+
+          await batch.commit();
+          alert("Seluruh hasil ujian berhasil dibersihkan!");
+          await loadResultsData();
+        } catch (err) {
+          alert("Gagal menghapus seluruh data: " + err.message);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
