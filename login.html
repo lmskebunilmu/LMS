@@ -2,25 +2,14 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta
-  name="viewport"
-  content="width=device-width,initial-scale=1.0"
->
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 
 <title>Login LMS</title>
 
-<link
-  rel="stylesheet"
-  href="assets/css/style.css"
->
-
-<link
-  rel="stylesheet"
-  href="assets/css/responsive.css"
->
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/responsive.css">
 
 <style>
-
 *{
   margin:0;
   padding:0;
@@ -35,356 +24,220 @@ body{
 /* =========================
    CONTAINER
 ========================= */
-
 .login-container{
-
   min-height:100vh;
-
   display:flex;
-
   justify-content:center;
-
   align-items:center;
-
   padding:20px;
-
 }
 
 /* =========================
    CARD
 ========================= */
-
 .login-card{
-
   width:100%;
-
   max-width:420px;
-
   background:white;
-
   padding:35px;
-
   border-radius:18px;
-
-  box-shadow:
-  0 10px 25px rgba(0,0,0,0.08);
-
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
 }
 
 /* =========================
    TITLE
 ========================= */
-
 .login-card h2{
-
   text-align:center;
-
   margin-bottom:24px;
-
   color:#0f172a;
-
   font-size:28px;
-
 }
 
 /* =========================
    INPUT
 ========================= */
-
 input{
-
   width:100%;
-
   padding:14px;
-
   margin-bottom:16px;
-
   border:1px solid #cbd5e1;
-
   border-radius:12px;
-
   font-size:15px;
-
   outline:none;
-
   transition:0.2s;
-
 }
 
 input:focus{
-
   border-color:#2563eb;
-
-  box-shadow:
-  0 0 0 3px rgba(37,99,235,0.15);
-
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
 }
 
 /* =========================
    BUTTON
 ========================= */
-
 button{
-
   width:100%;
-
   padding:14px;
-
   border:none;
-
   border-radius:12px;
-
   background:#2563eb;
-
   color:white;
-
   font-size:15px;
-
   font-weight:bold;
-
   cursor:pointer;
-
   transition:0.2s;
-
 }
 
 button:hover{
-
   background:#1d4ed8;
-
   transform:translateY(-1px);
+}
 
+button:disabled{
+  background:#94a3b8;
+  cursor:not-allowed;
+  transform:none;
 }
 
 /* =========================
    MOBILE
 ========================= */
-
 @media(max-width:768px){
-
   .login-card{
-
     max-width:100%;
-
     padding:28px;
-
     border-radius:16px;
-
   }
-
   .login-card h2{
-
     font-size:24px;
-
   }
-
   input{
-
     padding:13px;
-
     font-size:14px;
-
   }
-
   button{
-
     padding:13px;
-
     font-size:14px;
-
   }
-
 }
 
 /* =========================
    SMALL PHONE
 ========================= */
-
 @media(max-width:480px){
-
   .login-container{
-
     padding:16px;
-
   }
-
   .login-card{
-
     padding:22px;
-
     border-radius:14px;
-
   }
-
   .login-card h2{
-
     font-size:22px;
-
     margin-bottom:20px;
-
   }
-
   input{
-
     padding:12px;
-
     margin-bottom:14px;
-
   }
-
   button{
-
     padding:12px;
-
   }
-
 }
-
 </style>
 </head>
 
 <body>
 
 <div class="login-container">
-
   <div class="login-card">
-
     <h2>Login LMS</h2>
 
-    <input
-      type="email"
-      id="email"
-      placeholder="Email"
-    >
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
 
-    <input
-      type="password"
-      id="password"
-      placeholder="Password"
-    >
-
-    <button onclick="login()">
-      Login
-    </button>
-
+    <button onclick="login()">Login</button>
   </div>
-
 </div>
 
 <script type="module">
-
-import { auth, db }
-from "./firebase/firebase-config.js";
-
-import {
-  signInWithEmailAndPassword
-}
-from
-"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-import {
-  doc,
-  getDoc
-}
-from
-"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { auth, db } from "./firebase/firebase-config.js";
+import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* =========================
    REDIRECT ROLE
 ========================= */
-
 async function redirectByRole(uid){
+  try {
+    const userRef = doc(db, "users", uid);
+    const userDoc = await getDoc(userRef);
 
-  const userRef =
-  doc(db, "users", uid);
+    if (!userDoc.exists()) {
+      alert("Data user tidak ditemukan di database.");
+      return;
+    }
 
-  const userDoc =
-  await getDoc(userRef);
+    const role = userDoc.data().role;
 
-  if (!userDoc.exists()) {
+    if (role === "super_admin") window.location = "dashboard/superadmin.html";
+    else if (role === "admin") window.location = "dashboard/admin.html";
+    else if (role === "guru") window.location = "dashboard/guru.html";
+    else if (role === "siswa") window.location = "dashboard/siswa.html";
+    else if (role === "student") window.location = "dashboard/student.html";
+    else alert("Role akun tidak valid.");
 
-    alert("Data user tidak ditemukan");
-
-    return;
-
+  } catch (error) {
+    console.error("Gagal mengambil data role:", error);
+    alert("Gagal memuat data pengguna. Periksa koneksi internet Anda.");
   }
-
-  const role =
-  userDoc.data().role;
-
-  if (role === "super_admin")
-
-    window.location =
-    "dashboard/superadmin.html";
-
-  else if (role === "admin")
-
-    window.location =
-    "dashboard/admin.html";
-
-  else if (role === "guru")
-
-    window.location =
-    "dashboard/guru.html";
-
- else if (role === "siswa")
-
-  window.location =
-  "dashboard/siswa.html";
-
-else if (role === "student")
-
-  window.location =
-  "dashboard/student.html";
-
-  else
-
-    alert("Role tidak valid");
-
 }
 
 /* =========================
    LOGIN
 ========================= */
-
 async function login(){
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
+  const loginButton = document.querySelector("button");
 
-  const email =
-  document.getElementById("email")
-  .value
-  .trim();
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
 
-  const password =
-  document.getElementById("password")
-  .value;
+  if (!email || !password) {
+    alert("Email dan password harus diisi!");
+    return;
+  }
+
+  // Ubah tombol jadi status loading agar user tidak klik berkali-kali saat internet lambat
+  loginButton.disabled = true;
+  loginButton.textContent = "Memproses...";
 
   try {
-
-    const userCredential =
-    await signInWithEmailAndPassword(
-
-      auth,
-      email,
-      password
-
-    );
-
-    await redirectByRole(
-      userCredential.user.uid
-    );
-
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    await redirectByRole(userCredential.user.uid);
   }
-
   catch(error){
+    let pesanError = "Terjadi kesalahan saat login.";
+    
+    if (error.code === 'auth/network-request-failed') {
+      pesanError = "Koneksi internet bermasalah atau terputus. Periksa jaringan Anda.";
+    } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      pesanError = "Email atau password salah.";
+    } else if (error.code === 'auth/too-many-requests') {
+      pesanError = "Terlalu banyak percobaan login gagal. Coba beberapa saat lagi.";
+    }
 
-    alert(error.message);
-
+    alert(pesanError);
+    
+    // Kembalikan tombol ke kondisi semula jika gagal
+    loginButton.disabled = false;
+    loginButton.textContent = "Login";
   }
-
 }
 
 window.login = login;
-
 </script>
 
 </body>
