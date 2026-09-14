@@ -50,7 +50,6 @@
       padding: 0 16px;
     }
 
-    /* Container Slide Form Setup */
     .slide-card {
       background: #ffffff;
       padding: 32px;
@@ -69,7 +68,6 @@
       to { opacity: 1; transform: translateX(0); }
     }
 
-    /* Header Step */
     .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
     .step-icon {
       width: 44px; height: 44px; background: var(--primary-light); color: var(--primary);
@@ -78,7 +76,6 @@
     .step-title h2 { font-size: 20px; font-weight: 800; color: var(--text-main); }
     .step-title p { font-size: 13px; color: var(--text-muted); font-weight: 500; }
 
-    /* Controls UI */
     .form-group { margin-bottom: 18px; }
     .form-group label { 
       display: block; font-weight: 700; margin-bottom: 6px; color: #334155; 
@@ -94,7 +91,6 @@
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-    /* Buttons */
     .btn { 
       background: var(--primary); color: white; border: none; padding: 14px 24px; 
       border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 14px; 
@@ -107,7 +103,6 @@
     .btn-secondary { background: #f1f5f9; color: #475569; box-shadow: none; }
     .btn-secondary:hover { background: #e2e8f0; }
 
-    /* CBT SIMULATION ENGINE STYLES */
     .cbt-container {
       max-width: 1000px;
       margin: 20px auto;
@@ -134,7 +129,6 @@
     .q-number { font-size: 14px; font-weight: 700; color: #2563eb; margin-bottom: 12px; }
     .q-text { font-size: 16px; font-weight: 600; line-height: 1.6; margin-bottom: 20px; word-break: break-word; }
 
-    /* OPTIONS & TABLES */
     .options-wrapper { display: flex; flex-direction: column; gap: 10px; }
     .opt-label {
       display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid #cbd5e1;
@@ -155,7 +149,6 @@
     .btn-doubt { background: #eab308; color: white; }
     .btn-finish { background: #16a34a; color: white; }
 
-    /* DRAWER DAFTAR SOAL */
     .nav-drawer-overlay {
       position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); display: none;
       justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); padding: 16px;
@@ -175,7 +168,6 @@
     .num-box.answered { background: #2563eb !important; color: white !important; border-color: #2563eb !important; }
     .num-box.doubt { background: #eab308 !important; color: white !important; border-color: #eab308 !important; }
 
-    /* MODAL HASIL UJIAN */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); display: flex;
       align-items: center; justify-content: center; z-index: 999; padding: 16px; backdrop-filter: blur(4px);
@@ -190,10 +182,7 @@
 </head>
 <body>
 
-  <!-- AREA FORM SETUP (SLIDE 1 & SLIDE 2) -->
   <div class="app-viewport" id="setupViewport">
-
-    <!-- SLIDE 1: FILTER SIMULASI -->
     <div id="slide1" class="slide-card slide-active">
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-layer-group"></i></div>
@@ -237,7 +226,6 @@
       </button>
     </div>
 
-    <!-- SLIDE 2: FORM DATA DIRI SISWA -->
     <div id="slide2" class="slide-card slide-hidden">
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-user-pen"></i></div>
@@ -254,7 +242,6 @@
         </div>
 
         <div class="grid-2">
-          <!-- DROPDOWN SEKOLAH -->
           <div class="form-group">
             <label>Asal Sekolah</label>
             <select id="studentSchool" class="form-control" required>
@@ -262,7 +249,6 @@
             </select>
           </div>
 
-          <!-- DROPDOWN KELAS -->
           <div class="form-group">
             <label>Kelas</label>
             <select id="studentClass" class="form-control" required>
@@ -299,14 +285,11 @@
         </div>
       </form>
     </div>
-
   </div>
 
   <div id="loadingState">Memuat data dari sistem...</div>
 
-  <!-- CBT ENGINE INTERACTIVE AREA (TAMPILAN CBT LENGKAP) -->
   <div id="cbtEngineArea" class="slide-hidden">
-    <!-- HEADER -->
     <div style="max-width: 1000px; margin: 15px auto 0; padding: 0 16px;">
       <div class="cbt-header" id="cbtHeader">
         <div>
@@ -320,7 +303,6 @@
       </div>
     </div>
 
-    <!-- MAIN CONTAINER SOAL -->
     <div class="cbt-container" id="cbtMainContainer">
       <div class="cbt-card">
         <div>
@@ -338,7 +320,6 @@
     </div>
   </div>
 
-  <!-- DRAWER DAFTAR SOAL -->
   <div class="nav-drawer-overlay" id="navDrawerOverlay">
     <div class="nav-drawer" onclick="event.stopPropagation()">
       <div>
@@ -360,7 +341,6 @@
     </div>
   </div>
 
-  <!-- MODAL HASIL AKHIR (TANPA PEMBAHASAN) -->
   <div class="modal-overlay" id="resultModal" style="display: none;">
     <div class="modal-card">
       <h1 style="font-size: 48px; margin: 0 0 10px;">🎉</h1>
@@ -379,10 +359,9 @@
     </div>
   </div>
 
-  <!-- SCRIPT UTAMA UNTUK LOGIK DATABASE & CBT SIMULASI -->
   <script type="module">
     import { auth, db } from "./firebase/firebase-config.js";
-    import { collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { collection, getDocs, addDoc, serverTimestamp, query, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     let rawSimulations = [];
@@ -415,9 +394,12 @@
       await fetchAllSimulations();
     });
 
+    // Optimasi Pengambilan Data dengan Limit agar tidak berat saat koneksi jelek
     async function fetchAllSimulations() {
       try {
-        const snap = await getDocs(collection(db, "simulations"));
+        const qRef = query(collection(db, "simulations"), limit(50));
+        const snap = await getDocs(qRef);
+        
         if (snap.empty) {
           document.getElementById("loadingState").innerHTML = "<b style='color:red;'>Tidak ada data simulasi.</b>";
           return;
@@ -428,7 +410,7 @@
         initFilters();
 
       } catch (err) {
-        document.getElementById("loadingState").innerHTML = `<b style='color:red;'>Gagal memuat: ${err.message}</b>`;
+        document.getElementById("loadingState").innerHTML = `<b style='color:red;'>Gagal memuat: ${err.message}. Periksa jaringan Anda.</b>`;
       }
     }
 
@@ -530,7 +512,6 @@
       document.getElementById("toSlide2Btn").disabled = true;
     }
 
-    // MULAI EXAM CBT ENGINE (FULLSCREEN)
     function startExamEngine(e) {
       e.preventDefault();
 
@@ -554,12 +535,10 @@
         questions = questions.sort(() => Math.random() - 0.5);
       }
 
-      // Minta Fullscreen
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
       else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
 
-      // Sembunyikan Form Setup & Tampilkan CBT Engine
       document.getElementById("setupViewport").style.display = "none";
       document.getElementById("cbtEngineArea").classList.remove("slide-hidden");
 
@@ -568,7 +547,6 @@
 
       timeRemaining = (simulationData.durationMinutes || 60) * 60;
 
-      // Event Listeners Navigasi CBT
       document.getElementById("btnPrev").onclick = prevQuestion;
       document.getElementById("btnNext").onclick = nextQuestion;
       document.getElementById("btnDoubt").onclick = toggleDoubt;
@@ -581,7 +559,6 @@
       startTimer();
     }
 
-    // RENDER SOAL SESUAI TIPE
     function renderCurrentQuestion() {
       const q = questions[currentIndex];
       if (!q) return;
@@ -592,7 +569,6 @@
       const container = document.getElementById("answerOptionsArea");
       container.innerHTML = "";
 
-      // 1. PILIHAN GANDA (PG)
       if (q.type === "pg" && q.options) {
         let html = `<div class="options-wrapper">`;
         q.options.forEach((opt, idx) => {
@@ -607,8 +583,6 @@
         html += `</div>`;
         container.innerHTML = html;
       }
-
-      // 2. CHECKBOX MULTI OPTION
       else if (q.type === "checkbox" && q.options) {
         let html = `<div class="options-wrapper">`;
         const currentAns = userAnswers[currentIndex] || [];
@@ -624,8 +598,6 @@
         html += `</div>`;
         container.innerHTML = html;
       }
-
-      // 3. ISIAN SINGKAT
       else if (q.type === "isian") {
         const val = userAnswers[currentIndex] !== undefined ? userAnswers[currentIndex] : "";
         container.innerHTML = `
@@ -634,8 +606,6 @@
             style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px;">
         `;
       }
-
-      // 4. MULTI ISIAN
       else if (q.type === "multi_isian") {
         const expectedAns = q.answers || [];
         const currentAns = userAnswers[currentIndex] || {};
@@ -654,8 +624,6 @@
         html += `</div>`;
         container.innerHTML = html;
       }
-
-      // 5. MATRIX
       else if (q.type === "matrix" && q.columns && q.rows) {
         const currentAns = userAnswers[currentIndex] || {};
         let html = `
@@ -687,8 +655,6 @@
         html += `</tbody></table></div>`;
         container.innerHTML = html;
       }
-
-      // 6. MATCHING / MENJODOHKAN
       else if (q.type === "match" && q.pairs) {
         const currentAns = userAnswers[currentIndex] || {};
         let html = `
@@ -737,13 +703,12 @@
       document.getElementById("btnNext").innerText = currentIndex === questions.length - 1 ? "Selesai 🏁" : "Selanjutnya ▶";
 
       if (window.MathJax && window.MathJax.typesetPromise) {
-        MathJax.typesetPromise([document.getElementById("cbtMainContainer")]);
+        MathJax.typesetPromise([document.getElementById("cbtMainContainer")]).catch(() => {});
       }
 
       renderGridNumbers();
     }
 
-    // HELPER PENYIMPANAN JAWABAN
     window.saveAnswer = function(val) {
       userAnswers[currentIndex] = val;
       renderGridNumbers();
@@ -785,7 +750,6 @@
       renderGridNumbers();
     };
 
-    // NAVIGASI DARI TOMBOL SOAL
     function prevQuestion() {
       if (currentIndex > 0) {
         currentIndex--;
@@ -852,7 +816,6 @@
       });
     }
 
-    // HITUNG TIMER
     function startTimer() {
       timerInterval = setInterval(() => {
         if (timeRemaining <= 0) {
@@ -871,7 +834,6 @@
       }, 1000);
     }
 
-    // HITUNG NILAI, SIMPAN KE FIRESTORE, DAN TAMPILKAN HASIL
     function confirmFinish() {
       if (confirm("Apakah Anda yakin ingin menyelesaikan simulasi ujian ini?")) {
         toggleNavDrawer();
@@ -939,7 +901,6 @@
       const passingGrade = simulationData.passingGrade || 75;
       const isPassed = finalScore >= passingGrade;
 
-      // SIMPAN OTOMATIS KE FIRESTORE (Koleksi 'simulation_results')
       try {
         await addDoc(collection(db, "simulation_results"), {
           studentName: studentProfile.name,
@@ -954,12 +915,10 @@
           isPassed: isPassed,
           submittedAt: serverTimestamp()
         });
-        console.log("Hasil ujian berhasil disimpan ke database!");
       } catch (err) {
         console.error("Gagal menyimpan hasil ujian ke database:", err);
       }
 
-      // TAMPILKAN KE MODAL LAYAR
       document.getElementById("finalScore").innerText = finalScore;
       document.getElementById("resultStudentMeta").innerText = `${studentProfile.name} • ${studentProfile.school} (${studentProfile.class})`;
       
