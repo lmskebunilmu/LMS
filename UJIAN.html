@@ -69,6 +69,26 @@
             line-height: 1.5;
         }
 
+        .form-group {
+            margin-bottom: 16px;
+            text-align: left;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
         .button-container {
             display: flex;
             flex-direction: column;
@@ -90,6 +110,17 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-blue {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .btn-blue:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
         }
 
         .btn-primary {
@@ -115,6 +146,20 @@
             border-color: #cbd5e1;
             color: #0f172a;
             transform: translateY(-2px);
+        }
+
+        .btn-logout {
+            background-color: #fff1f2;
+            color: #e11d48;
+            border: 1px solid #fecdd3;
+            padding: 10px 16px;
+            font-size: 0.875rem;
+            margin-top: 10px;
+        }
+
+        .btn-logout:hover {
+            background-color: #ffe4e6;
+            color: #be123c;
         }
 
         .svg-icon {
@@ -149,19 +194,29 @@
     <div class="card">
         <span class="badge">LMS KEBUN ILMU</span>
 
-        <!-- TAMPILAN LOGIN (DISEMBUNYIKAN) -->
-        <div id="loginSection" class="hidden">
+        <!-- TAMPILAN LOGIN -->
+        <div id="loginSection">
             <h2>Login LMS</h2>
             <p class="subtitle">Masukkan akun Anda untuk mengakses portal ujian.</p>
+            
+            <div class="form-group">
+                <input type="email" id="email" placeholder="Email Anda" required>
+            </div>
+            
+            <div class="form-group">
+                <input type="password" id="password" placeholder="Password Anda" required>
+            </div>
+
+            <button type="button" class="btn btn-blue" id="btnLogin">Login</button>
         </div>
 
-        <!-- TAMPILAN PORTAL (LANGSUNG MUNCUL) -->
-        <div id="portalSection">
+        <!-- TAMPILAN PORTAL (MUNCUL SETELAH LOGIN) -->
+        <div id="portalSection" class="hidden">
             <h1>Portal Ujian Online</h1>
             <p class="subtitle">Pilih menu di bawah ini untuk memulai sesi ujian atau melihat hasil penilaian Anda.</p>
 
             <div class="user-info">
-                Status: <strong>Pengunjung / Tanpa Login</strong>
+                Halo, <strong id="userEmail">User</strong>
             </div>
 
             <div class="button-container">
@@ -183,6 +238,10 @@
                     </svg>
                     Lihat Hasil Ujian
                 </a>
+
+                <button type="button" class="btn btn-logout" id="btnLogout">
+                    Keluar (Logout)
+                </button>
             </div>
         </div>
 
@@ -191,5 +250,81 @@
         </footer>
     </div>
 
+    <!-- SCRIPT FIREBASE & LOGIK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+        // masukkan konfigurasi Firebase kamu dari file firebase-config.js
+        const firebaseConfig = {
+            apiKey: "PASTE_API_KEY_KAMU",
+            authDomain: "PASTE_AUTH_DOMAIN_KAMU",
+            projectId: "PASTE_PROJECT_ID_KAMU",
+            storageBucket: "PASTE_STORAGE_BUCKET_KAMU",
+            messagingSenderId: "PASTE_MESSAGING_SENDER_ID_KAMU",
+            appId: "PASTE_APP_ID_KAMU"
+        };
+
+        // Inisialisasi Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // Referensi Elemen
+        const loginSection = document.getElementById("loginSection");
+        const portalSection = document.getElementById("portalSection");
+        const userEmailDisplay = document.getElementById("userEmail");
+        const btnLogin = document.getElementById("btnLogin");
+        const btnLogout = document.getElementById("btnLogout");
+
+        // 1. Cek Sesi Autentikasi
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userEmailDisplay.textContent = user.email;
+                loginSection.classList.add("hidden");
+                portalSection.classList.remove("hidden");
+            } else {
+                loginSection.classList.remove("hidden");
+                portalSection.classList.add("hidden");
+            }
+        });
+
+        // 2. Event Tombol Login
+        btnLogin.addEventListener("click", async () => {
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value;
+
+            if (!email || !password) {
+                alert("Harap isi email dan password!");
+                return;
+            }
+
+            try {
+                btnLogin.disabled = true;
+                btnLogin.innerText = "Memproses...";
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                alert("Gagal Login: " + error.message);
+            } finally {
+                btnLogin.disabled = false;
+                btnLogin.innerText = "Login";
+            }
+        });
+
+        // 3. Event Tombol Logout
+        btnLogout.addEventListener("click", async () => {
+            try {
+                await signOut(auth);
+                document.getElementById("email").value = "";
+                document.getElementById("password").value = "";
+            } catch (error) {
+                alert("Gagal Logout: " + error.message);
+            }
+        });
+    </script>
 </body>
 </html>
