@@ -78,7 +78,7 @@
 
     .filter-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 12px;
     }
 
@@ -268,6 +268,17 @@
           </select>
         </div>
 
+        <!-- PENGURUTAN / SORTING -->
+        <div class="filter-group">
+          <label>Urutkan Berdasarkan</label>
+          <select id="sortBy" class="form-control">
+            <option value="latest">Terbaru</option>
+            <option value="highest">Nilai Tertinggi</option>
+            <option value="lowest">Nilai Terendah</option>
+            <option value="oldest">Terlama</option>
+          </select>
+        </div>
+
         <!-- PENCARIAN TEKS -->
         <div class="filter-group">
           <label>Cari Nama Siswa</label>
@@ -321,7 +332,7 @@
 
   <!-- SCRIPT UTAMA FIREBASE FIRESTORE -->
   <script type="module">
-    import { auth, db } from "./firebase/firebase-config.js";
+    import { auth, db } from "../../firebase/firebase-config.js";
     import { collection, getDocs, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -353,13 +364,6 @@
 
         allResults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // Urutkan berdasarkan waktu pengerjaan terbaru
-        allResults.sort((a, b) => {
-          const timeA = a.submittedAt ? a.submittedAt.toMillis() : 0;
-          const timeB = b.submittedAt ? b.submittedAt.toMillis() : 0;
-          return timeB - timeA;
-        });
-
         populateFilterDropdowns();
         applyFilters();
         document.getElementById("tableWrapper").style.display = "block";
@@ -390,13 +394,15 @@
       titles.forEach(t => titleSel.innerHTML += `<option value="${t}">${t}</option>`);
     }
 
-    // MENERAPKAN FILTER KOORDINATIF
+    // MENERAPKAN FILTER & SORTING KOORDINATIF
     function applyFilters() {
       const selectedSchool = document.getElementById("filterSchool").value;
       const selectedClass = document.getElementById("filterClass").value;
       const selectedTitle = document.getElementById("filterTitle").value;
       const searchQuery = document.getElementById("searchInput").value.toLowerCase().trim();
+      const sortBy = document.getElementById("sortBy").value;
 
+      // 1. Filter Data
       currentFilteredResults = allResults.filter(item => {
         const matchSchool = !selectedSchool || item.studentSchool === selectedSchool;
         const matchClass = !selectedClass || item.studentClass === selectedClass;
@@ -406,21 +412,41 @@
         return matchSchool && matchClass && matchTitle && matchSearch;
       });
 
+      // 2. Sort/Urutkan Data
+      currentFilteredResults.sort((a, b) => {
+        const timeA = a.submittedAt ? a.submittedAt.toMillis() : 0;
+        const timeB = b.submittedAt ? b.submittedAt.toMillis() : 0;
+        const scoreA = Number(a.score) || 0;
+        const scoreB = Number(b.score) || 0;
+
+        if (sortBy === "highest") {
+          return scoreB - scoreA; // Skor Tertinggi
+        } else if (sortBy === "lowest") {
+          return scoreA - scoreB; // Skor Terendah
+        } else if (sortBy === "oldest") {
+          return timeA - timeB;   // Waktu Terlama
+        } else {
+          return timeB - timeA;   // Waktu Terbaru (Default)
+        }
+      });
+
       document.getElementById("filterStats").innerText = `Menampilkan: ${currentFilteredResults.length} dari ${allResults.length} data`;
       renderTable(currentFilteredResults);
     }
 
-    // EVENT LISTENERS UNTUK FILTER
+    // EVENT LISTENERS UNTUK FILTER & SORTING
     document.getElementById("filterSchool").addEventListener("change", applyFilters);
     document.getElementById("filterClass").addEventListener("change", applyFilters);
     document.getElementById("filterTitle").addEventListener("change", applyFilters);
     document.getElementById("searchInput").addEventListener("input", applyFilters);
+    document.getElementById("sortBy").addEventListener("change", applyFilters);
 
     document.getElementById("btnResetFilter").addEventListener("click", () => {
       document.getElementById("filterSchool").value = "";
       document.getElementById("filterClass").value = "";
       document.getElementById("filterTitle").value = "";
       document.getElementById("searchInput").value = "";
+      document.getElementById("sortBy").value = "latest";
       applyFilters();
     });
 
