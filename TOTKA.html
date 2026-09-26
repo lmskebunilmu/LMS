@@ -220,7 +220,7 @@
         <div class="step-icon"><i class="fa-solid fa-list-check"></i></div>
         <div class="step-title">
           <h2>Pilih Ujian TKA</h2>
-          <p>Ujian yang aktif dan ditentukan oleh Super Admin</p>
+          <p>Ujian yang aktif dan ditentukan oleh Admin</p>
         </div>
       </div>
 
@@ -229,7 +229,7 @@
       </div>
     </div>
 
-    <!-- Slide 2: Konfirmasi Data Diri Siswa -->
+    <!-- Slide 2: Konfirmasi Data Diri Siswa (Nama & Asal Sekolah) -->
     <div id="slide2" class="slide-card slide-hidden">
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-user-pen"></i></div>
@@ -406,12 +406,10 @@
 
         rawSimulations = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // MENYARING UJIAN: Hanya mengambil ujian yang diatur aktif oleh Super Admin (isActive == true)
-        // Jika properti isActive belum ada di database, secara default akan otomatis tersaring atau bisa fallback ke true
+        // Hanya mengambil ujian yang diaktifkan oleh admin (isActive === true)
         let listToDisplay = rawSimulations.filter(s => s.isActive === true);
 
-        // Jika super_admin belum pernah menyetting isActive pada dokumen manapun, 
-        // fallback menampilkan semua agar tidak kosong
+        // Fallback jika belum ada yang di-setting aktif sama sekali oleh admin
         if (listToDisplay.length === 0) {
           listToDisplay = rawSimulations;
         }
@@ -429,7 +427,7 @@
       container.innerHTML = "";
 
       if (simulations.length === 0) {
-        container.innerHTML = `<p style="text-align:center; color:#64748b; padding: 20px;">Belum ada ujian TKA yang diaktifkan oleh Super Admin.</p>`;
+        container.innerHTML = `<p style="text-align:center; color:#64748b; padding: 20px;">Belum ada ujian TKA yang diaktifkan oleh Admin.</p>`;
         return;
       }
 
