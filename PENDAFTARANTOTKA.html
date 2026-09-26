@@ -41,6 +41,11 @@ input, select{
   font-size:14px;
 }
 
+/* Membuat input nama dan sekolah otomatis huruf kapital secara visual & sistem */
+.uppercase-input {
+  text-transform: uppercase;
+}
+
 input:focus, select:focus{
   outline:none;
   border-color:#2563eb;
@@ -73,10 +78,10 @@ button:hover{
   <h2>Pendaftaran Try Out TKA</h2>
 
   <form id="registerForm" onsubmit="register(event)">
-    <input type="text" id="name" placeholder="Nama Lengkap" required>
+    <input type="text" id="name" class="uppercase-input" placeholder="Nama Lengkap" oninput="this.value = this.value.toUpperCase()" required>
     <input type="email" id="email" placeholder="Email" required>
     <input type="password" id="password" placeholder="Password" required>
-    <input type="text" id="school" placeholder="Asal Sekolah" required>
+    <input type="text" id="school" class="uppercase-input" placeholder="Asal Sekolah" oninput="this.value = this.value.toUpperCase()" required>
     <input type="tel" id="phone" placeholder="Nomor HP (Contoh: 08123456789)" required>
 
     <select id="level" required>
@@ -116,7 +121,6 @@ async function register(event){
   let phone = document.getElementById("phone").value.trim();
   let level = document.getElementById("level").value;
 
-  // Pengecekan ganda agar memastikan tidak ada yang kosong
   if(!name || !email || !password || !school || !phone || !level){
     alert("Semua kolom wajib diisi!");
     return;
