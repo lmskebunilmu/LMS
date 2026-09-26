@@ -229,7 +229,7 @@
       </div>
     </div>
 
-    <!-- Slide 2: Konfirmasi Data Diri Siswa (Otomatis Sesuai Akun Login) -->
+    <!-- Slide 2: Konfirmasi Data Diri Siswa (Nama & Asal Sekolah Saja) -->
     <div id="slide2" class="slide-card slide-hidden">
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-user-pen"></i></div>
@@ -245,16 +245,9 @@
           <input type="text" id="studentName" class="form-control" readonly required>
         </div>
 
-        <div class="grid-2">
-          <div class="form-group">
-            <label>Asal Sekolah</label>
-            <input type="text" id="studentSchool" class="form-control" readonly required>
-          </div>
-
-          <div class="form-group">
-            <label>Kelas / Level</label>
-            <input type="text" id="studentClass" class="form-control" readonly required>
-          </div>
+        <div class="form-group">
+          <label>Asal Sekolah</label>
+          <input type="text" id="studentSchool" class="form-control" readonly required>
         </div>
 
         <div class="grid-2" style="margin-top: 20px;">
@@ -371,7 +364,7 @@
         return;
       }
       
-      // Ambil data profil dari database berdasarkan UID akun yang login
+      // Ambil data profil dari database berdasarkan UID akun yang login (Nama & Sekolah saja)
       try {
         const userDocRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userDocRef);
@@ -380,28 +373,24 @@
           const data = userSnap.data();
           studentProfile = {
             name: data.name || data.fullName || user.displayName || "Siswa",
-            school: data.school || data.asalSekolah || "MTs Ma'arif NU 9 Pende",
-            class: data.class || data.kelas || "7A"
+            school: data.school || data.asalSekolah || "MTs Ma'arif NU 9 Pende"
           };
         } else {
           studentProfile = {
             name: user.displayName || "Siswa",
-            school: "MTs Ma'arif NU 9 Pende",
-            class: "7A"
+            school: "MTs Ma'arif NU 9 Pende"
           };
         }
 
         // Masukkan ke form HTML secara otomatis
         document.getElementById("studentName").value = studentProfile.name;
         document.getElementById("studentSchool").value = studentProfile.school;
-        document.getElementById("studentClass").value = studentProfile.class;
 
       } catch (e) {
         console.error("Gagal mengambil profil akun:", e);
-        studentProfile = { name: user.email || "Siswa", school: "MTs Ma'arif NU 9 Pende", class: "7A" };
+        studentProfile = { name: user.email || "Siswa", school: "MTs Ma'arif NU 9 Pende" };
         document.getElementById("studentName").value = studentProfile.name;
         document.getElementById("studentSchool").value = studentProfile.school;
-        document.getElementById("studentClass").value = studentProfile.class;
       }
 
       await fetchTKASimulations();
@@ -426,7 +415,6 @@
           (s.curriculum && s.curriculum.toLowerCase().includes("tka"))
         );
 
-        // Jika tidak ada yang berlabel TKA spesifik, tampilkan semua simulasi sebagai alternatif
         const listToDisplay = tkaList.length > 0 ? tkaList : rawSimulations;
 
         document.getElementById("loadingState").style.display = "none";
@@ -437,7 +425,6 @@
       }
     }
 
-    // Render daftar ujian TKA dalam bentuk tombol interaktif
     function renderTkaButtons(simulations) {
       const container = document.getElementById("tkaButtonList");
       container.innerHTML = "";
@@ -464,7 +451,6 @@
           selectedSimulationId = sim.id;
           simulationData = sim;
           
-          // Pindah ke Slide 2 (Konfirmasi Data Diri)
           document.getElementById("slide1").className = "slide-card slide-hidden";
           document.getElementById("slide2").className = "slide-card slide-active";
         };
@@ -473,7 +459,6 @@
       });
     }
 
-    // Tombol Kembali ke Daftar Ujian
     document.getElementById("backToSlide1Btn").addEventListener("click", () => {
       document.getElementById("slide2").className = "slide-card slide-hidden";
       document.getElementById("slide1").className = "slide-card slide-active";
@@ -507,7 +492,7 @@
       document.getElementById("cbtEngineArea").classList.remove("slide-hidden");
 
       document.getElementById("simTitle").innerText = simulationData.title || "Simulasi Ujian TKA";
-      document.getElementById("simMeta").innerText = `${studentProfile.name} • ${studentProfile.school} (${studentProfile.class})`;
+      document.getElementById("simMeta").innerText = `${studentProfile.name} • ${studentProfile.school}`;
 
       timeRemaining = (simulationData.durationMinutes || 60) * 60;
 
@@ -729,7 +714,6 @@
         await addDoc(collection(db, "simulation_results"), {
           studentName: studentProfile.name,
           studentSchool: studentProfile.school,
-          studentClass: studentProfile.class,
           simulationId: simulationData.id || "unknown",
           simulationTitle: simulationData.title || "TKA Ujian",
           subject: simulationData.subject || "TKA",
@@ -744,7 +728,7 @@
       }
 
       document.getElementById("finalScore").innerText = finalScore;
-      document.getElementById("resultStudentMeta").innerText = `${studentProfile.name} • ${studentProfile.school} (${studentProfile.class})`;
+      document.getElementById("resultStudentMeta").innerText = `${studentProfile.name} • ${studentProfile.school}`;
       
       const statusEl = document.getElementById("passingStatus");
       statusEl.innerText = isPassed ? "LULUS (MEMENUHI PASSING GRADE)" : "TIDAK LULUS";
