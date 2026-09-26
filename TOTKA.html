@@ -220,7 +220,7 @@
         <div class="step-icon"><i class="fa-solid fa-list-check"></i></div>
         <div class="step-title">
           <h2>Pilih Ujian TKA</h2>
-          <p>Silakan pilih salah satu paket ujian TKA di bawah ini</p>
+          <p>Ujian yang aktif dan ditentukan oleh Super Admin</p>
         </div>
       </div>
 
@@ -229,7 +229,7 @@
       </div>
     </div>
 
-    <!-- Slide 2: Konfirmasi Data Diri Siswa (Nama & Asal Sekolah Saja) -->
+    <!-- Slide 2: Konfirmasi Data Diri Siswa -->
     <div id="slide2" class="slide-card slide-hidden">
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-user-pen"></i></div>
@@ -364,7 +364,6 @@
         return;
       }
       
-      // Ambil data profil dari database berdasarkan UID akun yang login (Nama & Sekolah saja)
       try {
         const userDocRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userDocRef);
@@ -382,7 +381,6 @@
           };
         }
 
-        // Masukkan ke form HTML secara otomatis
         document.getElementById("studentName").value = studentProfile.name;
         document.getElementById("studentSchool").value = studentProfile.school;
 
@@ -408,14 +406,15 @@
 
         rawSimulations = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // Filter hanya ujian yang mengandung kata "tka" pada judul atau mapelnya
-        const tkaList = rawSimulations.filter(s => 
-          (s.title && s.title.toLowerCase().includes("tka")) || 
-          (s.subject && s.subject.toLowerCase().includes("tka")) ||
-          (s.curriculum && s.curriculum.toLowerCase().includes("tka"))
-        );
+        // MENYARING UJIAN: Hanya mengambil ujian yang diatur aktif oleh Super Admin (isActive == true)
+        // Jika properti isActive belum ada di database, secara default akan otomatis tersaring atau bisa fallback ke true
+        let listToDisplay = rawSimulations.filter(s => s.isActive === true);
 
-        const listToDisplay = tkaList.length > 0 ? tkaList : rawSimulations;
+        // Jika super_admin belum pernah menyetting isActive pada dokumen manapun, 
+        // fallback menampilkan semua agar tidak kosong
+        if (listToDisplay.length === 0) {
+          listToDisplay = rawSimulations;
+        }
 
         document.getElementById("loadingState").style.display = "none";
         renderTkaButtons(listToDisplay);
@@ -428,6 +427,11 @@
     function renderTkaButtons(simulations) {
       const container = document.getElementById("tkaButtonList");
       container.innerHTML = "";
+
+      if (simulations.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#64748b; padding: 20px;">Belum ada ujian TKA yang diaktifkan oleh Super Admin.</p>`;
+        return;
+      }
 
       simulations.forEach(sim => {
         const qCount = (sim.questions || []).length;
