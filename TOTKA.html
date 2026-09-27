@@ -49,10 +49,13 @@
       max-width: 720px; 
       margin: 20px auto;
       padding: 0 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
     @media (min-width: 768px) {
-      .app-viewport { margin: 40px auto; padding: 0 16px; }
+      .app-viewport { margin: 40px auto; padding: 0 16px; gap: 20px; }
     }
 
     .slide-card {
@@ -153,7 +156,7 @@
       flex-direction: column;
       gap: 10px;
       margin-top: 10px;
-      max-height: 35vh;
+      max-height: 45vh;
       overflow-y: auto;
       padding-right: 2px;
     }
@@ -193,33 +196,15 @@
     .tka-action { color: var(--primary); font-size: 14px; font-weight: bold; }
     .tka-btn-item.disabled .tka-action { color: #94a3b8; }
 
-    /* Style untuk Card Riwayat Hasil Tryout di Bawah */
-    .history-divider {
-      margin: 20px 0 14px;
-      border: none;
-      border-top: 1.5px solid var(--border-color);
-    }
-
-    .history-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-
-    .history-header h3 {
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--text-main);
-    }
-
+    /* Style untuk Card Riwayat Hasil Tryout Terpisah */
     .history-list-container {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      max-height: 220px;
+      max-height: 250px;
       overflow-y: auto;
       padding-right: 2px;
+      margin-top: 10px;
     }
 
     .history-card-line {
@@ -425,7 +410,7 @@
       </form>
     </div>
 
-    <!-- Slide 1: Daftar Tombol Pilihan Ujian TKA & Card Line Riwayat Hasil -->
+    <!-- Kartu 1: Daftar Pilihan Ujian TKA -->
     <div id="slide1" class="slide-card slide-hidden">
       <div class="brand-header">
         <div class="brand-container">
@@ -448,13 +433,16 @@
       <div class="tka-list-container" id="tkaButtonList">
         <!-- Tombol ujian dimuat dinamis -->
       </div>
+    </div>
 
-      <!-- Garis Pemisah & Header Riwayat -->
-      <hr class="history-divider">
-
-      <div class="history-header">
-        <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary);"></i>
-        <h3>Riwayat Hasil Tryout Anda</h3>
+    <!-- Kartu 2: Riwayat Hasil Tryout (Terpisah di Bawah) -->
+    <div id="slideHistory" class="slide-card slide-hidden">
+      <div class="step-header" style="margin-bottom: 12px;">
+        <div class="step-icon" style="background: #f0fdf4; color: #16a34a;"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <div class="step-title">
+          <h2>Riwayat Hasil Tryout</h2>
+          <p>Daftar nilai ujian yang sudah Anda selesaikan</p>
+        </div>
       </div>
 
       <div class="history-list-container" id="historyListContainer">
@@ -684,6 +672,7 @@
 
       document.getElementById("slideLogin").className = "slide-card slide-hidden";
       document.getElementById("slide1").className = "slide-card slide-active";
+      document.getElementById("slideHistory").className = "slide-card slide-active";
       await fetchTKASimulations();
     }
 
@@ -767,6 +756,7 @@
             simulationData = sim;
             
             document.getElementById("slide1").className = "slide-card slide-hidden";
+            document.getElementById("slideHistory").className = "slide-card slide-hidden";
             document.getElementById("slide2").className = "slide-card slide-active";
           };
         } else {
@@ -822,6 +812,7 @@
     document.getElementById("backToSlide1Btn").addEventListener("click", () => {
       document.getElementById("slide2").className = "slide-card slide-hidden";
       document.getElementById("slide1").className = "slide-card slide-active";
+      document.getElementById("slideHistory").className = "slide-card slide-active";
     });
 
     document.getElementById("studentDataForm").addEventListener("submit", startExamEngine);
