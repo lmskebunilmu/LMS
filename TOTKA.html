@@ -116,7 +116,7 @@
       .brand-name { font-size: 22px; }
     }
 
-    .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
     .step-icon {
       width: 40px; height: 40px; background: var(--primary-light); color: var(--primary);
       border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px;
@@ -153,7 +153,7 @@
       flex-direction: column;
       gap: 10px;
       margin-top: 10px;
-      max-height: 60vh;
+      max-height: 40vh;
       overflow-y: auto;
       padding-right: 2px;
     }
@@ -180,10 +180,10 @@
     }
 
     .tka-btn-item.disabled {
-      background: #f1f5f9;
+      background: #f8fafc;
       border-color: #e2e8f0;
       cursor: not-allowed;
-      opacity: 0.8;
+      opacity: 0.85;
     }
 
     .tka-info h4 { font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
@@ -192,6 +192,74 @@
     @media (min-width: 768px) { .tka-info p { font-size: 12px; } }
     .tka-action { color: var(--primary); font-size: 14px; font-weight: bold; }
     .tka-btn-item.disabled .tka-action { color: #94a3b8; }
+
+    /* Style untuk Riwayat Hasil Tryout */
+    .history-divider {
+      margin: 24px 0 16px;
+      border: none;
+      border-top: 1.5px dashed var(--border-color);
+    }
+
+    .history-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .history-header h3 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .history-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .history-card {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-info h5 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+
+    .history-info p {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .history-score-badge {
+      text-align: right;
+    }
+
+    .history-score-num {
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .history-score-status {
+      font-size: 10px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
 
     .btn { 
       background: var(--primary); color: white; border: none; padding: 12px 20px; 
@@ -355,7 +423,7 @@
       </form>
     </div>
 
-    <!-- Slide 1: Daftar Tombol Pilihan Ujian TKA -->
+    <!-- Slide 1: Daftar Tombol Pilihan Ujian TKA & Hasil Tryout -->
     <div id="slide1" class="slide-card slide-hidden">
       <div class="brand-header">
         <div class="brand-container">
@@ -366,6 +434,7 @@
           </div>
         </div>
       </div>
+      
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-list-check"></i></div>
         <div class="step-title">
@@ -376,6 +445,18 @@
 
       <div class="tka-list-container" id="tkaButtonList">
         <!-- Tombol ujian dimuat dinamis -->
+      </div>
+
+      <!-- Divider & Bagian Hasil Tryout -->
+      <hr class="history-divider">
+
+      <div class="history-header">
+        <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary);"></i>
+        <h3>Hasil Tryout Yang Selesai</h3>
+      </div>
+
+      <div class="history-list-container" id="historyListContainer">
+        <!-- Riwayat pengerjaan dimuat di sini -->
       </div>
     </div>
 
@@ -508,6 +589,7 @@
     import { onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     let rawSimulations = [];
+    let completedResultsList = [];
     let completedSimulationIds = new Set();
     let selectedSimulationId = null;
     let simulationData = null;
@@ -525,6 +607,18 @@
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
       return doc.body.innerHTML;
+    }
+
+    function formatDate(timestamp) {
+      if (!timestamp) return "-";
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
     }
 
     onAuthStateChanged(auth, async user => {
@@ -595,19 +689,24 @@
       try {
         document.getElementById("loadingState").style.display = "block";
         
+        // 1. Ambil riwayat pengerjaan siswa ini dari collection simulation_results
         const resQuery = query(collection(db, "simulation_results"), where("studentUid", "==", currentAuthUser.uid));
         const resSnap = await getDocs(resQuery).catch(() => null);
         
         completedSimulationIds.clear();
+        completedResultsList = [];
+
         if (resSnap && !resSnap.empty) {
           resSnap.forEach(docSnap => {
             const data = docSnap.data();
+            completedResultsList.push(data);
             if (data.simulationId) {
               completedSimulationIds.add(data.simulationId);
             }
           });
         }
 
+        // 2. Ambil daftar simulasi ujian
         const qRef = query(collection(db, "simulations"), limit(50));
         const snap = await getDocs(qRef);
         
@@ -625,6 +724,7 @@
 
         document.getElementById("loadingState").style.display = "none";
         renderTkaButtons(listToDisplay);
+        renderHistoryList();
 
       } catch (err) {
         document.getElementById("loadingState").style.display = "block";
@@ -676,6 +776,47 @@
         }
 
         container.appendChild(btnItem);
+      });
+    }
+
+    function renderHistoryList() {
+      const container = document.getElementById("historyListContainer");
+      container.innerHTML = "";
+
+      if (completedResultsList.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:12px; padding: 12px;">Belum ada riwayat ujian yang Anda selesaikan.</p>`;
+        return;
+      }
+
+      // Urutkan riwayat dari yang paling baru
+      completedResultsList.sort((a, b) => {
+        const timeA = a.submittedAt ? (a.submittedAt.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)) : 0;
+        const timeB = b.submittedAt ? (b.submittedAt.toDate ? b.submittedAt.toDate() : new Date(b.submittedAt)) : 0;
+        return timeB - timeA;
+      });
+
+      completedResultsList.forEach(res => {
+        const title = res.simulationTitle || "Simulasi Ujian";
+        const dateStr = formatDate(res.submittedAt);
+        const score = res.score !== undefined ? res.score : 0;
+        const isPassed = res.isPassed;
+        const correctInfo = `${res.totalCorrect || 0} dari ${res.totalQuestions || 0} Soal Benar`;
+
+        const card = document.createElement("div");
+        card.className = "history-card";
+        card.innerHTML = `
+          <div class="history-info">
+            <h5><i class="fa-solid fa-square-check" style="color: #2563eb; margin-right: 4px;"></i> ${title}</h5>
+            <p>${correctInfo} • 📅 ${dateStr}</p>
+          </div>
+          <div class="history-score-badge">
+            <div class="history-score-num" style="color: ${isPassed ? '#16a34a' : '#dc2626'};">${score}</div>
+            <div class="history-score-status" style="color: ${isPassed ? '#16a34a' : '#dc2626'};">
+              ${isPassed ? 'LULUS' : 'TIDAK LULUS'}
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
       });
     }
 
