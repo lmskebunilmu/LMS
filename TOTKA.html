@@ -77,6 +77,21 @@
       to { opacity: 1; transform: translateX(0); }
     }
 
+    /* Logo & Header Style */
+    .brand-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .brand-logo {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+    @media (min-width: 768px) {
+      .brand-logo { width: 76px; height: 76px; }
+    }
+
     .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
     .step-icon {
       width: 40px; height: 40px; background: var(--primary-light); color: var(--primary);
@@ -133,11 +148,18 @@
       box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
 
-    .tka-btn-item:hover {
+    .tka-btn-item:hover:not(.disabled) {
       border-color: var(--primary);
       background: var(--primary-light);
       transform: translateY(-2px);
       box-shadow: 0 6px 15px rgba(79, 70, 229, 0.1);
+    }
+
+    .tka-btn-item.disabled {
+      background: #f1f5f9;
+      border-color: #e2e8f0;
+      cursor: not-allowed;
+      opacity: 0.75;
     }
 
     .tka-info h4 { font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
@@ -145,6 +167,7 @@
     .tka-info p { font-size: 11px; color: var(--text-muted); font-weight: 600; }
     @media (min-width: 768px) { .tka-info p { font-size: 12px; } }
     .tka-action { color: var(--primary); font-size: 14px; font-weight: bold; }
+    .tka-btn-item.disabled .tka-action { color: #94a3b8; }
 
     .btn { 
       background: var(--primary); color: white; border: none; padding: 12px 20px; 
@@ -265,6 +288,9 @@
     
     <!-- Slide 0: Form Login Inline -->
     <div id="slideLogin" class="slide-card slide-hidden">
+      <div class="brand-header">
+        <img src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" alt="Logo Kebun Ilmu" class="brand-logo">
+      </div>
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-lock"></i></div>
         <div class="step-title">
@@ -294,6 +320,9 @@
 
     <!-- Slide 1: Daftar Tombol Pilihan Ujian TKA -->
     <div id="slide1" class="slide-card slide-hidden">
+      <div class="brand-header">
+        <img src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" alt="Logo Kebun Ilmu" class="brand-logo">
+      </div>
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-list-check"></i></div>
         <div class="step-title">
@@ -309,6 +338,9 @@
 
     <!-- Slide 2: Konfirmasi Data Diri Siswa -->
     <div id="slide2" class="slide-card slide-hidden">
+      <div class="brand-header">
+        <img src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" alt="Logo Kebun Ilmu" class="brand-logo">
+      </div>
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-user-pen"></i></div>
         <div class="step-title">
@@ -414,10 +446,11 @@
 
   <script type="module">
     import { auth, db } from "./firebase/firebase-config.js";
-    import { collection, getDocs, getDoc, doc, addDoc, serverTimestamp, query, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { collection, getDocs, getDoc, doc, addDoc, serverTimestamp, query, where, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     let rawSimulations = [];
+    let completedSimulationIds = new Set();
     let selectedSimulationId = null;
     let simulationData = null;
     let questions = [];
@@ -427,6 +460,7 @@
     let timerInterval = null;
     let timeRemaining = 0; 
     let studentProfile = {};
+    let currentAuthUser = null;
 
     function decodeHTML(html) {
       if (!html) return "";
@@ -440,6 +474,7 @@
         document.getElementById("slideLogin").className = "slide-card slide-active";
         return;
       }
+      currentAuthUser = user;
       await loadUserDataAndSimulations(user);
     });
 
@@ -472,11 +507,13 @@
         if (userSnap.exists()) {
           const data = userSnap.data();
           studentProfile = {
+            uid: user.uid,
             name: data.name || data.fullName || user.displayName || "Siswa",
             school: data.school || data.asalSekolah || "MTs Ma'arif NU 9 Pende"
           };
         } else {
           studentProfile = {
+            uid: user.uid,
             name: user.displayName || "Siswa",
             school: "MTs Ma'arif NU 9 Pende"
           };
@@ -486,7 +523,7 @@
         document.getElementById("studentSchool").value = studentProfile.school;
 
       } catch (e) {
-        studentProfile = { name: user.email || "Siswa", school: "MTs Ma'arif NU 9 Pende" };
+        studentProfile = { uid: user.uid, name: user.email || "Siswa", school: "MTs Ma'arif NU 9 Pende" };
         document.getElementById("studentName").value = studentProfile.name;
         document.getElementById("studentSchool").value = studentProfile.school;
       }
@@ -499,6 +536,22 @@
     async function fetchTKASimulations() {
       try {
         document.getElementById("loadingState").style.display = "block";
+        
+        // 1. Ambil riwayat pengerjaan siswa ini dari collection simulation_results berdasarkan uid atau studentName
+        const resQuery = query(collection(db, "simulation_results"), where("studentUid", "==", currentAuthUser.uid));
+        const resSnap = await getDocs(resQuery).catch(() => null);
+        
+        completedSimulationIds.clear();
+        if (resSnap && !resSnap.empty) {
+          resSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.simulationId) {
+              completedSimulationIds.add(data.simulationId);
+            }
+          });
+        }
+
+        // 2. Ambil daftar simulasi ujian
         const qRef = query(collection(db, "simulations"), limit(50));
         const snap = await getDocs(qRef);
         
@@ -537,26 +590,34 @@
         const duration = sim.durationMinutes || 60;
         const title = sim.title || "Ujian TKA Tanpa Judul";
         const subject = sim.subject ? `Mapel: ${sim.subject}` : "Tes Kemampuan Akademik";
+        
+        const isDone = completedSimulationIds.has(sim.id);
 
         const btnItem = document.createElement("button");
-        btnItem.className = "tka-btn-item";
+        btnItem.className = `tka-btn-item ${isDone ? 'disabled' : ''}`;
         btnItem.innerHTML = `
           <div class="tka-info">
-            <h4><i class="fa-solid fa-file-lines" style="color:var(--primary); margin-right:6px;"></i> ${title}</h4>
+            <h4><i class="fa-solid fa-file-lines" style="color:${isDone ? '#94a3b8' : 'var(--primary)'}; margin-right:6px;"></i> ${title}</h4>
             <p>${subject} • <b>${qCount} Soal</b> • ⏱️ ${duration} Menit</p>
           </div>
           <div class="tka-action">
-            <i class="fa-solid fa-chevron-right"></i>
+            ${isDone ? '<span style="font-size:12px; color:#16a34a; font-weight:700;"><i class="fa-solid fa-circle-check"></i> Sudah Dikerjakan</span>' : '<i class="fa-solid fa-chevron-right"></i>'}
           </div>
         `;
 
-        btnItem.onclick = () => {
-          selectedSimulationId = sim.id;
-          simulationData = sim;
-          
-          document.getElementById("slide1").className = "slide-card slide-hidden";
-          document.getElementById("slide2").className = "slide-card slide-active";
-        };
+        if (!isDone) {
+          btnItem.onclick = () => {
+            selectedSimulationId = sim.id;
+            simulationData = sim;
+            
+            document.getElementById("slide1").className = "slide-card slide-hidden";
+            document.getElementById("slide2").className = "slide-card slide-active";
+          };
+        } else {
+          btnItem.onclick = () => {
+            alert("Ujian ini sudah pernah Anda kerjakan dan hanya dapat dikerjakan 1 kali.");
+          };
+        }
 
         container.appendChild(btnItem);
       });
@@ -815,6 +876,7 @@
 
       try {
         await addDoc(collection(db, "simulation_results"), {
+          studentUid: studentProfile.uid,
           studentName: studentProfile.name,
           studentSchool: studentProfile.school,
           simulationId: simulationData.id || "unknown",
