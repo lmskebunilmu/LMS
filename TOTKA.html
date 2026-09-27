@@ -153,7 +153,7 @@
       flex-direction: column;
       gap: 10px;
       margin-top: 10px;
-      max-height: 40vh;
+      max-height: 35vh;
       overflow-y: auto;
       padding-right: 2px;
     }
@@ -193,22 +193,22 @@
     .tka-action { color: var(--primary); font-size: 14px; font-weight: bold; }
     .tka-btn-item.disabled .tka-action { color: #94a3b8; }
 
-    /* Style untuk Riwayat Hasil Tryout */
+    /* Style untuk Card Riwayat Hasil Tryout di Bawah */
     .history-divider {
-      margin: 24px 0 16px;
+      margin: 20px 0 14px;
       border: none;
-      border-top: 1.5px dashed var(--border-color);
+      border-top: 1.5px solid var(--border-color);
     }
 
     .history-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .history-header h3 {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
       color: var(--text-main);
     }
@@ -222,7 +222,7 @@
       padding-right: 2px;
     }
 
-    .history-card {
+    .history-card-line {
       background: #f8fafc;
       border: 1px solid var(--border-color);
       border-radius: 12px;
@@ -230,34 +230,36 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
 
-    .history-info h5 {
+    .history-card-info h5 {
       font-size: 13px;
       font-weight: 700;
       color: var(--text-main);
-      margin-bottom: 2px;
+      margin-bottom: 3px;
     }
 
-    .history-info p {
+    .history-card-info p {
       font-size: 11px;
       color: var(--text-muted);
-      font-weight: 500;
+      font-weight: 600;
     }
 
-    .history-score-badge {
+    .history-card-score {
       text-align: right;
     }
 
-    .history-score-num {
+    .history-score-val {
       font-size: 18px;
       font-weight: 800;
-      line-height: 1;
+      line-height: 1.1;
     }
 
-    .history-score-status {
+    .history-status-tag {
       font-size: 10px;
       font-weight: 700;
+      text-transform: uppercase;
       margin-top: 2px;
     }
 
@@ -423,7 +425,7 @@
       </form>
     </div>
 
-    <!-- Slide 1: Daftar Tombol Pilihan Ujian TKA & Hasil Tryout -->
+    <!-- Slide 1: Daftar Tombol Pilihan Ujian TKA & Card Line Riwayat Hasil -->
     <div id="slide1" class="slide-card slide-hidden">
       <div class="brand-header">
         <div class="brand-container">
@@ -447,16 +449,16 @@
         <!-- Tombol ujian dimuat dinamis -->
       </div>
 
-      <!-- Divider & Bagian Hasil Tryout -->
+      <!-- Garis Pemisah & Header Riwayat -->
       <hr class="history-divider">
 
       <div class="history-header">
         <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary);"></i>
-        <h3>Hasil Tryout Yang Selesai</h3>
+        <h3>Riwayat Hasil Tryout Anda</h3>
       </div>
 
       <div class="history-list-container" id="historyListContainer">
-        <!-- Riwayat pengerjaan dimuat di sini -->
+        <!-- Card Line Riwayat Hasil dimuat di sini secara vertikal -->
       </div>
     </div>
 
@@ -556,7 +558,7 @@
     </div>
   </div>
 
-  <!-- Modal Selesai Ujian dengan Tombol Tambahan -->
+  <!-- Modal Selesai Ujian -->
   <div class="modal-overlay" id="resultModal" style="display: none;">
     <div class="modal-card">
       <h1 style="font-size: 36px; margin: 0 0 6px;">🎉</h1>
@@ -689,7 +691,6 @@
       try {
         document.getElementById("loadingState").style.display = "block";
         
-        // 1. Ambil riwayat pengerjaan siswa ini dari collection simulation_results
         const resQuery = query(collection(db, "simulation_results"), where("studentUid", "==", currentAuthUser.uid));
         const resSnap = await getDocs(resQuery).catch(() => null);
         
@@ -706,7 +707,6 @@
           });
         }
 
-        // 2. Ambil daftar simulasi ujian
         const qRef = query(collection(db, "simulations"), limit(50));
         const snap = await getDocs(qRef);
         
@@ -784,11 +784,10 @@
       container.innerHTML = "";
 
       if (completedResultsList.length === 0) {
-        container.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:12px; padding: 12px;">Belum ada riwayat ujian yang Anda selesaikan.</p>`;
+        container.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:12px; padding: 10px;">Belum ada riwayat ujian yang Anda selesaikan.</p>`;
         return;
       }
 
-      // Urutkan riwayat dari yang paling baru
       completedResultsList.sort((a, b) => {
         const timeA = a.submittedAt ? (a.submittedAt.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt)) : 0;
         const timeB = b.submittedAt ? (b.submittedAt.toDate ? b.submittedAt.toDate() : new Date(b.submittedAt)) : 0;
@@ -800,23 +799,23 @@
         const dateStr = formatDate(res.submittedAt);
         const score = res.score !== undefined ? res.score : 0;
         const isPassed = res.isPassed;
-        const correctInfo = `${res.totalCorrect || 0} dari ${res.totalQuestions || 0} Soal Benar`;
+        const correctInfo = `${res.totalCorrect || 0} dari ${res.totalQuestions || 0} Benar`;
 
-        const card = document.createElement("div");
-        card.className = "history-card";
-        card.innerHTML = `
-          <div class="history-info">
+        const cardLine = document.createElement("div");
+        cardLine.className = "history-card-line";
+        cardLine.innerHTML = `
+          <div class="history-card-info">
             <h5><i class="fa-solid fa-square-check" style="color: #2563eb; margin-right: 4px;"></i> ${title}</h5>
             <p>${correctInfo} • 📅 ${dateStr}</p>
           </div>
-          <div class="history-score-badge">
-            <div class="history-score-num" style="color: ${isPassed ? '#16a34a' : '#dc2626'};">${score}</div>
-            <div class="history-score-status" style="color: ${isPassed ? '#16a34a' : '#dc2626'};">
-              ${isPassed ? 'LULUS' : 'TIDAK LULUS'}
+          <div class="history-card-score">
+            <div class="history-score-val" style="color: ${isPassed ? '#16a34a' : '#dc2626'};">${score}</div>
+            <div class="history-status-tag" style="color: ${isPassed ? '#16a34a' : '#dc2626'};">
+              ${isPassed ? 'Lulus' : 'Tidak Lulus'}
             </div>
           </div>
         `;
-        container.appendChild(card);
+        container.appendChild(cardLine);
       });
     }
 
