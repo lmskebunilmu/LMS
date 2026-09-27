@@ -77,19 +77,43 @@
       to { opacity: 1; transform: translateX(0); }
     }
 
-    /* Logo & Header Style */
+    /* Brand Header dengan Logo dan Teks */
     .brand-header {
       text-align: center;
       margin-bottom: 20px;
     }
+    .brand-container {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
     .brand-logo {
-      width: 64px;
-      height: 64px;
+      width: 48px;
+      height: 48px;
       object-fit: contain;
-      margin-bottom: 8px;
+    }
+    .brand-name {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+      text-align: left;
+      line-height: 1.1;
+    }
+    .brand-name span {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-top: 2px;
     }
     @media (min-width: 768px) {
-      .brand-logo { width: 76px; height: 76px; }
+      .brand-logo { width: 56px; height: 56px; }
+      .brand-name { font-size: 22px; }
     }
 
     .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
@@ -159,7 +183,7 @@
       background: #f1f5f9;
       border-color: #e2e8f0;
       cursor: not-allowed;
-      opacity: 0.75;
+      opacity: 0.8;
     }
 
     .tka-info h4 { font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
@@ -289,7 +313,13 @@
     <!-- Slide 0: Form Login Inline -->
     <div id="slideLogin" class="slide-card slide-hidden">
       <div class="brand-header">
-        <img src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" alt="Logo Kebun Ilmu" class="brand-logo">
+        <div class="brand-container">
+          <img src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" alt="Logo Kebun Ilmu" class="brand-logo">
+          <div class="brand-name">
+            Kebun Ilmu
+            <span>Portal CBT & Ujian</span>
+          </div>
+        </div>
       </div>
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-lock"></i></div>
@@ -321,7 +351,13 @@
     <!-- Slide 1: Daftar Tombol Pilihan Ujian TKA -->
     <div id="slide1" class="slide-card slide-hidden">
       <div class="brand-header">
-        <img src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" alt="Logo Kebun Ilmu" class="brand-logo">
+        <div class="brand-container">
+          <img src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" alt="Logo Kebun Ilmu" class="brand-logo">
+          <div class="brand-name">
+            Kebun Ilmu
+            <span>Portal CBT & Ujian</span>
+          </div>
+        </div>
       </div>
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-list-check"></i></div>
@@ -339,7 +375,13 @@
     <!-- Slide 2: Konfirmasi Data Diri Siswa -->
     <div id="slide2" class="slide-card slide-hidden">
       <div class="brand-header">
-        <img src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" alt="Logo Kebun Ilmu" class="brand-logo">
+        <div class="brand-container">
+          <img src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" alt="Logo Kebun Ilmu" class="brand-logo">
+          <div class="brand-name">
+            Kebun Ilmu
+            <span>Portal CBT & Ujian</span>
+          </div>
+        </div>
       </div>
       <div class="step-header">
         <div class="step-icon"><i class="fa-solid fa-user-pen"></i></div>
@@ -537,7 +579,6 @@
       try {
         document.getElementById("loadingState").style.display = "block";
         
-        // 1. Ambil riwayat pengerjaan siswa ini dari collection simulation_results berdasarkan uid atau studentName
         const resQuery = query(collection(db, "simulation_results"), where("studentUid", "==", currentAuthUser.uid));
         const resSnap = await getDocs(resQuery).catch(() => null);
         
@@ -551,7 +592,6 @@
           });
         }
 
-        // 2. Ambil daftar simulasi ujian
         const qRef = query(collection(db, "simulations"), limit(50));
         const snap = await getDocs(qRef);
         
