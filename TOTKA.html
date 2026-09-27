@@ -196,7 +196,7 @@
     .tka-action { color: var(--primary); font-size: 14px; font-weight: bold; }
     .tka-btn-item.disabled .tka-action { color: #94a3b8; }
 
-    /* Style untuk Card Riwayat Hasil Tryout Terpisah */
+    /* Riwayat Hasil Tryout */
     .history-list-container {
       display: flex;
       flex-direction: column;
@@ -246,6 +246,46 @@
       font-weight: 700;
       text-transform: uppercase;
       margin-top: 2px;
+    }
+
+    /* Style Tabel Soal Matriks */
+    .matrix-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+    }
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    .matrix-table th, .matrix-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+    }
+    .matrix-table th:last-child, .matrix-table td:last-child {
+      border-right: none;
+    }
+    .matrix-table th {
+      background: #f1f5f9;
+      font-weight: 700;
+      text-align: center;
+      color: #334155;
+    }
+    .matrix-table tr:last-child td {
+      border-bottom: none;
+    }
+    .matrix-table td:not(:first-child) {
+      text-align: center;
+    }
+    .matrix-table input[type="radio"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
     }
 
     .btn { 
@@ -435,7 +475,7 @@
       </div>
     </div>
 
-    <!-- Kartu 2: Riwayat Hasil Tryout (Terpisah di Bawah) -->
+    <!-- Kartu 2: Riwayat Hasil Tryout -->
     <div id="slideHistory" class="slide-card slide-hidden">
       <div class="step-header" style="margin-bottom: 12px;">
         <div class="step-icon" style="background: #f0fdf4; color: #16a34a;"><i class="fa-solid fa-clock-rotate-left"></i></div>
@@ -869,6 +909,7 @@
       const container = document.getElementById("answerOptionsArea");
       container.innerHTML = "";
 
+      // 1. Tipe Pilihan Ganda (pg)
       if (q.type === "pg" && q.options) {
         let html = `<div class="options-wrapper">`;
         q.options.forEach((opt, idx) => {
@@ -883,6 +924,7 @@
         html += `</div>`;
         container.innerHTML = html;
       }
+      // 2. Tipe Checkbox Kompleks
       else if (q.type === "checkbox" && q.options) {
         let html = `<div class="options-wrapper">`;
         const currentAns = userAnswers[currentIndex] || [];
@@ -898,6 +940,7 @@
         html += `</div>`;
         container.innerHTML = html;
       }
+      // 3. Tipe Isian Singkat
       else if (q.type === "isian") {
         const val = userAnswers[currentIndex] !== undefined ? userAnswers[currentIndex] : "";
         container.innerHTML = `
@@ -905,6 +948,37 @@
             oninput="window.saveAnswer(this.value)"
             style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px;">
         `;
+      }
+      // 4. Tipe Matriks (Baris & Kolom Pilihan)
+      else if (q.type === "matrix" && q.rows && q.cols) {
+        const currentAns = userAnswers[currentIndex] || {};
+        let tableHtml = `
+          <div class="matrix-table-wrapper">
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th style="text-align: left; width: 45%;">Pernyataan / Baris</th>
+        `;
+        q.cols.forEach(col => {
+          tableHtml += `<th>${decodeHTML(col)}</th>`;
+        });
+        tableHtml += `</tr></thead><tbody>`;
+
+        q.rows.forEach((row, rIdx) => {
+          tableHtml += `<tr><td><b>${rIdx + 1}.</b> ${decodeHTML(row)}</td>`;
+          q.cols.forEach((_, cIdx) => {
+            const isChecked = currentAns[rIdx] === cIdx ? "checked" : "";
+            tableHtml += `
+              <td>
+                <input type="radio" name="matrix_row_${rIdx}" value="${cIdx}" ${isChecked} onchange="window.saveAnswerMatrix(${rIdx}, ${cIdx})">
+              </td>
+            `;
+          });
+          tableHtml += `</tr>`;
+        });
+
+        tableHtml += `</tbody></table></div>`;
+        container.innerHTML = tableHtml;
       }
 
       const btnDoubt = document.getElementById("btnDoubt");
@@ -941,6 +1015,14 @@
       renderGridNumbers();
     };
 
+    window.saveAnswerMatrix = function(rIdx, cIdx) {
+      if (!userAnswers[currentIndex] || typeof userAnswers[currentIndex] !== "object") {
+        userAnswers[currentIndex] = {};
+      }
+      userAnswers[currentIndex][rIdx] = cIdx;
+      renderGridNumbers();
+    };
+
     function prevQuestion() {
       if (currentIndex > 0) {
         currentIndex--;
@@ -968,8 +1050,17 @@
     }
 
     function isQuestionAnswered(idx) {
+      const q = questions[idx];
       const ans = userAnswers[idx];
       if (ans === undefined || ans === null) return false;
+
+      if (q.type === "matrix") {
+        if (typeof ans !== "object") return false;
+        const totalRows = (q.rows || []).length;
+        let answeredRows = Object.keys(ans).length;
+        return answeredRows >= totalRows; // Dianggap terjawab jika semua baris matriks sudah dipilih
+      }
+
       if (typeof ans === "string") return ans.trim() !== "";
       if (typeof ans === "number") return true; 
       if (Array.isArray(ans)) return ans.length > 0;
@@ -1049,6 +1140,18 @@
             if (JSON.stringify(expected) === JSON.stringify(userSel)) isCorrect = true;
           } else if (q.type === "isian") {
             if (String(ans).trim().toLowerCase() === String(q.answer).trim().toLowerCase()) isCorrect = true;
+          } else if (q.type === "matrix") {
+            // q.answer diharapkan berupa objek, misal: {0: 1, 1: 0, 2: 1} (indeks baris: indeks kolom jawaban benar)
+            const expected = q.answer || {};
+            let allMatch = true;
+            const totalRows = (q.rows || []).length;
+            for (let r = 0; r < totalRows; r++) {
+              if (ans[r] !== expected[r]) {
+                allMatch = false;
+                break;
+              }
+            }
+            if (allMatch && Object.keys(expected).length > 0) isCorrect = true;
           }
         }
 
