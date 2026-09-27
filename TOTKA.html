@@ -949,24 +949,27 @@
             style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px;">
         `;
       }
-      // 4. Tipe Matriks (Baris & Kolom Pilihan)
-      else if (q.type === "matrix" && q.rows && q.cols) {
+      // 4. Tipe Matriks (Disesuaikan dengan format Admin: q.columns & q.rows sebagai array objek)
+      else if (q.type === "matrix" && q.columns && q.rows) {
         const currentAns = userAnswers[currentIndex] || {};
+        const statementHeader = q.statementTitle || "Pernyataan / Argumen";
+
         let tableHtml = `
           <div class="matrix-table-wrapper">
             <table class="matrix-table">
               <thead>
                 <tr>
-                  <th style="text-align: left; width: 45%;">Pernyataan / Baris</th>
+                  <th style="text-align: left; width: 45%;">${statementHeader}</th>
         `;
-        q.cols.forEach(col => {
+        q.columns.forEach(col => {
           tableHtml += `<th>${decodeHTML(col)}</th>`;
         });
         tableHtml += `</tr></thead><tbody>`;
 
         q.rows.forEach((row, rIdx) => {
-          tableHtml += `<tr><td><b>${rIdx + 1}.</b> ${decodeHTML(row)}</td>`;
-          q.cols.forEach((_, cIdx) => {
+          const statementText = typeof row === 'object' ? (row.statement || "") : row;
+          tableHtml += `<tr><td><b>${rIdx + 1}.</b> ${decodeHTML(statementText)}</td>`;
+          q.columns.forEach((_, cIdx) => {
             const isChecked = currentAns[rIdx] === cIdx ? "checked" : "";
             tableHtml += `
               <td>
@@ -1141,17 +1144,17 @@
           } else if (q.type === "isian") {
             if (String(ans).trim().toLowerCase() === String(q.answer).trim().toLowerCase()) isCorrect = true;
           } else if (q.type === "matrix") {
-            // q.answer diharapkan berupa objek, misal: {0: 1, 1: 0, 2: 1} (indeks baris: indeks kolom jawaban benar)
-            const expected = q.answer || {};
+            // Memeriksa kecocokan jawaban matriks berdasarkan struktur q.rows[r].answer dari admin
+            const rows = q.rows || [];
             let allMatch = true;
-            const totalRows = (q.rows || []).length;
-            for (let r = 0; r < totalRows; r++) {
-              if (ans[r] !== expected[r]) {
+            for (let r = 0; r < rows.length; r++) {
+              const expectedCol = typeof rows[r] === 'object' ? rows[r].answer : null;
+              if (ans[r] !== expectedCol) {
                 allMatch = false;
                 break;
               }
             }
-            if (allMatch && Object.keys(expected).length > 0) isCorrect = true;
+            if (allMatch && rows.length > 0) isCorrect = true;
           }
         }
 
