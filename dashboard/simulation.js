@@ -14,6 +14,7 @@ let doubtStatus = {};  // { 0: true/false }
 let timerInterval = null;
 let timeRemaining = 0; // dalam detik
 let studentData = null;
+let activeMatchLeft = null; // State untuk klik menjodohkan interaktif
 
 // ================= HELPER DECODER =================
 function decodeHTML(html) {
@@ -88,6 +89,8 @@ async function loadSimulation() {
 function renderCurrentQuestion() {
   const q = questions[currentIndex];
   if (!q) return;
+
+  activeMatchLeft = null; // Reset pemilihan match tiap ganti soal
 
   document.getElementById("questionNumberHeader").innerText = `Soal No. ${currentIndex + 1} dari ${questions.length}`;
   document.getElementById("questionText").innerHTML = decodeHTML(q.question);
@@ -180,7 +183,7 @@ function renderCurrentQuestion() {
             const isChecked = currentAns[rIdx] === cIdx ? "checked" : "";
             return `
               <td style="text-align:center;">
-                <input type="radio" name="matrix_row_${rIdx}" value="${cIdx}" ${isChecked} onchange="saveAnswerMatrix(${rIdx}, ${cIdx})">
+                <input type="radio" name="matrix_row_${rIdx}" value="${cIdx}" ${isChecked} onchange="saveAnswerMatrix(${rIdx},${cIdx})">
               </td>
             `;
           }).join('')}
@@ -191,40 +194,57 @@ function renderCurrentQuestion() {
     container.innerHTML = html;
   }
 
-  // 6. MATCHING / MENJODOHKAN
+  // 6. MATCHING / MENJODOHKAN (Sistem Klik Pasangan Dua Kolom)
   else if (q.type === "match" && q.pairs) {
     const currentAns = userAnswers[currentIndex] || {};
     let html = `
-      <div class="cbt-table-wrapper">
-        <table class="cbt-table">
-          <thead>
-            <tr>
-              <th style="width:50%;">Pernyataan (Kiri)</th>
-              <th style="width:50%;">Pasangan Jawaban (Kanan)</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div style="font-size: 13px; color: #64748b; margin-bottom: 10px;">
+        💡 <b>Cara Menjawab:</b> Klik pernyataan di sebelah kiri, lalu klik pasangan yang sesuai di sebelah kanan.
+      </div>
+      <div class="match-container" id="matchContainer">
+        <div class="match-column" id="matchLeftCol">
+          <div style="font-weight: 700; font-size: 13px; color: #1e293b; margin-bottom: 4px;">Pernyataan (Kiri)</div>
     `;
+
     q.pairs.forEach((p, idx) => {
-      const selectedVal = currentAns[idx] !== undefined ? currentAns[idx] : "";
+      const isConnected = currentAns[idx] !== undefined;
       html += `
-        <tr>
-          <td>${decodeHTML(p.left)}</td>
-          <td>
-            <select style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;" onchange="saveAnswerMatch(${idx}, this.value)">
-              <option value="">-- Pilih Pasangan --</option>
-              ${q.pairs.map((pOpt, optIdx) => `
-                <option value="${optIdx}" ${selectedVal == optIdx ? 'selected' : ''}>
-                  ${decodeHTML(pOpt.right)}
-                </option>
-              `).join('')}
-            </select>
-          </td>
-        </tr>
+        <div class="match-item ${isConnected ? 'connected' : ''}" data-left-idx="${idx}" onclick="selectMatchLeft(${idx})">
+          <span><b>${idx + 1}.</b> ${decodeHTML(p.left)}</span>
+          <div class="match-badge">${isConnected ? '✓' : idx + 1}</div>
+        </div>
       `;
     });
-    html += `</tbody></table></div>`;
+
+    html += `
+        </div>
+        <div class="match-column" id="matchRightCol">
+          <div style="font-weight: 700; font-size: 13px; color: #1e293b; margin-bottom: 4px;">Pasangan Jawaban (Kanan)</div>
+    `;
+
+    q.pairs.forEach((p, idx) => {
+      let matchedLeft = Object.keys(currentAns).find(lKey => currentAns[lKey] === idx);
+      const isConnected = matchedLeft !== undefined;
+      const letterCode = String.fromCharCode(65 + idx);
+
+      html += `
+        <div class="match-item ${isConnected ? 'connected' : ''}" data-right-idx="${idx}" onclick="selectMatchRight(${idx})">
+          <span><b>${letterCode}.</b> ${decodeHTML(p.right)}</span>
+          <div class="match-badge">${isConnected ? '✓' : letterCode}</div>
+        </div>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+      <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div id="matchStatusText" style="font-size: 13px; color: #2563eb; font-weight: 600;"></div>
+        <button onclick="resetMatchAnswer()" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; color: #475569;">🔄 Reset Pasangan</button>
+      </div>
+    `;
     container.innerHTML = html;
+    updateMatchUIState();
   }
 
   const btnDoubt = document.getElementById("btnDoubt");
@@ -278,15 +298,68 @@ window.saveAnswerMatrix = function(rowIdx, colIdx) {
   renderGridNumbers();
 };
 
-window.saveAnswerMatch = function(leftIdx, selectedRightIdx) {
-  if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
-  if (selectedRightIdx === "") {
-    delete userAnswers[currentIndex][leftIdx];
-  } else {
-    userAnswers[currentIndex][leftIdx] = parseInt(selectedRightIdx);
+// ================= MATCHING INTERACTIVE HELPERS =================
+window.selectMatchLeft = function(leftIdx) {
+  const q = questions[currentIndex];
+  if (!q || q.type !== "match") return;
+
+  activeMatchLeft = leftIdx;
+  updateMatchUIState();
+  const statusEl = document.getElementById("matchStatusText");
+  if (statusEl) {
+    statusEl.innerText = `Pernyataan #${leftIdx + 1} dipilih. Klik pasangan di sebelah kanan.`;
   }
+};
+
+window.selectMatchRight = function(rightIdx) {
+  const q = questions[currentIndex];
+  if (!q || q.type !== "match") return;
+
+  if (activeMatchLeft === null) {
+    alert("Silakan klik Pernyataan di sebelah kiri terlebih dahulu!");
+    return;
+  }
+
+  if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
+  
+  // Hubungkan kiri ke kanan
+  userAnswers[currentIndex][activeMatchLeft] = rightIdx;
+  activeMatchLeft = null; 
+  
+  renderCurrentQuestion();
   renderGridNumbers();
 };
+
+window.resetMatchAnswer = function() {
+  if (!userAnswers[currentIndex]) return;
+  delete userAnswers[currentIndex];
+  activeMatchLeft = null;
+  renderCurrentQuestion();
+  renderGridNumbers();
+};
+
+function updateMatchUIState() {
+  const currentAns = userAnswers[currentIndex] || {};
+  
+  document.querySelectorAll('#matchLeftCol .match-item').forEach(el => {
+    const lIdx = parseInt(el.getAttribute('data-left-idx'));
+    el.classList.remove('selected', 'connected');
+    if (lIdx === activeMatchLeft) {
+      el.classList.add('selected');
+    } else if (currentAns[lIdx] !== undefined) {
+      el.classList.add('connected');
+    }
+  });
+
+  document.querySelectorAll('#matchRightCol .match-item').forEach(el => {
+    const rIdx = parseInt(el.getAttribute('data-right-idx'));
+    el.classList.remove('connected');
+    let isMatched = Object.values(currentAns).includes(rIdx);
+    if (isMatched) {
+      el.classList.add('connected');
+    }
+  });
+}
 
 // ================= NAVIGATION =================
 window.prevQuestion = function() {
@@ -321,12 +394,12 @@ window.toggleNavDrawer = function() {
   overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
 };
 
-// ================= CHECKING TERJAWAB (FIX BLUE BUTTON) =================
+// ================= CHECKING TERJAWAB =================
 function isQuestionAnswered(idx) {
   const ans = userAnswers[idx];
   if (ans === undefined || ans === null) return false;
   if (typeof ans === "string") return ans.trim() !== "";
-  if (typeof ans === "number") return true; // Mengatasi indeks 0 (Pilihan A)
+  if (typeof ans === "number") return true; 
   if (Array.isArray(ans)) return ans.length > 0;
   if (typeof ans === "object") return Object.keys(ans).length > 0;
   return false;
@@ -348,7 +421,6 @@ function renderGridNumbers() {
 
     if (idx === currentIndex) btn.classList.add("active");
     
-    // Warna: Ragu (Kuning), Terjawab (Biru)
     if (isDoubt) {
       btn.classList.add("doubt");
     } else if (isAnswered) {
@@ -446,7 +518,7 @@ function calculateAndFinish() {
         });
         if (isAllCorrect) isCorrect = true;
       }
-      // 6. MATCH
+      // 6. MATCH (Penilaian pencocokan interaktif)
       else if (q.type === "match") {
         let isAllCorrect = true;
         if (Object.keys(ans).length !== q.pairs.length) {
@@ -473,35 +545,29 @@ function calculateAndFinish() {
   statusEl.innerText = isPassed ? "LULUS (MEMENUHI PASSING GRADE)" : "TIDAK LULUS";
   statusEl.style.color = isPassed ? "#16a34a" : "#dc2626";
 
-  // Build detail pembahasan
   renderReviewDetail(resultsDetail);
-
   document.getElementById("resultModal").style.display = "flex";
 }
 
-// ================= FORMATING TERJEMAHAN JAWABAN =================
+// ================= FORMATING TEXT JAWABAN =================
 function formatUserAnswerText(q, ans) {
   if (ans === undefined || ans === null || ans === "" || (typeof ans === "object" && Object.keys(ans).length === 0)) {
     return `<i style="color:#94a3b8;">Tidak Dijawab</i>`;
   }
 
-  // 1. PG
   if (q.type === "pg" && q.options) {
     const optText = q.options[ans] ? decodeHTML(q.options[ans]) : "-";
     return `<b>${String.fromCharCode(65 + ans)}.</b> ${optText}`;
   }
 
-  // 2. Checkbox
   if (q.type === "checkbox" && q.options && Array.isArray(ans)) {
     return ans.map(idx => `<b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(q.options[idx])}`).join("<br>");
   }
 
-  // 3. Isian Singkat
   if (q.type === "isian") {
     return `<b>${ans}</b>`;
   }
 
-  // 4. Multi Isian
   if (q.type === "multi_isian") {
     let textArr = [];
     (q.answers || []).forEach((_, idx) => {
@@ -510,7 +576,6 @@ function formatUserAnswerText(q, ans) {
     return textArr.join("<br>");
   }
 
-  // 5. Matrix
   if (q.type === "matrix" && q.rows && q.columns) {
     let textArr = [];
     q.rows.forEach((row, rIdx) => {
@@ -521,13 +586,13 @@ function formatUserAnswerText(q, ans) {
     return textArr.join("<br>");
   }
 
-  // 6. Match / Menjodohkan
   if (q.type === "match" && q.pairs) {
     let textArr = [];
     q.pairs.forEach((pair, pIdx) => {
       const rightIdx = ans[pIdx];
-      const selectedRightText = rightIdx !== undefined ? decodeHTML(q.pairs[rightIdx].right) : "-";
-      textArr.push(`${decodeHTML(pair.left)} ➔ <b>${selectedRightText}</b>`);
+      const selectedRightText = rightIdx !== undefined ? decodeHTML(q.pairs[rightIdx].right) : "<i style='color:#94a3b8;'>Belum dipasangkan</i>";
+      const letterCode = rightIdx !== undefined ? String.fromCharCode(65 + rightIdx) : "-";
+      textArr.push(`<b>${pIdx + 1}. ${decodeHTML(pair.left)}</b> ➔ [${letterCode}] ${selectedRightText}`);
     });
     return textArr.join("<br>");
   }
@@ -536,23 +601,19 @@ function formatUserAnswerText(q, ans) {
 }
 
 function formatCorrectAnswerText(q) {
-  // 1. PG
   if (q.type === "pg" && q.options) {
     const optText = q.options[q.answer] ? decodeHTML(q.options[q.answer]) : "-";
     return `<b>${String.fromCharCode(65 + q.answer)}.</b> ${optText}`;
   }
 
-  // 2. Checkbox
   if (q.type === "checkbox" && q.options && Array.isArray(q.answer)) {
     return q.answer.map(idx => `<b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(q.options[idx])}`).join("<br>");
   }
 
-  // 3. Isian Singkat
   if (q.type === "isian") {
     return `<b>${q.answer}</b>`;
   }
 
-  // 4. Multi Isian
   if (q.type === "multi_isian") {
     let textArr = [];
     (q.answers || []).forEach((exp, idx) => {
@@ -561,7 +622,6 @@ function formatCorrectAnswerText(q) {
     return textArr.join("<br>");
   }
 
-  // 5. Matrix
   if (q.type === "matrix" && q.rows && q.columns) {
     let textArr = [];
     q.rows.forEach((row) => {
@@ -571,11 +631,11 @@ function formatCorrectAnswerText(q) {
     return textArr.join("<br>");
   }
 
-  // 6. Match / Menjodohkan
   if (q.type === "match" && q.pairs) {
     let textArr = [];
-    q.pairs.forEach((pair) => {
-      textArr.push(`${decodeHTML(pair.left)} ➔ <b>${decodeHTML(pair.right)}</b>`);
+    q.pairs.forEach((pair, pIdx) => {
+      const letterCode = String.fromCharCode(65 + pIdx);
+      textArr.push(`<b>${pIdx + 1}. ${decodeHTML(pair.left)}</b> ➔ [${letterCode}] ${decodeHTML(pair.right)}`);
     });
     return textArr.join("<br>");
   }
@@ -605,12 +665,10 @@ function renderReviewDetail(resultsDetail) {
           <span class="review-status ${statusClass}">${statusText}</span>
         </div>
 
-        <!-- Teks Soal -->
         <div style="margin-bottom: 12px; font-size:15px; color:#0f172a;">
           ${decodeHTML(q.question)}
         </div>
 
-        <!-- Info Jawaban -->
         <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 13px; margin-bottom: 10px;">
           <div style="margin-bottom: 6px;">
             <span style="color:#64748b; font-size:12px; display:block;">Jawaban Anda:</span>
@@ -627,7 +685,6 @@ function renderReviewDetail(resultsDetail) {
           </div>
         </div>
 
-        <!-- Teks Pembahasan -->
         <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; font-size: 13px; color: #1e40af;">
           💡 <b>Pembahasan:</b><br>
           <div style="margin-top: 4px; color: #1e3a8a;">
@@ -657,7 +714,6 @@ window.toggleReviewDetail = function() {
   }
 };
 
-// ================= NAVIGASI KEMBALI SEBELUMNYA =================
 window.backToClass = function() {
   if (window.history.length > 1) {
     window.history.back();
