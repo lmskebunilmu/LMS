@@ -76,10 +76,12 @@ async function loadSimulation() {
     document.getElementById("simTitle").innerText = simulationData.title || "Simulasi Ujian";
     document.getElementById("simMeta").innerText = `${questions.length} Soal | Passing Grade: ${simulationData.passingGrade || 75}%`;
 
-    // Pastikan timeRemaining di-set dengan aman (fallback ke 60 menit jika durasi tidak valid)
+    // Pastikan timeRemaining di-set dengan aman
     const durationMins = simulationData.durationMinutes ? parseInt(simulationData.durationMinutes) : 60;
     timeRemaining = durationMins * 60;
     
+    // Render soal pertama di latar belakang agar langsung siap saat ujian dimulai
+    renderCurrentQuestion();
     renderGridNumbers();
   } catch (err) {
     console.error("Error fetching simulation:", err);
@@ -94,10 +96,14 @@ function renderCurrentQuestion() {
 
   activeMatchLeft = null; // Reset pemilihan match tiap ganti soal
 
-  document.getElementById("questionNumberHeader").innerText = `Soal No. ${currentIndex + 1} dari ${questions.length}`;
-  document.getElementById("questionText").innerHTML = decodeHTML(q.question);
+  const qNumHeader = document.getElementById("questionNumberHeader");
+  if (qNumHeader) qNumHeader.innerText = `Soal No. ${currentIndex + 1} dari ${questions.length}`;
+  
+  const qText = document.getElementById("questionText");
+  if (qText) qText.innerHTML = decodeHTML(q.question);
 
   const container = document.getElementById("answerOptionsArea");
+  if (!container) return;
   container.innerHTML = "";
 
   // 1. PILIHAN GANDA (PG)
@@ -196,7 +202,7 @@ function renderCurrentQuestion() {
     container.innerHTML = html;
   }
 
-  // 6. MATCHING / MENJODOHKAN (Sistem Klik Pasangan Dua Kolom)
+  // 6. MATCHING / MENJODOHKAN
   else if (q.type === "match" && q.pairs) {
     const currentAns = userAnswers[currentIndex] || {};
     let html = `
@@ -250,16 +256,21 @@ function renderCurrentQuestion() {
   }
 
   const btnDoubt = document.getElementById("btnDoubt");
-  if (doubtStatus[currentIndex]) {
-    btnDoubt.style.background = "#d97706";
-    btnDoubt.innerText = "🟧 Ragu-Ragu (Aktif)";
-  } else {
-    btnDoubt.style.background = "#eab308";
-    btnDoubt.innerText = "🟧 Ragu-Ragu";
+  if (btnDoubt) {
+    if (doubtStatus[currentIndex]) {
+      btnDoubt.style.background = "#d97706";
+      btnDoubt.innerText = "🟧 Ragu-Ragu (Aktif)";
+    } else {
+      btnDoubt.style.background = "#eab308";
+      btnDoubt.innerText = "🟧 Ragu-Ragu";
+    }
   }
 
-  document.getElementById("btnPrev").disabled = currentIndex === 0;
-  document.getElementById("btnNext").innerText = currentIndex === questions.length - 1 ? "Selesai 🏁" : "Selanjutnya ▶";
+  const btnPrev = document.getElementById("btnPrev");
+  if (btnPrev) btnPrev.disabled = currentIndex === 0;
+
+  const btnNext = document.getElementById("btnNext");
+  if (btnNext) btnNext.innerText = currentIndex === questions.length - 1 ? "Selesai 🏁" : "Selanjutnya ▶";
 
   if (window.MathJax && window.MathJax.typesetPromise) {
     MathJax.typesetPromise([document.getElementById("cbtMainContainer")]);
@@ -324,7 +335,6 @@ window.selectMatchRight = function(rightIdx) {
 
   if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
   
-  // Hubungkan kiri ke kanan
   userAnswers[currentIndex][activeMatchLeft] = rightIdx;
   activeMatchLeft = null; 
   
@@ -393,7 +403,9 @@ window.goToQuestion = function(idx) {
 
 window.toggleNavDrawer = function() {
   const overlay = document.getElementById("navDrawerOverlay");
-  overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
+  if (overlay) {
+    overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
+  }
 };
 
 // ================= CHECKING TERJAWAB =================
@@ -434,15 +446,13 @@ function renderGridNumbers() {
   });
 }
 
-// ================= TIMER LOGIC (DISEMPURNAKAN DENGAN SAFETY CHECK) =================
+// ================= TIMER LOGIC =================
 function startTimer() {
-  // Pengaman: Jika timeRemaining tidak valid/0, berikan default 60 menit
   if (!timeRemaining || timeRemaining <= 0) {
     const durationMins = simulationData && simulationData.durationMinutes ? parseInt(simulationData.durationMinutes) : 60;
     timeRemaining = durationMins * 60;
   }
 
-  // Bersihkan interval sebelumnya jika ada
   if (timerInterval) clearInterval(timerInterval);
 
   timerInterval = setInterval(() => {
@@ -472,9 +482,14 @@ window.startExamWithFullscreen = function() {
     el.requestFullscreen().catch(() => {});
   }
 
-  document.getElementById("startModal").style.display = "none";
-  document.getElementById("cbtHeader").classList.remove("blur-content");
-  document.getElementById("cbtMainContainer").classList.remove("blur-content");
+  const startModal = document.getElementById("startModal");
+  if (startModal) startModal.style.display = "none";
+  
+  const cbtHeader = document.getElementById("cbtHeader");
+  if (cbtHeader) cbtHeader.classList.remove("blur-content");
+  
+  const cbtMainContainer = document.getElementById("cbtMainContainer");
+  if (cbtMainContainer) cbtMainContainer.classList.remove("blur-content");
 
   renderCurrentQuestion();
   startTimer();
@@ -532,7 +547,7 @@ function calculateAndFinish() {
         });
         if (isAllCorrect) isCorrect = true;
       }
-      // 6. MATCH (Penilaian pencocokan interaktif)
+      // 6. MATCH
       else if (q.type === "match") {
         let isAllCorrect = true;
         if (Object.keys(ans).length !== q.pairs.length) {
@@ -554,16 +569,22 @@ function calculateAndFinish() {
   const passingGrade = simulationData.passingGrade || 75;
   const isPassed = finalScore >= passingGrade;
 
-  document.getElementById("finalScore").innerText = finalScore;
+  const finalScoreEl = document.getElementById("finalScore");
+  if (finalScoreEl) finalScoreEl.innerText = finalScore;
+
   const statusEl = document.getElementById("passingStatus");
-  statusEl.innerText = isPassed ? "LULUS (MEMENUHI PASSING GRADE)" : "TIDAK LULUS";
-  statusEl.style.color = isPassed ? "#16a34a" : "#dc2626";
+  if (statusEl) {
+    statusEl.innerText = isPassed ? "LULUS (MEMENUHI PASSING GRADE)" : "TIDAK LULUS";
+    statusEl.style.color = isPassed ? "#16a34a" : "#dc2626";
+  }
 
   renderReviewDetail(resultsDetail);
-  document.getElementById("resultModal").style.display = "flex";
+  
+  const resultModal = document.getElementById("resultModal");
+  if (resultModal) resultModal.style.display = "flex";
 }
 
-// ================= FORMATING TEXT JAWABAN =================
+// ================= FORMATTING TEXT JAWABAN =================
 function formatUserAnswerText(q, ans) {
   if (ans === undefined || ans === null || ans === "" || (typeof ans === "object" && Object.keys(ans).length === 0)) {
     return `<i style="color:#94a3b8;">Tidak Dijawab</i>`;
@@ -660,6 +681,7 @@ function formatCorrectAnswerText(q) {
 // ================= RENDER REVIEW DETAIL =================
 function renderReviewDetail(resultsDetail) {
   const container = document.getElementById("reviewDetailArea");
+  if (!container) return;
   let html = "";
 
   resultsDetail.forEach((item, idx) => {
@@ -719,6 +741,7 @@ function renderReviewDetail(resultsDetail) {
 window.toggleReviewDetail = function() {
   const area = document.getElementById("reviewDetailArea");
   const btn = document.getElementById("btnToggleDetail");
+  if (!area || !btn) return;
   if (area.style.display === "none") {
     area.style.display = "block";
     btn.innerText = "🙈 Sembunyikan Detail Pembahasan";
