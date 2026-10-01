@@ -76,7 +76,9 @@ async function loadSimulation() {
     document.getElementById("simTitle").innerText = simulationData.title || "Simulasi Ujian";
     document.getElementById("simMeta").innerText = `${questions.length} Soal | Passing Grade: ${simulationData.passingGrade || 75}%`;
 
-    timeRemaining = (simulationData.durationMinutes || 60) * 60;
+    // Pastikan timeRemaining di-set dengan aman (fallback ke 60 menit jika durasi tidak valid)
+    const durationMins = simulationData.durationMinutes ? parseInt(simulationData.durationMinutes) : 60;
+    timeRemaining = durationMins * 60;
     
     renderGridNumbers();
   } catch (err) {
@@ -432,8 +434,17 @@ function renderGridNumbers() {
   });
 }
 
-// ================= TIMER LOGIC =================
+// ================= TIMER LOGIC (DISEMPURNAKAN DENGAN SAFETY CHECK) =================
 function startTimer() {
+  // Pengaman: Jika timeRemaining tidak valid/0, berikan default 60 menit
+  if (!timeRemaining || timeRemaining <= 0) {
+    const durationMins = simulationData && simulationData.durationMinutes ? parseInt(simulationData.durationMinutes) : 60;
+    timeRemaining = durationMins * 60;
+  }
+
+  // Bersihkan interval sebelumnya jika ada
+  if (timerInterval) clearInterval(timerInterval);
+
   timerInterval = setInterval(() => {
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
@@ -447,7 +458,10 @@ function startTimer() {
     const m = Math.floor((timeRemaining % 3600) / 60).toString().padStart(2, '0');
     const s = (timeRemaining % 60).toString().padStart(2, '0');
 
-    document.getElementById("timerDisplay").innerText = `${h}:${m}:${s}`;
+    const timerEl = document.getElementById("timerDisplay");
+    if (timerEl) {
+      timerEl.innerText = `${h}:${m}:${s}`;
+    }
   }, 1000);
 }
 
@@ -475,7 +489,7 @@ window.confirmFinish = function() {
 };
 
 function calculateAndFinish() {
-  clearInterval(timerInterval);
+  if (timerInterval) clearInterval(timerInterval);
 
   let totalCorrect = 0;
   const resultsDetail = [];
