@@ -168,7 +168,7 @@ async function loadExercises(schoolId, classId) {
 }
 
 // ==========================
-// RENDER UI MODERN & REALISTIS
+// RENDER UI MODERN (DEFAULT CLOSED / SCROLLABLE)
 // ==========================
 function renderMaterials(data) {
   const container = document.getElementById("materialSiswaList");
@@ -212,14 +212,14 @@ function renderMaterials(data) {
     const cardBox = document.createElement("div");
     cardBox.className = "subject-card-box";
     cardBox.innerHTML = `
-      <div class="subject-header active" onclick="toggleAccordion(this)">
+      <div class="subject-header" onclick="toggleAccordion(this)">
         <div class="subject-title-wrapper">
           <div class="subject-icon">📚</div>
           <span>${mapel}</span>
         </div>
         <div class="chevron">▼</div>
       </div>
-      <div class="subject-content" style="display: block;"></div>
+      <div class="subject-content" style="display: none;"></div>
     `;
     const subjectContent = cardBox.querySelector(".subject-content");
 
@@ -227,11 +227,11 @@ function renderMaterials(data) {
       const babDiv = document.createElement("div");
       babDiv.className = "chapter-group";
       babDiv.innerHTML = `
-        <div class="chapter-header active" onclick="toggleAccordion(this)">
+        <div class="chapter-header" onclick="toggleAccordion(this)">
           <span>📖 ${bab}</span>
           <div class="chevron">▼</div>
         </div>
-        <div class="chapter-items" style="display: block;"></div>
+        <div class="chapter-items scrollable-chapter" style="display: none;"></div>
       `;
       const babContent = babDiv.querySelector(".chapter-items");
       const currentBab = grouped[mapel][bab];
@@ -247,7 +247,10 @@ function renderMaterials(data) {
             <div class="item-meta" style="color: var(--primary); font-weight: 600;">Materi Pembelajaran</div>
           </div>
         `;
-        item.onclick = () => openMaterial(m.materialId);
+        item.onclick = (e) => {
+          e.stopPropagation();
+          openMaterial(m.materialId);
+        };
         babContent.appendChild(item);
       });
 
@@ -281,7 +284,10 @@ function renderMaterials(data) {
               <div class="item-meta text-success">⏱ Batas: ${deadlineString} • <b>Tugas Aktif</b></div>
             </div>
           `;
-          item.onclick = () => openExercise(ex.exerciseId);
+          item.onclick = (e) => {
+            e.stopPropagation();
+            openExercise(ex.exerciseId);
+          };
         } else if (ex.isAssigned && isExpired) {
           item.classList.add("status-expired");
           item.innerHTML = `
@@ -291,7 +297,10 @@ function renderMaterials(data) {
               <div class="item-meta text-danger">❌ Waktu Habis (${deadlineString})</div>
             </div>
           `;
-          item.onclick = () => alert("Maaf, waktu pengerjaan latihan ini sudah berakhir.");
+          item.onclick = (e) => {
+            e.stopPropagation();
+            alert("Maaf, waktu pengerjaan latihan ini sudah berakhir.");
+          };
         } else {
           item.classList.add("status-locked");
           item.innerHTML = `
@@ -301,7 +310,10 @@ function renderMaterials(data) {
               <div class="item-meta text-muted">Belum Ditugaskan / Terkunci</div>
             </div>
           `;
-          item.onclick = () => alert("Latihan ini belum dibuka oleh guru Anda.");
+          item.onclick = (e) => {
+            e.stopPropagation();
+            alert("Latihan ini belum dibuka oleh guru Anda.");
+          };
         }
         
         babContent.appendChild(item);
