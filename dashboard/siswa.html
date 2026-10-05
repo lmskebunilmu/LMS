@@ -9,31 +9,71 @@
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
   
-  <!-- Style Modern Tambahan untuk Modal & Card -->
+  <!-- Style Modern & Responsif HP -->
   <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --success: #10b981;
+      --danger: #ef4444;
+      --bg-main: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --radius: 16px;
+    }
+
+    body {
+      background-color: var(--bg-main) !important;
+      font-family: 'Inter', sans-serif !important;
+    }
+
     .profile-card {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 20px;
+      text-align: center;
       background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
       color: white;
       padding: 24px;
-      border-radius: 16px;
-      margin-bottom: 24px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
       box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.2);
     }
+    @media (min-width: 640px) {
+      .profile-card {
+        flex-direction: row;
+        text-align: left;
+        gap: 20px;
+        padding: 28px;
+      }
+    }
+
     .profile-avatar {
-      width: 70px;
-      height: 70px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
       object-fit: cover;
       border: 3px solid rgba(255,255,255,0.8);
+      margin-bottom: 12px;
     }
+    @media (min-width: 640px) {
+      .profile-avatar { margin-bottom: 0; width: 70px; height: 70px; }
+    }
+
     .profile-actions {
-      margin-left: auto;
+      margin-top: 16px;
       display: flex;
       gap: 10px;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
     }
+    @media (min-width: 640px) {
+      .profile-actions { margin-top: 0; margin-left: auto; width: auto; justify-content: flex-start; }
+    }
+
     .btn-action {
       background: rgba(255, 255, 255, 0.2);
       color: white;
@@ -46,8 +86,50 @@
       backdrop-filter: blur(5px);
       transition: all 0.2s;
     }
-    .btn-action:hover {
-      background: rgba(255, 255, 255, 0.3);
+    .btn-action:hover { background: rgba(255, 255, 255, 0.3); }
+
+    /* Menu Cepat Modern */
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 14px;
+    }
+    .menu-card {
+      background: white;
+      border: 1px solid var(--border-color);
+      padding: 20px 16px;
+      border-radius: var(--radius);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .menu-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px -5px rgba(0,0,0,0.08);
+      border-color: var(--primary);
+    }
+    .menu-card .icon { font-size: 28px; margin-bottom: 8px; }
+    .menu-card .title { font-size: 14px; font-weight: 700; color: var(--text-main); }
+
+    /* Report Nilai Card */
+    .report-card {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-top: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+    }
+    .report-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px;
+      margin-top: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
     }
 
     /* Modal Styling */
@@ -60,28 +142,24 @@
       z-index: 1000;
       justify-content: center;
       align-items: center;
-      padding: 20px;
+      padding: 16px;
     }
     .modal-overlay.active { display: flex; }
     .modal-box {
       background: white;
       width: 100%;
       max-width: 450px;
-      padding: 28px;
+      padding: 24px;
       border-radius: 20px;
       box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
     }
-    .modal-box h3 { margin-top: 0; margin-bottom: 20px; color: #0f172a; font-size: 18px; }
-    .form-group { margin-bottom: 16px; }
+    .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #334155; }
     .form-group input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; }
-    .form-group input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
-    .modal-buttons { display: flex; gap: 10px; margin-top: 24px; }
+    .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
     .modal-buttons button { flex: 1; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; }
     .btn-save { background: #4f46e5; color: white; }
-    .btn-save:hover { background: #4338ca; }
     .btn-cancel { background: #f1f5f9; color: #475569; }
-    .btn-cancel:hover { background: #e2e8f0; }
   </style>
 </head>
 
@@ -105,48 +183,48 @@
         <p id="headerSchoolCard" style="margin:4px 0 0 0; opacity:0.8; font-size:12px;">Sekolah -</p>
       </div>
       <div class="profile-actions">
-        <button class="btn-action" onclick="openProfileModal()">✏️ Edit Profil</button>
+        <button class="btn-action" onclick="openProfileModal()">✏️️ Edit Profil</button>
         <button class="btn-action" onclick="openPasswordModal()">🔒 Ganti Password</button>
       </div>
     </div>
 
-    <!-- DASHBOARD -->
-    <div class="card">
-      <h3 style="margin-bottom: 16px;">Dashboard Siswa</h3>
-      <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-        <div class="stat-card" style="background: #f8fafc; padding: 20px; border-radius: 14px; border: 1px solid #e2e8f0;">
-          <h4 id="totalMaterials" style="font-size: 24px; margin: 0 0 4px 0; color: #4f46e5;">0</h4>
-          <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500;">Materi Tersedia</p>
+    <!-- MENU CEPAT (Modern & Responsif) -->
+    <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0; margin-bottom: 24px;">
+      <h3 style="margin-bottom: 14px; font-size: 16px;">Menu Cepat</h3>
+      <div class="menu-grid">
+        <div class="menu-card" onclick="goMaterialsSiswa()">
+          <div class="icon">📚</div>
+          <div class="title">Materi & Tugas</div>
         </div>
-        <div class="stat-card" style="background: #f8fafc; padding: 20px; border-radius: 14px; border: 1px solid #e2e8f0;">
-          <h4 id="totalAssignments" style="font-size: 24px; margin: 0 0 4px 0; color: #10b981;">0</h4>
-          <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500;">Tugas / Latihan</p>
+        <div class="menu-card" onclick="goMaterialsSiswa()">
+          <div class="icon">📝</div>
+          <div class="title">Latihan Aktif</div>
+        </div>
+        <div class="menu-card" onclick="logout()" style="border-color: #fee2e2; background: #fff5f5;">
+          <div class="icon">🚪</div>
+          <div class="title" style="color: #ef4444;">Logout</div>
         </div>
       </div>
     </div>
 
-    <!-- KELAS & MAPEL (Tampilan Modern) -->
-    <div class="card">
-      <h3 style="margin-bottom: 16px;">Kelas & Mata Pelajaran</h3>
-      <div id="classContainer"></div>
-    </div>
-
-    <!-- MENU -->
-    <div class="card">
-      <h3 style="margin-bottom: 16px;">Menu Cepat</h3>
-      <div class="menu-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
-        <button onclick="goMaterialsSiswa()" style="padding: 14px; background: #eef2ff; color: #4f46e5; border: none; border-radius: 12px; font-weight: 600; cursor: pointer;">📚 Materi</button>
-        <button onclick="goAssignmentsSiswa()" style="padding: 14px; background: #f0fdf4; color: #10b981; border: none; border-radius: 12px; font-weight: 600; cursor: pointer;">📝 Tugas</button>
-        <button onclick="logout()" style="padding: 14px; background: #fef2f2; color: #ef4444; border: none; border-radius: 12px; font-weight: 600; cursor: pointer;">🚪 Logout</button>
+    <!-- REPORT NILAI SAYA -->
+    <div class="report-card">
+      <h3 style="margin-top:0; font-size:16px; display: flex; align-items: center; gap: 8px;">
+        📊 Report Nilai Latihan Saya
+      </h3>
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Daftar nilai dari latihan yang telah Anda kerjakan.</p>
+      <div id="reportContainer">
+        <div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px;">Memuat riwayat nilai...</div>
       </div>
     </div>
+
   </div>
 </div>
 
 <!-- MODAL EDIT PROFIL -->
 <div id="profileModal" class="modal-overlay">
   <div class="modal-box">
-    <h3>✏️ Edit Profil Siswa</h3>
+    <h3 style="margin-top:0;">✏️ Edit Profil Siswa</h3>
     <div class="form-group">
       <label>Nama Lengkap</label>
       <input type="text" id="profileName" placeholder="Nama lengkap...">
@@ -157,7 +235,7 @@
     </div>
     <div class="modal-buttons">
       <button class="btn-cancel" onclick="closeProfileModal()">Batal</button>
-      <button class="btn-save" onclick="saveProfile()">Simpan Perubahan</button>
+      <button class="btn-save" onclick="saveProfile()">Simpan</button>
     </div>
   </div>
 </div>
@@ -165,14 +243,14 @@
 <!-- MODAL GANTI PASSWORD -->
 <div id="passwordModal" class="modal-overlay">
   <div class="modal-box">
-    <h3>🔒 Ganti Password</h3>
+    <h3 style="margin-top:0;">🔒 Ganti Password</h3>
     <div class="form-group">
       <label>Password Baru</label>
       <input type="password" id="newPassword" placeholder="Minimal 6 karakter...">
     </div>
     <div class="modal-buttons">
       <button class="btn-cancel" onclick="closePasswordModal()">Batal</button>
-      <button class="btn-save" onclick="updatePasswordAccount()">Update Password</button>
+      <button class="btn-save" onclick="updatePasswordAccount()">Update</button>
     </div>
   </div>
 </div>
