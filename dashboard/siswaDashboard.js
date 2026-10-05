@@ -157,7 +157,7 @@ async function loadStudentReports(studentUid) {
             <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 2px;">📝 ${exerciseTitle}</div>
             <div style="font-size: 12px; color: var(--text-muted);">Dikumpulkan: ${dateStr} • Benar: ${sub.correctAnswers || 0}/${sub.totalQuestions || 0} soal</div>
           </div>
-          <div style="background: ${scoreBg}; color: ${scoreColor}; padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; border: 1px solid ${scoreColor}22;">
+          <div style="background: ${scoreBg}; color: ${scoreColor}; padding: 6px 14px; border-radius: 10px; font-weight: 700; font-size: 14px; border: 1px solid ${scoreColor}22;">
             ${score}
           </div>
         </div>
@@ -235,7 +235,7 @@ window.saveProfile = async () => {
     console.error(err);
     alert("Gagal update profil: " + err.message);
   } finally {
-    saveBtn.innerText = "Simpan";
+    saveBtn.innerText = "Simpan Perubahan";
     saveBtn.disabled = false;
   }
 };
