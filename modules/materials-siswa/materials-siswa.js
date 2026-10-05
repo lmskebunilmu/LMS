@@ -15,7 +15,6 @@ import { loadLayout } from "../../assets/js/components.js";
 let materialsSiswa = [];
 let exercisesSiswa = [];
 let filteredMaterials = [];
-let classMap = {};
 let schoolData = null;
 let studentClassId = null;
 
@@ -40,8 +39,7 @@ onAuthStateChanged(auth, async (user) => {
   await loadProfileHeader(user, userData);
   await loadSchoolData(userData.schoolId);
   
-  await findStudentClass(user.uid, userData.schoolId);
-  await loadClassMap(userData.schoolId);
+  await findStudentClass(user.uid);
   
   if (studentClassId) {
     await loadMaterials(userData.schoolId, studentClassId);
@@ -86,7 +84,7 @@ async function loadSchoolData(schoolId) {
   }
 }
 
-async function findStudentClass(studentUid, schoolId) {
+async function findStudentClass(studentUid) {
   try {
     const studentDocSnap = await getDoc(doc(db, "students", studentUid));
     if (studentDocSnap.exists()) {
@@ -95,15 +93,6 @@ async function findStudentClass(studentUid, schoolId) {
   } catch (err) {
     console.error("Gagal memuat kelas siswa:", err);
   }
-}
-
-async function loadClassMap(schoolId) {
-  const q = query(collection(db, "classes"), where("schoolId", "==", schoolId));
-  const snap = await getDocs(q);
-  classMap = {};
-  snap.forEach(d => {
-    classMap[d.id] = d.data().name || "Kelas Tanpa Nama"; 
-  });
 }
 
 // ==========================
@@ -179,7 +168,7 @@ async function loadExercises(schoolId, classId) {
 }
 
 // ==========================
-// RENDER UI (MODERN, FRESH & MOBILE-FRIENDLY)
+// RENDER UI (CARD MAPEL LANGSUNG MUNCUL)
 // ==========================
 function renderMaterials(data) {
   const container = document.getElementById("materialSiswaList");
@@ -198,143 +187,129 @@ function renderMaterials(data) {
 
   const grouped = {};
 
-  // Grouping Materi
+  // Grouping Materi berdasarkan Mata Pelajaran -> Bab
   data.forEach(m => {
-    const kelas = classMap[m.classId] || "Kelas Anda";
     const mapel = m.subject || "Umum";
     const bab = m.chapter || "Umum";
 
-    grouped[kelas] ??= {};
-    grouped[kelas][mapel] ??= {};
-    grouped[kelas][mapel][bab] ??= { materials: [], exercises: [] };
-    grouped[kelas][mapel][bab].materials.push(m);
+    grouped[mapel] ??= {};
+    grouped[mapel][bab] ??= { materials: [], exercises: [] };
+    grouped[mapel][bab].materials.push(m);
   });
 
-  // Grouping Exercises
+  // Grouping Exercises berdasarkan Mata Pelajaran -> Bab
   exercisesSiswa.forEach(ex => {
-    const kelas = classMap[ex.classId] || "Kelas Anda";
     const mapel = ex.subject || "Umum";
     const bab = ex.chapter || "Umum";
 
-    grouped[kelas] ??= {};
-    grouped[kelas][mapel] ??= {};
-    grouped[kelas][mapel][bab] ??= { materials: [], exercises: [] };
-    grouped[kelas][mapel][bab].exercises.push(ex);
+    grouped[mapel] ??= {};
+    grouped[mapel][bab] ??= { materials: [], exercises: [] };
+    grouped[mapel][bab].exercises.push(ex);
   });
 
-  Object.keys(grouped).forEach(kelas => {
-    const box = document.createElement("div");
-    box.className = "accordion-box";
-    box.innerHTML = `
-      <div class="level kelas active" onclick="toggleAccordion(this)">
-        <span>🏫 ${kelas}</span>
+  // Loop Langsung Berdasarkan Mata Pelajaran (Card Style)
+  Object.keys(grouped).forEach(mapel => {
+    const cardBox = document.createElement("div");
+    cardBox.className = "subject-card-box";
+    cardBox.innerHTML = `
+      <div class="subject-header" onclick="toggleAccordion(this)">
+        <div class="subject-title-wrapper">
+          <span class="subject-icon">📘</span>
+          <span class="subject-name">${mapel}</span>
+        </div>
         <span class="chevron">▼</span>
       </div>
-      <div class="content" style="display: block;"></div>
+      <div class="subject-content" style="display: block;"></div>
     `;
-    const kelasContent = box.querySelector(".content");
+    const subjectContent = cardBox.querySelector(".subject-content");
 
-    Object.keys(grouped[kelas]).forEach(mapel => {
-      const mapelDiv = document.createElement("div");
-      mapelDiv.className = "mapel-group";
-      mapelDiv.innerHTML = `
-        <div class="level mapel active" onclick="toggleAccordion(this)">
-          <span>📘 ${mapel}</span>
+    Object.keys(grouped[mapel]).forEach(bab => {
+      const babDiv = document.createElement("div");
+      babDiv.className = "chapter-group";
+      babDiv.innerHTML = `
+        <div class="chapter-header" onclick="toggleAccordion(this)">
+          <span>📖 ${bab}</span>
           <span class="chevron">▼</span>
         </div>
-        <div class="content" style="display: block;"></div>
+        <div class="chapter-items" style="display: block;"></div>
       `;
-      const mapelContent = mapelDiv.querySelector(".content");
+      const babContent = babDiv.querySelector(".chapter-items");
+      const currentBab = grouped[mapel][bab];
 
-      Object.keys(grouped[kelas][mapel]).forEach(bab => {
-        const babDiv = document.createElement("div");
-        babDiv.className = "bab-group";
-        babDiv.innerHTML = `
-          <div class="level bab" onclick="toggleAccordion(this)">
-            <span>📖 ${bab}</span>
-            <span class="chevron">▼</span>
+      // 1. Render Materi Bacaan
+      currentBab.materials.forEach(m => {
+        const item = document.createElement("div");
+        item.className = "item-row material-item";
+        item.innerHTML = `
+          <div class="item-icon material-icon">📄</div>
+          <div class="item-info">
+            <div class="item-title">${m.title}</div>
+            <div class="item-badge">Materi Pembelajaran</div>
           </div>
-          <div class="content"></div>
         `;
-        const babContent = babDiv.querySelector(".content");
-        const currentBab = grouped[kelas][mapel][bab];
+        item.onclick = () => openMaterial(m.materialId);
+        babContent.appendChild(item);
+      });
 
-        // 1. Render Materi Bacaan
-        currentBab.materials.forEach(m => {
-          const item = document.createElement("div");
-          item.className = "materi-item material-card";
-          item.innerHTML = `
-            <div class="item-icon material-icon">📄</div>
-            <div class="item-info">
-              <div class="item-title">${m.title}</div>
-              <div class="item-badge">Materi Pembelajaran</div>
-            </div>
-          `;
-          item.onclick = () => openMaterial(m.materialId);
-          babContent.appendChild(item);
-        });
+      // 2. Render Latihan / Tugas
+      currentBab.exercises.forEach(ex => {
+        const item = document.createElement("div");
+        item.className = "item-row exercise-item";
 
-        // 2. Render Latihan / Tugas
-        currentBab.exercises.forEach(ex => {
-          const item = document.createElement("div");
-          item.className = "materi-item exercise-card";
+        let isExpired = false;
+        let deadlineString = "Waktu fleksibel";
 
-          let isExpired = false;
-          let deadlineString = "Waktu fleksibel";
-
-          if (ex.deadlineDate && ex.deadlineTime) {
-            const deadlineTarget = new Date(`${ex.deadlineDate}T${ex.deadlineTime}:00`);
-            const sekarang = new Date();
-            
-            if (sekarang > deadlineTarget) {
-              isExpired = true;
-            }
-            
-            const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
-            const tanggalRapi = new Date(ex.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
-            deadlineString = `${tanggalRapi} - ${ex.deadlineTime} WIB`;
-          }
-
-          if (ex.isAssigned && !isExpired) {
-            item.classList.add("status-active");
-            item.innerHTML = `
-              <div class="item-icon exercise-icon">📝</div>
-              <div class="item-info">
-                <div class="item-title">${ex.title}</div>
-                <div class="item-meta text-success">⏱ Batas: ${deadlineString} • <b>Tugas Aktif</b></div>
-              </div>
-            `;
-            item.onclick = () => openExercise(ex.exerciseId);
-          } else if (ex.isAssigned && isExpired) {
-            item.classList.add("status-expired");
-            item.innerHTML = `
-              <div class="item-icon">🔒</div>
-              <div class="item-info">
-                <div class="item-title"><s>${ex.title}</s></div>
-                <div class="item-meta text-danger">❌ Waktu Habis (${deadlineString})</div>
-              </div>
-            `;
-            item.onclick = () => alert("Maaf, waktu pengerjaan latihan ini sudah berakhir.");
-          } else {
-            item.classList.add("status-locked");
-            item.innerHTML = `
-              <div class="item-icon">🔒</div>
-              <div class="item-info">
-                <div class="item-title"><s>${ex.title}</s></div>
-                <div class="item-meta text-muted">Belum Ditugaskan / Terkunci</div>
-              </div>
-            `;
-            item.onclick = () => alert("Latihan ini belum dibuka oleh guru Anda.");
+        if (ex.deadlineDate && ex.deadlineTime) {
+          const deadlineTarget = new Date(`${ex.deadlineDate}T${ex.deadlineTime}:00`);
+          const sekarang = new Date();
+          
+          if (sekarang > deadlineTarget) {
+            isExpired = true;
           }
           
-          babContent.appendChild(item);
-        });
+          const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
+          const tanggalRapi = new Date(ex.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
+          deadlineString = `${tanggalRapi} - ${ex.deadlineTime} WIB`;
+        }
 
-        mapelContent.appendChild(babDiv);
+        if (ex.isAssigned && !isExpired) {
+          item.classList.add("status-active");
+          item.innerHTML = `
+            <div class="item-icon exercise-icon">📝</div>
+            <div class="item-info">
+              <div class="item-title">${ex.title}</div>
+              <div class="item-meta text-success">⏱ Batas: ${deadlineString} • <b>Tugas Aktif</b></div>
+            </div>
+          `;
+          item.onclick = () => openExercise(ex.exerciseId);
+        } else if (ex.isAssigned && isExpired) {
+          item.classList.add("status-expired");
+          item.innerHTML = `
+            <div class="item-icon">🔒</div>
+            <div class="item-info">
+              <div class="item-title"><s>${ex.title}</s></div>
+              <div class="item-meta text-danger">❌ Waktu Habis (${deadlineString})</div>
+            </div>
+          `;
+          item.onclick = () => alert("Maaf, waktu pengerjaan latihan ini sudah berakhir.");
+        } else {
+          item.classList.add("status-locked");
+          item.innerHTML = `
+            <div class="item-icon">🔒</div>
+            <div class="item-info">
+              <div class="item-title"><s>${ex.title}</s></div>
+              <div class="item-meta text-muted">Belum Ditugaskan / Terkunci</div>
+            </div>
+          `;
+          item.onclick = () => alert("Latihan ini belum dibuka oleh guru Anda.");
+        }
+        
+        babContent.appendChild(item);
       });
-      kelasContent.appendChild(mapelDiv);
+
+      subjectContent.appendChild(babDiv);
     });
-    container.appendChild(box);
+    container.appendChild(cardBox);
   });
 }
 
