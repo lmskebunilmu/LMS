@@ -15,6 +15,7 @@ import { loadLayout } from "../../assets/js/components.js";
 let materialsSiswa = [];
 let exercisesSiswa = [];
 let filteredMaterials = [];
+let filteredExercises = [];
 let schoolData = null;
 let studentClassId = null;
 
@@ -46,7 +47,7 @@ onAuthStateChanged(auth, async (user) => {
     await loadExercises(userData.schoolId, studentClassId);
   }
   
-  renderMaterials(materialsSiswa);
+  renderMaterials(materialsSiswa, exercisesSiswa);
 });
 
 // ==========================
@@ -165,23 +166,24 @@ async function loadExercises(schoolId, classId) {
   const map = new Map();
   temp.forEach(i => map.set(i.exerciseId, i));
   exercisesSiswa = [...map.values()];
+  filteredExercises = exercisesSiswa;
 }
 
 // ==========================
 // RENDER UI (MAPEL -> BAB -> SUB-BAB -> ITEM)
 // ==========================
-function renderMaterials(data) {
+function renderMaterials(matData, exData) {
   const container = document.getElementById("materialSiswaList");
   if (!container) return;
 
   container.innerHTML = "";
 
-  if (!data.length && !exercisesSiswa.length) {
+  if (!matData.length && !exData.length) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">📭</div>
-        <div style="font-size: 15px; font-weight: 600; color: #334155;">Belum Ada Materi</div>
-        <p style="color:#64748b; font-size:13px; margin-top:4px;">Belum ada materi atau latihan yang tersedia untuk kelas Anda saat ini.</p>
+        <div style="font-size: 15px; font-weight: 600; color: #334155;">Tidak Ditemukan</div>
+        <p style="color:#64748b; font-size:13px; margin-top:4px;">Tidak ada materi atau latihan yang cocok dengan pencarian Anda.</p>
       </div>`;
     return;
   }
@@ -189,7 +191,7 @@ function renderMaterials(data) {
   const grouped = {};
 
   // Grouping Materi: Mapel -> Bab -> Sub-Bab
-  data.forEach(m => {
+  matData.forEach(m => {
     const mapel = m.subject || "Umum";
     const bab = m.chapter || "Umum";
     const sub = m.subChapter || "Umum";
@@ -201,7 +203,7 @@ function renderMaterials(data) {
   });
 
   // Grouping Exercises: Mapel -> Bab -> Sub-Bab
-  exercisesSiswa.forEach(ex => {
+  exData.forEach(ex => {
     const mapel = ex.subject || "Umum";
     const bab = ex.chapter || "Umum";
     const sub = ex.subChapter || "Umum";
@@ -250,7 +252,7 @@ function renderMaterials(data) {
             <span>📑 ${sub}</span>
             <div class="chevron">▼</div>
           </div>
-          <div class="subchapter-items scrollable-items" style="display: none;"></div>
+          <div class="subchapter-items" style="display: none;"></div>
         `;
         const subContent = subDiv.querySelector(".subchapter-items");
         const currentSub = grouped[mapel][bab][sub];
@@ -839,7 +841,6 @@ window.openExercise = async (id) => {
       }
 
       if (right && selectedLeft) {
-        const wrapper = right.closest nonparametric style;
         const wrapper = right.closest(".match-wrapper");
         if(wrapper.dataset.locked === "true") return;
 
@@ -879,10 +880,23 @@ window.openExercise = async (id) => {
   win.document.body.appendChild(scriptEl);
 };
 
+// ==========================
+// SEARCH FILTER
+// ==========================
 window.filterMaterialsSiswa = () => {
   const search = document.getElementById("searchMaterialSiswa").value.toLowerCase();
+  
   filteredMaterials = materialsSiswa.filter(m => {
-    return m.title.toLowerCase().includes(search) || m.subject.toLowerCase().includes(search);
+    return m.title.toLowerCase().includes(search) || 
+           m.subject.toLowerCase().includes(search) || 
+           m.chapter.toLowerCase().includes(search);
   });
-  renderMaterials(filteredMaterials);
+
+  filteredExercises = exercisesSiswa.filter(ex => {
+    return ex.title.toLowerCase().includes(search) || 
+           ex.subject.toLowerCase().includes(search) || 
+           ex.chapter.toLowerCase().includes(search);
+  });
+
+  renderMaterials(filteredMaterials, filteredExercises);
 };
