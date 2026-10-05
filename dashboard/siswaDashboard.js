@@ -17,9 +17,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadLayout } from "../assets/js/components.js";
 
-let currentSchoolName = "-";
-let currentSchoolLogo = "../assets/images/default-logo.png";
-
 // ==========================
 // AUTH STATE
 // ==========================
@@ -47,8 +44,7 @@ onAuthStateChanged(auth, async (user) => {
     await loadLayout("siswa");
     await waitForHeader();
     await loadProfileHeader(user);
-    await loadStats(user);
-    await loadClassAndSubjects(user);
+    await loadStudentReports(user.uid);
   } catch (err) {
     console.error(err);
   }
@@ -96,9 +92,6 @@ async function loadProfileHeader(user) {
     }
   }
 
-  currentSchoolName = schoolName;
-  currentSchoolLogo = schoolLogo;
-
   // Header Layout
   if (document.getElementById("headerNameHeader")) document.getElementById("headerNameHeader").innerText = name;
   if (document.getElementById("headerAvatarHeader")) document.getElementById("headerAvatarHeader").src = avatar;
@@ -117,26 +110,65 @@ async function loadProfileHeader(user) {
 }
 
 // ==========================
-// LOAD STATS
+// LOAD STUDENT REPORTS (NILAI LATIHAN)
 // ==========================
-async function loadStats(user) {
+async function loadStudentReports(studentUid) {
+  const container = document.getElementById("reportContainer");
+  if (!container) return;
+
   try {
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    const data = userSnap.data();
-    const classId = data.classId;
-    const schoolId = data.schoolId;
+    const q = query(
+      collection(db, "student_submissions"),
+      where("studentUid", "==", studentUid)
+    );
+    const snap = await getDocs(q);
 
-    if (!classId) return;
+    if (snap.empty) {
+      container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px;">Belum ada latihan atau tugas yang dikerjakan.</div>`;
+      return;
+    }
 
-    const qMaterials = query(collection(db, "materialGuru"), where("classId", "==", classId), where("schoolId", "==", schoolId));
-    const snapMaterials = await getDocs(qMaterials);
-    if (document.getElementById("totalMaterials")) document.getElementById("totalMaterials").innerText = snapMaterials.size;
+    let html = "";
+    for (const docSnap of snap.docs) {
+      const sub = docSnap.data();
+      
+      // Ambil judul exercise berdasarkan exerciseId
+      let exerciseTitle = "Latihan / Tugas";
+      try {
+        const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
+        if (exSnap.exists()) {
+          exerciseTitle = exSnap.data().title || exerciseTitle;
+        }
+      } catch (e) {
+        console.error(e);
+      }
 
-    const qAssignments = query(collection(db, "exerciseGuru"), where("classId", "==", classId), where("schoolId", "==", schoolId));
-    const snapAssignments = await getDocs(qAssignments);
-    if (document.getElementById("totalAssignments")) document.getElementById("totalAssignments").innerText = snapAssignments.size;
+      const score = sub.score || 0;
+      const scoreColor = score >= 75 ? "#059669" : score >= 60 ? "#d97706" : "#dc2626";
+      const scoreBg = score >= 75 ? "#ecfdf5" : score >= 60 ? "#fffbeb" : "#fef2f2";
+
+      let dateStr = "-";
+      if (sub.submittedAt?.toDate) {
+        dateStr = sub.submittedAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+
+      html += `
+        <div class="report-item">
+          <div>
+            <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 2px;">📝 ${exerciseTitle}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Dikumpulkan: ${dateStr} • Benar: ${sub.correctAnswers || 0}/${sub.totalQuestions || 0} soal</div>
+          </div>
+          <div style="background: ${scoreBg}; color: ${scoreColor}; padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 14px; border: 1px solid ${scoreColor}22;">
+            ${score}
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
   } catch (err) {
-    console.error(err);
+    console.error("Gagal memuat report nilai:", err);
+    container.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px; font-size: 13px;">Gagal memuat riwayat nilai.</div>`;
   }
 }
 
@@ -194,147 +226,8 @@ window.updatePasswordAccount = async () => {
     closePasswordModal();
   } catch (err) {
     console.error(err);
-    alert("Gagal mengubah password (silakan login ulang terlebih dahulu jika sesi habis): " + err.message);
+    alert("Gagal mengubah password (silakan login ulang jika sesi habis): " + err.message);
   }
-};
-
-// ==========================
-// KELAS & MAPEL
-// ==========================
-async function loadClassAndSubjects(user) {
-  const userSnap = await getDoc(doc(db, "users", user.uid));
-  const userData = userSnap.data();
-  const classId = userData.classId;
-  const schoolId = userData.schoolId;
-
-  if (!classId) {
-    document.getElementById("classContainer").innerHTML = `<p style="color:#64748b; font-size:13px;">Belum terdaftar di kelas manapun.</p>`;
-    return;
-  }
-
-  const classSnap = await getDoc(doc(db, "classes", classId));
-  if (!classSnap.exists()) return;
-  const classData = classSnap.data();
-
-  let html = `<div style="font-size:15px; font-weight:700; color:#1e293b; margin-bottom:14px;">🏫 Kelas: ${classData.name}</div>`;
-  const teacherIds = classData.teacherIds || [];
-
-  if (teacherIds.length === 0) {
-    html += `<p style="color:#64748b; font-size:13px;">Belum ada guru di kelas ini</p>`;
-    document.getElementById("classContainer").innerHTML = html;
-    return;
-  }
-
-  const subjectsSet = new Set();
-  for (const teacherId of teacherIds) {
-    const q = query(collection(db, "teachers"), where("teacherId", "==", teacherId), where("schoolId", "==", schoolId));
-    const snap = await getDocs(q);
-    snap.forEach(docSnap => {
-      const data = docSnap.data();
-      if (data.subject) subjectsSet.add(data.subject);
-    });
-  }
-
-  const subjects = [...subjectsSet];
-  if (subjects.length === 0) {
-    html += `<p style="color:#64748b; font-size:13px;">Belum ada mata pelajaran</p>`;
-  } else {
-    html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;">`;
-    subjects.forEach(subject => {
-      html += `
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; cursor: pointer; transition: all 0.2s;"
-             onmouseover="this.style.borderColor='#4f46e5'; this.style.background='#eef2ff';"
-             onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc';"
-             onclick="loadSubjectDetail('${subject}','${classId}','${schoolId}')">
-          <div style="font-size: 20px; margin-bottom: 6px;">📘</div>
-          <div style="font-weight: 600; color: #0f172a; font-size: 14px;">${subject}</div>
-        </div>
-      `;
-    });
-    html += `</div>`;
-  }
-
-  document.getElementById("classContainer").innerHTML = html;
-}
-
-window.loadSubjectDetail = async (subjectName, classId, schoolId) => {
-  const schoolSnap = await getDoc(doc(db, "schools", schoolId));
-  const schoolData = schoolSnap.data();
-  const curriculum = schoolData.curriculum;
-  const level = schoolData.level;
-
-  const q = query(
-    collection(db, "materials"),
-    where("subject", "==", subjectName),
-    where("classId", "==", classId),
-    where("schoolId", "==", schoolId),
-    where("curriculum", "==", curriculum),
-    where("level", "==", level)
-  );
-
-  const snap = await getDocs(q);
-  let html = `
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-      <h3 style="margin: 0; color: #1e293b; font-size: 16px;">📘 Materi: ${subjectName}</h3>
-      <button onclick="location.reload()" style="background:#f1f5f9; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:600; font-size:12px;">← Kembali</button>
-    </div>
-  `;
-
-  if (snap.empty) {
-    html += `<p style="color:#64748b; font-size:13px;">Belum ada materi untuk mata pelajaran ini.</p>`;
-    document.getElementById("classContainer").innerHTML = html;
-    return;
-  }
-
-  let grouped = {};
-  snap.forEach(docSnap => {
-    const d = docSnap.data();
-    const chapter = d.chapter || "Tanpa Bab";
-    const sub = d.subChapter || "Tanpa Sub Bab";
-
-    if (!grouped[chapter]) grouped[chapter] = {};
-    if (!grouped[chapter][sub]) grouped[chapter][sub] = [];
-    grouped[chapter][sub].push({ id: docSnap.id, ...d });
-  });
-
-  for (const chapter in grouped) {
-    html += `<div style="font-weight: 700; color: #334155; margin: 16px 0 8px 0; font-size: 14px;">📚 ${chapter}</div>`;
-
-    for (const sub in grouped[chapter]) {
-      html += `<div style="font-weight: 600; color: #64748b; margin: 8px 0 8px 12px; font-size: 13px;">📖 ${sub}</div>`;
-
-      grouped[chapter][sub].forEach(item => {
-        html += `
-          <div style="margin-left: 24px; margin-bottom: 8px; padding: 12px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid #4f46e5; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;"
-               onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)'" onmouseout="this.style.boxShadow='none'"
-               onclick="openMaterial('${item.id}')">
-            <span style="font-weight: 600; font-size: 13px; color: #0f172a;">📄 ${item.title}</span>
-            <span style="font-size: 12px; color: #4f46e5; font-weight: 600;">Buka Materi →</span>
-          </div>
-        `;
-      });
-    }
-  }
-
-  document.getElementById("classContainer").innerHTML = html;
-};
-
-window.openMaterial = async (id) => {
-  const snap = await getDoc(doc(db, "materials", id));
-  if (!snap.exists()) {
-    alert("Materi tidak ditemukan");
-    return;
-  }
-  const data = snap.data();
-  document.getElementById("classContainer").innerHTML = `
-    <div style="margin-bottom: 16px;">
-      <button onclick="location.reload()" style="background:#f1f5f9; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px;">← Kembali ke Daftar Mapel</button>
-    </div>
-    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; line-height: 1.8;">
-      <h2 style="color: #4f46e5; margin-top:0; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px;">${data.title}</h2>
-      <div>${data.content}</div>
-    </div>
-  `;
 };
 
 function lockDashboard() {
@@ -350,7 +243,6 @@ function lockDashboard() {
 }
 
 window.goMaterialsSiswa = () => window.location.href = "./materials-siswa.html";
-window.goAssignmentsSiswa = () => window.location.href = "./materials-siswa.html";
 window.logout = async () => {
   await signOut(auth);
   window.location.href = "../login.html";
