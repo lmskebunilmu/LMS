@@ -1,5 +1,4 @@
 import { auth, db } from "../firebase/firebase-config.js";
-
 import {
   onAuthStateChanged,
   updateProfile,
@@ -7,7 +6,6 @@ import {
   updatePassword,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
 import {
   getDoc,
   doc,
@@ -17,27 +15,22 @@ import {
   query,
   where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
 import { loadLayout } from "../assets/js/components.js";
 
 let currentSchoolName = "-";
 let currentSchoolLogo = "../assets/images/default-logo.png";
 
-
 // ==========================
 // AUTH STATE
 // ==========================
 onAuthStateChanged(auth, async (user) => {
-
   if (!user) {
     window.location = "../login.html";
     return;
   }
 
   try {
-
     const userSnap = await getDoc(doc(db, "users", user.uid));
-
     if (!userSnap.exists()) {
       alert("User tidak ditemukan");
       window.location = "../login.html";
@@ -45,91 +38,59 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     const userData = userSnap.data();
-
-    // ✅ VALIDASI SISWA
     if (userData.role !== "siswa") {
       alert("Akses hanya untuk siswa");
       window.location = "../login.html";
       return;
     }
 
-    // ==========================
-    // LOAD LAYOUT
-    // ==========================
     await loadLayout("siswa");
-
     await waitForHeader();
-
     await loadProfileHeader(user);
     await loadStats(user);
     await loadClassAndSubjects(user);
-
   } catch (err) {
     console.error(err);
   }
-
 });
 
-
-// ==========================
-// WAIT HEADER
-// ==========================
 function waitForHeader() {
   return new Promise(resolve => {
     const interval = setInterval(() => {
-
       const el = document.getElementById("headerAvatarHeader");
-
       if (el) {
         clearInterval(interval);
         resolve();
       }
-
     }, 50);
   });
 }
-
 
 // ==========================
 // LOAD PROFILE + SEKOLAH
 // ==========================
 async function loadProfileHeader(user) {
-
   const userSnap = await getDoc(doc(db, "users", user.uid));
   if (!userSnap.exists()) return;
 
   const data = userSnap.data();
-
   const name = data.name || user.displayName || "Siswa";
   const email = data.email || user.email;
-  const avatar =
-    data.avatarURL ||
-    user.photoURL ||
-    "../assets/images/default-avatar.png";
-
+  const avatar = data.avatarURL || user.photoURL || "../assets/images/default-avatar.png";
   const schoolId = data.schoolId || null;
 
-  // ==========================
-  // AMBIL SEKOLAH
-  // ==========================
   let schoolName = "-";
   let schoolLogo = "../assets/images/default-logo.png";
 
   if (schoolId) {
-
     const schoolSnap = await getDoc(doc(db, "schools", schoolId));
-
     if (schoolSnap.exists()) {
-
       const schoolData = schoolSnap.data();
-
-      // 🚨 CEK STATUS
       if (schoolData.status !== "aktif") {
-        showToast("Sekolah nonaktif", "error");
+        alert("Sekolah nonaktif");
         lockDashboard();
         return;
       }
-
       schoolName = schoolData.name || "-";
       schoolLogo = schoolData.logoURL || schoolLogo;
     }
@@ -138,106 +99,57 @@ async function loadProfileHeader(user) {
   currentSchoolName = schoolName;
   currentSchoolLogo = schoolLogo;
 
-  // ==========================
-  // HEADER
-  // ==========================
-  const nameHeader = document.getElementById("headerNameHeader");
-  if (nameHeader) nameHeader.innerText = name;
+  // Header Layout
+  if (document.getElementById("headerNameHeader")) document.getElementById("headerNameHeader").innerText = name;
+  if (document.getElementById("headerAvatarHeader")) document.getElementById("headerAvatarHeader").src = avatar;
+  if (document.getElementById("headerSchoolName")) document.getElementById("headerSchoolName").innerText = schoolName;
+  if (document.getElementById("headerSchoolLogo")) document.getElementById("headerSchoolLogo").src = schoolLogo;
 
-  const avatarHeader = document.getElementById("headerAvatarHeader");
-  if (avatarHeader) avatarHeader.src = avatar;
+  // Profile Card
+  if (document.getElementById("headerNameCard")) document.getElementById("headerNameCard").innerText = name;
+  if (document.getElementById("headerEmailCard")) document.getElementById("headerEmailCard").innerText = email;
+  if (document.getElementById("headerAvatarCard")) document.getElementById("headerAvatarCard").src = avatar;
+  if (document.getElementById("headerSchoolCard")) document.getElementById("headerSchoolCard").innerText = `🏫 ${schoolName}`;
 
-  const schoolNameEl = document.getElementById("headerSchoolName");
-  if (schoolNameEl) schoolNameEl.innerText = schoolName;
-
-  const schoolLogoEl = document.getElementById("headerSchoolLogo");
-  if (schoolLogoEl) schoolLogoEl.src = schoolLogo;
-
-  // ==========================
-  // PROFILE CARD
-  // ==========================
-  const nameCard = document.getElementById("headerNameCard");
-  if (nameCard) nameCard.innerText = name;
-
-  const emailCard = document.getElementById("headerEmailCard");
-  if (emailCard) emailCard.innerText = email;
-
-  const avatarCard = document.getElementById("headerAvatarCard");
-  if (avatarCard) avatarCard.src = avatar;
-
-  const schoolCard = document.getElementById("headerSchoolCard");
-  if (schoolCard) schoolCard.innerText = schoolName;
-
+  // Isi form modal edit
+  if (document.getElementById("profileName")) document.getElementById("profileName").value = name;
+  if (document.getElementById("profileEmail")) document.getElementById("profileEmail").value = email;
 }
 
-
 // ==========================
-// LOAD STATS (KHUSUS SISWA)
+// LOAD STATS
 // ==========================
 async function loadStats(user) {
-
   try {
-
     const userSnap = await getDoc(doc(db, "users", user.uid));
     const data = userSnap.data();
-
     const classId = data.classId;
     const schoolId = data.schoolId;
 
     if (!classId) return;
 
-    // ==========================
-    // MATERIALS
-    // ==========================
-    const qMaterials = query(
-      collection(db, "materials"),
-      where("classId", "==", classId),
-      where("schoolId", "==", schoolId)
-    );
-
+    const qMaterials = query(collection(db, "materialGuru"), where("classId", "==", classId), where("schoolId", "==", schoolId));
     const snapMaterials = await getDocs(qMaterials);
+    if (document.getElementById("totalMaterials")) document.getElementById("totalMaterials").innerText = snapMaterials.size;
 
-    const matEl = document.getElementById("totalMaterials");
-    if (matEl) matEl.innerText = snapMaterials.size;
-
-    // ==========================
-    // ASSIGNMENTS
-    // ==========================
-    const qAssignments = query(
-      collection(db, "assignments"),
-      where("classId", "==", classId),
-      where("schoolId", "==", schoolId)
-    );
-
+    const qAssignments = query(collection(db, "exerciseGuru"), where("classId", "==", classId), where("schoolId", "==", schoolId));
     const snapAssignments = await getDocs(qAssignments);
-
-    const assEl = document.getElementById("totalAssignments");
-    if (assEl) assEl.innerText = snapAssignments.size;
-
+    if (document.getElementById("totalAssignments")) document.getElementById("totalAssignments").innerText = snapAssignments.size;
   } catch (err) {
     console.error(err);
   }
-
 }
 
-
 // ==========================
-// MODAL PROFILE (SAMA KAYAK GURU)
+// MODAL PROFIL & PASSWORD
 // ==========================
-window.openProfileModal = () => {
-  document.getElementById("profileModal")?.classList.add("active");
-};
+window.openProfileModal = () => document.getElementById("profileModal")?.classList.add("active");
+window.closeProfileModal = () => document.getElementById("profileModal")?.classList.remove("active");
 
-window.closeProfileModal = () => {
-  document.getElementById("profileModal")?.classList.remove("active");
-};
+window.openPasswordModal = () => document.getElementById("passwordModal")?.classList.add("active");
+window.closePasswordModal = () => document.getElementById("passwordModal")?.classList.remove("active");
 
-
-// ==========================
-// SAVE PROFILE
-// ==========================
 window.saveProfile = async () => {
-
   const user = auth.currentUser;
   if (!user) return;
 
@@ -245,127 +157,109 @@ window.saveProfile = async () => {
   const email = document.getElementById("profileEmail").value.trim();
 
   if (!name || !email) {
-    showToast("Isi semua data", "error");
+    alert("Isi semua data!");
     return;
   }
 
   try {
-
-    await updateProfile(user, {
-      displayName: name
-    });
-
+    await updateProfile(user, { displayName: name });
     if (email !== user.email) {
       await updateEmail(user, email);
     }
+    await updateDoc(doc(db, "users", user.uid), { name, email });
 
-    await updateDoc(doc(db, "users", user.uid), {
-      name,
-      email
-    });
-
-    showToast("Profil berhasil diupdate");
-
+    alert("Profil berhasil diupdate!");
     closeProfileModal();
-
-    await loadProfileHeader(user);
-
+    loadProfileHeader(user);
   } catch (err) {
     console.error(err);
-    showToast("Gagal update profil", "error");
+    alert("Gagal update profil: " + err.message);
+  }
+};
+
+window.updatePasswordAccount = async () => {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const newPass = document.getElementById("newPassword").value.trim();
+  if (!newPass || newPass.length < 6) {
+    alert("Password minimal 6 karakter!");
+    return;
   }
 
+  try {
+    await updatePassword(user, newPass);
+    alert("Password berhasil diubah!");
+    document.getElementById("newPassword").value = "";
+    closePasswordModal();
+  } catch (err) {
+    console.error(err);
+    alert("Gagal mengubah password (silakan login ulang terlebih dahulu jika sesi habis): " + err.message);
+  }
 };
-async function loadClassAndSubjects(user) {
 
+// ==========================
+// KELAS & MAPEL
+// ==========================
+async function loadClassAndSubjects(user) {
   const userSnap = await getDoc(doc(db, "users", user.uid));
   const userData = userSnap.data();
-
   const classId = userData.classId;
   const schoolId = userData.schoolId;
 
-  if (!classId) return;
+  if (!classId) {
+    document.getElementById("classContainer").innerHTML = `<p style="color:#64748b; font-size:13px;">Belum terdaftar di kelas manapun.</p>`;
+    return;
+  }
 
-  // ======================
-  // AMBIL KELAS
-  // ======================
   const classSnap = await getDoc(doc(db, "classes", classId));
-
   if (!classSnap.exists()) return;
-
   const classData = classSnap.data();
 
-  let html = `<h4>🏫 ${classData.name}</h4>`;
-
-  // ======================
-  // AMBIL TEACHER IDS DARI KELAS
-  // ======================
+  let html = `<div style="font-size:15px; font-weight:700; color:#1e293b; margin-bottom:14px;">🏫 Kelas: ${classData.name}</div>`;
   const teacherIds = classData.teacherIds || [];
 
   if (teacherIds.length === 0) {
-    html += `<p>Belum ada guru di kelas ini</p>`;
+    html += `<p style="color:#64748b; font-size:13px;">Belum ada guru di kelas ini</p>`;
     document.getElementById("classContainer").innerHTML = html;
     return;
   }
 
-  // ======================
-  // AMBIL DATA GURU (DARI COLLECTION teachers)
-  // ======================
   const subjectsSet = new Set();
-
   for (const teacherId of teacherIds) {
-
-    const q = query(
-      collection(db, "teachers"),
-      where("teacherId", "==", teacherId),
-      where("schoolId", "==", schoolId)
-    );
-
+    const q = query(collection(db, "teachers"), where("teacherId", "==", teacherId), where("schoolId", "==", schoolId));
     const snap = await getDocs(q);
-
     snap.forEach(docSnap => {
       const data = docSnap.data();
-
-      if (data.subject) {
-        subjectsSet.add(data.subject);
-      }
+      if (data.subject) subjectsSet.add(data.subject);
     });
-
   }
 
   const subjects = [...subjectsSet];
-
-  // ======================
-  // RENDER
-  // ======================
   if (subjects.length === 0) {
-    html += `<p>Belum ada mata pelajaran</p>`;
+    html += `<p style="color:#64748b; font-size:13px;">Belum ada mata pelajaran</p>`;
   } else {
-
+    html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;">`;
     subjects.forEach(subject => {
-
-  html += `
-  <div class="subject-card"
-       style="padding:10px; margin:10px 0; border:1px solid #ddd; border-radius:8px; cursor:pointer;"
-       onclick="loadSubjectDetail('${subject}','${classId}','${schoolId}')">
-
-    📘 ${subject}
-
-  </div>
-`;
-});
-
+      html += `
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; cursor: pointer; transition: all 0.2s;"
+             onmouseover="this.style.borderColor='#4f46e5'; this.style.background='#eef2ff';"
+             onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc';"
+             onclick="loadSubjectDetail('${subject}','${classId}','${schoolId}')">
+          <div style="font-size: 20px; margin-bottom: 6px;">📘</div>
+          <div style="font-weight: 600; color: #0f172a; font-size: 14px;">${subject}</div>
+        </div>
+      `;
+    });
+    html += `</div>`;
   }
 
   document.getElementById("classContainer").innerHTML = html;
 }
 
-
 window.loadSubjectDetail = async (subjectName, classId, schoolId) => {
-
   const schoolSnap = await getDoc(doc(db, "schools", schoolId));
   const schoolData = schoolSnap.data();
-
   const curriculum = schoolData.curriculum;
   const level = schoolData.level;
 
@@ -376,50 +270,46 @@ window.loadSubjectDetail = async (subjectName, classId, schoolId) => {
     where("schoolId", "==", schoolId),
     where("curriculum", "==", curriculum),
     where("level", "==", level)
-    // ❌ sementara jangan pakai status dulu
   );
 
   const snap = await getDocs(q);
-
-  let html = `<h3>📘 ${subjectName}</h3>`;
+  let html = `
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+      <h3 style="margin: 0; color: #1e293b; font-size: 16px;">📘 Materi: ${subjectName}</h3>
+      <button onclick="location.reload()" style="background:#f1f5f9; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:600; font-size:12px;">← Kembali</button>
+    </div>
+  `;
 
   if (snap.empty) {
-    html += `<p>Belum ada materi</p>`;
+    html += `<p style="color:#64748b; font-size:13px;">Belum ada materi untuk mata pelajaran ini.</p>`;
     document.getElementById("classContainer").innerHTML = html;
     return;
   }
 
   let grouped = {};
-
   snap.forEach(docSnap => {
     const d = docSnap.data();
-
     const chapter = d.chapter || "Tanpa Bab";
     const sub = d.subChapter || "Tanpa Sub Bab";
 
     if (!grouped[chapter]) grouped[chapter] = {};
     if (!grouped[chapter][sub]) grouped[chapter][sub] = [];
-
-    grouped[chapter][sub].push({
-      id: docSnap.id,
-      ...d
-    });
+    grouped[chapter][sub].push({ id: docSnap.id, ...d });
   });
 
   for (const chapter in grouped) {
-    html += `<h4>📚 ${chapter}</h4>`;
+    html += `<div style="font-weight: 700; color: #334155; margin: 16px 0 8px 0; font-size: 14px;">📚 ${chapter}</div>`;
 
     for (const sub in grouped[chapter]) {
-      html += `<h5 style="margin-left:10px;">📖 ${sub}</h5>`;
+      html += `<div style="font-weight: 600; color: #64748b; margin: 8px 0 8px 12px; font-size: 13px;">📖 ${sub}</div>`;
 
       grouped[chapter][sub].forEach(item => {
         html += `
-          <div class="card"
-               style="margin-left:20px;padding:10px;border-left:3px solid #2563eb;cursor:pointer"
+          <div style="margin-left: 24px; margin-bottom: 8px; padding: 12px 16px; background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid #4f46e5; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;"
+               onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)'" onmouseout="this.style.boxShadow='none'"
                onclick="openMaterial('${item.id}')">
-
-            ${item.title}
-
+            <span style="font-weight: 600; font-size: 13px; color: #0f172a;">📄 ${item.title}</span>
+            <span style="font-size: 12px; color: #4f46e5; font-weight: 600;">Buka Materi →</span>
           </div>
         `;
       });
@@ -429,41 +319,39 @@ window.loadSubjectDetail = async (subjectName, classId, schoolId) => {
   document.getElementById("classContainer").innerHTML = html;
 };
 
-
 window.openMaterial = async (id) => {
-
   const snap = await getDoc(doc(db, "materials", id));
-
   if (!snap.exists()) {
     alert("Materi tidak ditemukan");
     return;
   }
-
   const data = snap.data();
-
   document.getElementById("classContainer").innerHTML = `
-    <div class="card">
-      ${data.content}
+    <div style="margin-bottom: 16px;">
+      <button onclick="location.reload()" style="background:#f1f5f9; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px;">← Kembali ke Daftar Mapel</button>
+    </div>
+    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; line-height: 1.8;">
+      <h2 style="color: #4f46e5; margin-top:0; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px;">${data.title}</h2>
+      <div>${data.content}</div>
     </div>
   `;
 };
-// ==========================
-// LOCK DASHBOARD
-// ==========================
+
 function lockDashboard() {
-
   const main = document.querySelector(".main");
-
   if (!main) return;
-
   main.innerHTML = `
     <div style="text-align:center; padding:50px;">
       <h2>🚫 Akses Ditolak</h2>
       <p>Sekolah kamu nonaktif</p>
-      <button onclick="window.location='../login.html'">
-        Logout
-      </button>
+      <button onclick="window.location='../login.html'" style="padding:10px 20px; background:#ef4444; color:white; border:none; border-radius:10px; cursor:pointer; font-weight:600;">Logout</button>
     </div>
   `;
 }
 
+window.goMaterialsSiswa = () => window.location.href = "./materials-siswa.html";
+window.goAssignmentsSiswa = () => window.location.href = "./materials-siswa.html";
+window.logout = async () => {
+  await signOut(auth);
+  window.location.href = "../login.html";
+};
