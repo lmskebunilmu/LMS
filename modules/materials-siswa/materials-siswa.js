@@ -446,7 +446,7 @@ function generateContent(input) {
 }
 
 // ==========================
-// OPEN EXERCISE (DIOPTIMASI DAN AMAN)
+// OPEN EXERCISE
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -698,24 +698,27 @@ window.openExercise = async (id) => {
 
           const score = questionsData.length > 0 ? Math.round((totalBenar / questionsData.length) * 100) : 0;
 
+          // Validasi ketat agar tidak ada nilai undefined yang dikirim ke Firestore
+          const submissionData = {
+            studentUid: studentUid || "",
+            exerciseId: exerciseId || "",
+            classId: classId || "",
+            schoolId: schoolId || "",
+            answers: savedAnswers || {},
+            score: score || 0,
+            totalQuestions: questionsData.length || 0,
+            correctAnswers: totalBenar || 0,
+            submittedAt: new Date()
+          };
+
           try {
-            await setDoc(doc(db, "student_submissions", studentUid + "_" + exerciseId), {
-              studentUid: studentUid,
-              exerciseId: exerciseId,
-              classId: classId,
-              schoolId: schoolId,
-              answers: savedAnswers,
-              score: score,
-              totalQuestions: questionsData.length,
-              correctAnswers: totalBenar,
-              submittedAt: new Date()
-            });
+            await setDoc(doc(db, "student_submissions", studentUid + "_" + exerciseId), submissionData);
 
             alert("🎉 Berhasil dikirim! Skor Anda: " + score);
             window.close(); 
           } catch (error) {
             console.error("Gagal mengirim:", error);
-            alert("Gagal mengirim jawaban ke database.");
+            alert("Gagal mengirim jawaban ke database: " + error.message);
           }
         };
 
