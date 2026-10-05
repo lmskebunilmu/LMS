@@ -18,7 +18,6 @@ let filteredMaterials = [];
 let filteredExercises = [];
 let schoolData = null;
 let studentClassId = null;
-let currentSchoolId = null; // Tambahan variabel untuk menyimpan schoolId dengan aman
 
 // ==========================
 // AUTH & INITIAL LOAD
@@ -35,8 +34,6 @@ onAuthStateChanged(auth, async (user) => {
     alert("Akses khusus siswa!");
     return window.location = "../../login.html";
   }
-
-  currentSchoolId = userData.schoolId; // Simpan schoolId
 
   await loadLayout("siswa");
   await waitForHeader();
@@ -449,7 +446,7 @@ function generateContent(input) {
 }
 
 // ==========================
-// OPEN EXERCISE
+// OPEN EXERCISE (DIOPTIMASI DAN AMAN)
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -488,80 +485,359 @@ window.openExercise = async (id) => {
     return;
   }
 
-  win.document.title = exData.title;
-
-  const inlineScript = win.document.createElement("script");
-  inlineScript.text = `window.MathJax = { tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']] } };`;
-  win.document.head.appendChild(inlineScript);
-
-  const styleEl = win.document.createElement("style");
-  styleEl.textContent = `
-    *{box-sizing:border-box;}
-    body{margin:0;font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a;padding-bottom:50px;}
-    .topbar{position:sticky;top:0;z-index:999;background:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,0.05);border-bottom:1px solid #e2e8f0;}
-    .title{font-size:16px;font-weight:700;color:#0f172a;}
-    .btn-group{display:flex;gap:10px;}
-    button{border:none;padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px;transition:all 0.2s;}
-    .fullscreen-btn{background:#334151;color:white;}
-    .fullscreen-btn:hover{background:#1e293b;}
-    .exit-btn{background:#ef4444;color:white;}
-    .exit-btn:hover{background:#dc2626;}
-    .submit-btn{background:#4f46e5;color:white;width:100%;margin-top:24px;padding:15px;font-size:15px;border-radius:12px;box-shadow:0 4px 12px rgba(79,70,229,0.25);}
-    .submit-btn:hover{background:#4338ca;}
-    .container{max-width:800px;margin:auto;padding:20px;}
-    .question{background:white;margin-bottom:20px;padding:22px;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);border:1px solid #e2e8f0;}
-    h3{margin-top:0;font-size:15px;color:#1e293b;font-weight:600;}
-    label{display:block;margin:12px 0;padding:12px 16px;border-radius:10px;background:#f8fafc;cursor:pointer;border:1px solid #e2e8f0;font-size:14px;transition:all .2s;}
-    label:hover{background:#eef2ff;border-color:#c7d2fe;}
-    input[type="text"]{width:100%;padding:12px 16px;border-radius:10px;border:1px solid #cbd5e1;font-size:14px;outline:none;}
-    input[type="text"]:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,0.1);}
-    .match-wrapper{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px;}
-    .match-column{display:flex;flex-direction:column;gap:12px;}
-    .match-item{background:white;border:1px solid #cbd5e1;border-radius:10px;padding:12px;cursor:pointer;font-size:13px;position:relative;z-index:2;transition:all 0.2s;}
-    .match-item:hover{background:#f1f5f9;}
-    .match-item.selected{border-color:#4f46e5;background:#eef2ff;}
-    .match-item.connected{border-color:#10b981;background:#ecfdf5;}
-    .match-lines{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
-    .attempts-info{font-size:12px;color:#ef4444;margin-top:6px;display:block;font-weight:600;}
-  `;
-  win.document.head.appendChild(styleEl);
-
-  let bodyContent = `
-    <div class="topbar">
-      <div class="title">📝 ${exData.title} ${dbSubmission ? '<span style="color:#10b981;font-size:13px;">(Selesai Dikumpulkan)</span>' : ''}</div>
-      <div class="btn-group">
-        <button class="fullscreen-btn" onclick="openFullscreen()">⛶ Fullscreen</button>
-        <button class="exit-btn" onclick="closeFullscreen()">✕ Tutup</button>
+  win.document.open();
+  win.document.write(`<!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${exData.title}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+      <script>
+        window.MathJax = {
+          tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']] }
+        };
+      </script>
+      <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+      <style>
+        *{box-sizing:border-box;}
+        body{margin:0;font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a;padding-bottom:50px;}
+        .topbar{position:sticky;top:0;z-index:999;background:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,0.05);border-bottom:1px solid #e2e8f0;}
+        .title{font-size:16px;font-weight:700;color:#0f172a;}
+        .btn-group{display:flex;gap:10px;}
+        button{border:none;padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px;transition:all 0.2s;}
+        .fullscreen-btn{background:#334151;color:white;}
+        .fullscreen-btn:hover{background:#1e293b;}
+        .exit-btn{background:#ef4444;color:white;}
+        .exit-btn:hover{background:#dc2626;}
+        .submit-btn{background:#4f46e5;color:white;width:100%;margin-top:24px;padding:15px;font-size:15px;border-radius:12px;box-shadow:0 4px 12px rgba(79,70,229,0.25);}
+        .submit-btn:hover{background:#4338ca;}
+        .container{max-width:800px;margin:auto;padding:20px;}
+        .question{background:white;margin-bottom:20px;padding:22px;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);border:1px solid #e2e8f0;}
+        h3{margin-top:0;font-size:15px;color:#1e293b;font-weight:600;}
+        label{display:block;margin:12px 0;padding:12px 16px;border-radius:10px;background:#f8fafc;cursor:pointer;border:1px solid #e2e8f0;font-size:14px;transition:all .2s;}
+        label:hover{background:#eef2ff;border-color:#c7d2fe;}
+        input[type="text"]{width:100%;padding:12px 16px;border-radius:10px;border:1px solid #cbd5e1;font-size:14px;outline:none;}
+        input[type="text"]:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,0.1);}
+        .match-wrapper{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px;}
+        .match-column{display:flex;flex-direction:column;gap:12px;}
+        .match-item{background:white;border:1px solid #cbd5e1;border-radius:10px;padding:12px;cursor:pointer;font-size:13px;position:relative;z-index:2;transition:all 0.2s;}
+        .match-item:hover{background:#f1f5f9;}
+        .match-item.selected{border-color:#4f46e5;background:#eef2ff;}
+        .match-item.connected{border-color:#10b981;background:#ecfdf5;}
+        .match-lines{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+        .attempts-info{font-size:12px;color:#ef4444;margin-top:6px;display:block;font-weight:600;}
+      </style>
+    </head>
+    <body>
+      <div class="topbar">
+        <div class="title">📝 ${exData.title} ${dbSubmission ? '<span style="color:#10b981;font-size:13px;">(Selesai Dikumpulkan)</span>' : ''}</div>
+        <div class="btn-group">
+          <button class="fullscreen-btn" onclick="openFullscreen()">⛶ Fullscreen</button>
+          <button class="exit-btn" onclick="closeFullscreen()">✕ Tutup</button>
+        </div>
       </div>
-    </div>
-    <div class="container">
-  `;
+      <div class="container">
+        ${renderQuestionsHTML(questions, id, studentUid, dbSubmission)}
+      </div>
 
+      <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = ${JSON.stringify(auth.app.options)};
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const exerciseId = "${id}";
+        const studentUid = "${studentUid}";
+        const classId = "${studentClassId || ''}";
+        const schoolId = "${schoolData?.schoolId || ''}";
+        const questionsData = ${JSON.stringify(questions)};
+        const isAlreadySubmitted = ${dbSubmission ? true : false};
+        
+        let selectedLeft = null;
+        window.matchAnswers = {};
+
+        window.openFullscreen = () => {
+          const elem = document.documentElement;
+          if (elem.requestFullscreen) elem.requestFullscreen();
+        };
+        window.closeFullscreen = () => {
+          if (document.exitFullscreen) document.exitFullscreen();
+        };
+
+        function saveAnswer(index, value){
+          if(isAlreadySubmitted) return;
+          const key = "exercise_" + exerciseId + "_" + studentUid;
+          const data = JSON.parse(localStorage.getItem(key) || "{}");
+          data[index] = value;
+          localStorage.setItem(key, JSON.stringify(data));
+        }
+
+        window.checkAnswer = function(index){
+          if(isAlreadySubmitted) { alert("Latihan sudah dikumpulkan!"); return; }
+          
+          const q = questionsData[index];
+          const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
+          let attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
+          
+          attempts[index] = 1;
+          localStorage.setItem(attemptKey, JSON.stringify(attempts));
+
+          document.getElementById("attempts_text_" + index).innerText = "🔒 Soal Terkunci";
+
+          let correct = false;
+          let userAnswer = null;
+
+          if(q.type === "pg"){
+            const selected = document.querySelector('input[name="q' + index + '"]:checked');
+            if(!selected) { alert("Pilih opsi jawaban terlebih dahulu!"); return; }
+            userAnswer = selected.value;
+            saveAnswer(index, userAnswer);
+            correct = userAnswer == q.answer;
+          }
+          else if(q.type === "checkbox"){
+            const checked = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
+            userAnswer = checked;
+            saveAnswer(index, userAnswer);
+            correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
+          }
+          else if(q.type === "isian"){
+            const input = document.getElementById("q"+index);
+            userAnswer = input.value.trim();
+            saveAnswer(index, userAnswer);
+            correct = userAnswer.toLowerCase() === String(q.answer).toLowerCase();
+          }
+          else if(q.type === "multi_isian"){
+            userAnswer = [];
+            let totalCorrect = 0;
+            (q.fields || []).forEach((f,i)=>{
+              const val = document.querySelector('[name="multi_'+index+'_'+i+'"]').value.trim();
+              userAnswer.push(val);
+              if(val.toLowerCase() === String(f.answer).toLowerCase()) totalCorrect++;
+            });
+            saveAnswer(index, userAnswer);
+            correct = totalCorrect === q.fields.length;
+          }
+          else if(q.type === "match"){
+            const pairs = window.matchAnswers[index] || {};
+            saveAnswer(index, pairs);
+            let totalCorrect = 0;
+            (q.pairs || []).forEach((p,i)=>{
+              if(pairs[i] === p.right) totalCorrect++;
+            });
+            correct = totalCorrect === q.pairs.length;
+          }
+
+          const result = document.getElementById("result_"+index);
+          if(correct){
+            result.innerHTML = "✅ Jawaban Benar";
+            result.style.color = "#059669";
+          }else{
+            result.innerHTML = "❌ Jawaban Salah";
+            result.style.color = "#dc2626";
+          }
+
+          window.lockQuestionFields(index);
+          document.getElementById("explain_"+index).style.display = "block";
+        };
+
+        window.lockQuestionFields = function(index){
+          const btn = document.getElementById("btn_check_" + index);
+          if(btn) {
+            btn.disabled = true;
+            btn.style.background = "#cbd5e1";
+            btn.style.cursor = "not-allowed";
+          }
+          document.querySelectorAll('input[name="q'+index+'"]').forEach(el => el.disabled = true);
+          const isian = document.getElementById("q"+index);
+          if(isian) isian.disabled = true;
+          document.querySelectorAll('[name^="multi_'+index+'_"]').forEach(el => el.disabled = true);
+          
+          const matchWrap = document.getElementById("match_" + index);
+          if(matchWrap) matchWrap.dataset.locked = "true";
+        }
+
+        window.toggleExplain = function(index){
+          const el = document.getElementById("explain_content_"+index);
+          el.style.display = el.style.display === "block" ? "none" : "block";
+        };
+
+        window.submitToFirebase = async function() {
+          if(isAlreadySubmitted) return;
+
+          let totalBenar = 0;
+          const key = "exercise_" + exerciseId + "_" + studentUid;
+          const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
+
+          questionsData.forEach((q, index) => {
+            const uAns = savedAnswers[index];
+            if (uAns === undefined || uAns === null) return;
+
+            if (q.type === "pg" && uAns == q.answer) totalBenar++;
+            else if (q.type === "isian" && String(uAns).toLowerCase() === String(q.answer).toLowerCase()) totalBenar++;
+            else if (q.type === "checkbox") {
+              if (JSON.stringify([...uAns].sort()) === JSON.stringify((q.answer || []).map(String).sort())) totalBenar++;
+            }
+            else if (q.type === "multi_isian") {
+              let multiCorrect = 0;
+              (q.fields || []).forEach((f, i) => {
+                if (uAns[i] && uAns[i].toLowerCase() === String(f.answer).toLowerCase()) multiCorrect++;
+              });
+              if (multiCorrect === q.fields.length) totalBenar++;
+            }
+            else if (q.type === "match") {
+              let matchCorrect = 0;
+              (q.pairs || []).forEach((p, i) => {
+                if (uAns[i] === p.right) matchCorrect++;
+              });
+              if (matchCorrect === q.pairs.length) totalBenar++;
+            }
+          });
+
+          const score = questionsData.length > 0 ? Math.round((totalBenar / questionsData.length) * 100) : 0;
+
+          try {
+            await setDoc(doc(db, "student_submissions", studentUid + "_" + exerciseId), {
+              studentUid: studentUid,
+              exerciseId: exerciseId,
+              classId: classId,
+              schoolId: schoolId,
+              answers: savedAnswers,
+              score: score,
+              totalQuestions: questionsData.length,
+              correctAnswers: totalBenar,
+              submittedAt: new Date()
+            });
+
+            alert("🎉 Berhasil dikirim! Skor Anda: " + score);
+            window.close(); 
+          } catch (error) {
+            console.error("Gagal mengirim:", error);
+            alert("Gagal mengirim jawaban ke database.");
+          }
+        };
+
+        window.drawConnection = function(leftEl, rightEl){
+          const wrapper = leftEl.closest(".match-wrapper");
+          const svg = wrapper.querySelector(".match-lines");
+          const wrapperRect = wrapper.getBoundingClientRect();
+          const leftRect = leftEl.getBoundingClientRect();
+          const rightRect = rightEl.getBoundingClientRect();
+
+          const x1 = leftRect.right - wrapperRect.left;
+          const y1 = leftRect.top + leftRect.height / 2 - wrapperRect.top;
+          const x2 = rightRect.left - wrapperRect.left;
+          const y2 = rightRect.top + rightRect.height / 2 - wrapperRect.top;
+
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+          line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+          line.setAttribute("stroke", "#4f46e5"); line.setAttribute("stroke-width", "2.5");
+          svg.appendChild(line);
+        };
+
+        function restoreMatchAnswers(){
+          const key = "exercise_" + exerciseId + "_" + studentUid;
+          const saved = isAlreadySubmitted ? ${JSON.stringify(dbSubmission?.answers || {})} : JSON.parse(localStorage.getItem(key) || "{}");
+          
+          Object.keys(saved).forEach(qIndex => {
+            const pairs = saved[qIndex];
+            if(typeof pairs !== "object" || Array.isArray(pairs)) return;
+            window.matchAnswers[qIndex] = pairs;
+            Object.keys(pairs).forEach(leftIndex => {
+              const rightAnswer = pairs[leftIndex];
+              const leftEl = document.querySelector('.left-item[data-question="'+qIndex+'"][data-left="'+leftIndex+'"]');
+              const rightEl = document.querySelector('.right-item[data-question="'+qIndex+'"][data-right="'+rightAnswer+'"]');
+              if(leftEl && rightEl){
+                leftEl.classList.add("connected");
+                rightEl.classList.add("connected");
+                window.drawConnection(leftEl, rightEl);
+              }
+            });
+          });
+        }
+
+        document.addEventListener("click", (e) => {
+          if(isAlreadySubmitted) return;
+          const left = e.target.closest(".left-item");
+          const right = e.target.closest(".right-item");
+
+          if (left) {
+            const wrapper = left.closest(".match-wrapper");
+            if(wrapper.dataset.locked === "true") return;
+
+            document.querySelectorAll(".left-item").forEach(x => x.classList.remove("selected"));
+            left.classList.add("selected");
+            selectedLeft = left;
+          }
+
+          if (right && selectedLeft) {
+            const wrapper = right.closest(".match-wrapper");
+            if(wrapper.dataset.locked === "true") return;
+
+            const qIndex = selectedLeft.dataset.question;
+            const leftIndex = selectedLeft.dataset.left;
+            const rightValue = right.dataset.right;
+
+            window.matchAnswers[qIndex] ??= {};
+            window.matchAnswers[qIndex][leftIndex] = rightValue;
+
+            window.drawConnection(selectedLeft, right);
+            selectedLeft.classList.remove("selected");
+            selectedLeft.classList.add("connected");
+            right.classList.add("connected");
+
+            saveAnswer(qIndex, window.matchAnswers[qIndex]);
+            selectedLeft = null;
+          }
+        });
+
+        setTimeout(() => { 
+          restoreMatchAnswers(); 
+          questionsData.forEach((q, index) => {
+            const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
+            const attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
+            if(isAlreadySubmitted || attempts[index] >= 1){
+              window.lockQuestionFields(index);
+            }
+          });
+        }, 300);
+      </script>
+    </body>
+    </html>`);
+  win.document.close();
+};
+
+// Helper function untuk merender HTML soal di popup
+function renderQuestionsHTML(questions, id, studentUid, dbSubmission) {
   const savedData = dbSubmission?.answers || JSON.parse(localStorage.getItem(`exercise_${id}_${studentUid}`) || "{}");
   const savedAttempts = JSON.parse(localStorage.getItem(`attempts_${id}_${studentUid}`) || "{}");
-
+  
+  let html = "";
   questions.forEach((qData, index) => {
     const savedAnswer = savedData[index];
     const currentAttempts = dbSubmission ? 1 : (savedAttempts[index] || 0);
     const isLocked = currentAttempts >= 1;
 
-    bodyContent += `<div class="question"><h3>Soal ${index + 1}. ${qData.question || ""}</h3>`;
+    html += `<div class="question"><h3>Soal ${index + 1}. ${qData.question || ""}</h3>`;
 
     if (qData.type === "pg") {
       (qData.options || []).forEach((opt, i) => {
         const checked = savedAnswer == i ? "checked" : "";
-        bodyContent += `<label><input type="radio" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
+        html += `<label><input type="radio" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
     } else if (qData.type === "checkbox") {
       (qData.options || []).forEach((opt, i) => {
         const checked = Array.isArray(savedAnswer) && savedAnswer.includes(String(i)) ? "checked" : "";
-        bodyContent += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
+        html += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
     } else if (qData.type === "isian") {
-      bodyContent += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban Anda..." ${isLocked ? 'disabled' : ''}>`;
+      html += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban Anda..." ${isLocked ? 'disabled' : ''}>`;
     } else if (qData.type === "match") {
       const shuffled = [...(qData.pairs || [])].sort(() => Math.random() - 0.5);
-      bodyContent += `
+      html += `
         <div class="match-wrapper" id="match_${index}" data-locked="${isLocked}">
           <svg class="match-lines"></svg>
           <div class="match-column">
@@ -575,7 +851,7 @@ window.openExercise = async (id) => {
     } else if (qData.type === "multi_isian") {
       (qData.fields || []).forEach((f, i) => {
         const val = savedAnswer?.[i] || "";
-        bodyContent += `
+        html += `
           <div style="margin-top:12px">
             <label style="display:block; margin-bottom:6px; font-weight:600; background:none; padding:0; border:none;">${f.label}</label>
             <input type="text" name="multi_${index}_${i}" value="${val}" placeholder="Jawaban..." ${isLocked ? 'disabled' : ''}>
@@ -584,7 +860,7 @@ window.openExercise = async (id) => {
       });
     }
 
-    bodyContent += `
+    html += `
       <div style="margin-top:16px">
         <button id="btn_check_${index}" onclick="checkAnswer(${index})" style="background:#4f46e5; color:white; padding:10px 16px; border-radius:10px;" ${isLocked ? 'disabled style="background:#cbd5e1; cursor:not-allowed;"' : ''}>✅ Cek Jawaban</button>
         <span class="attempts-info" id="attempts_text_${index}">${isLocked ? '🔒 Soal Terkunci' : '⚠️ Hanya bisa dicek 1 kali'}</span>
@@ -599,288 +875,14 @@ window.openExercise = async (id) => {
     </div>`;
   });
 
-  bodyContent += `
+  html += `
       <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'disabled style="background:#cbd5e1; cursor:not-allowed;"' : ''}>
         ${dbSubmission ? '🔒 Jawaban Telah Disimpan' : '📤 Kirim Nilai ke Guru'}
       </button>
     </div>
   `;
-
-  win.document.body.innerHTML = bodyContent;
-
-  const scriptEl = win.document.createElement("script");
-  scriptEl.type = "module";
-  scriptEl.text = `
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-    const firebaseConfig = ${JSON.stringify(auth.app.options)};
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    const exerciseId = "${id}";
-    const studentUid = "${studentUid}";
-    const classId = "${studentClassId || ''}";
-    const schoolId = "${currentSchoolId || ''}";
-    const questionsData = ${JSON.stringify(questions)};
-    const isAlreadySubmitted = ${dbSubmission ? true : false};
-    
-    let selectedLeft = null;
-    window.matchAnswers = {};
-
-    window.openFullscreen = () => {
-      const elem = document.documentElement;
-      if (elem.requestFullscreen) elem.requestFullscreen();
-    };
-    window.closeFullscreen = () => {
-      if (document.exitFullscreen) document.exitFullscreen();
-    };
-
-    function saveAnswer(index, value){
-      if(isAlreadySubmitted) return;
-      const key = "exercise_" + exerciseId + "_" + studentUid;
-      const data = JSON.parse(localStorage.getItem(key) || "{}");
-      data[index] = value;
-      localStorage.setItem(key, JSON.stringify(data));
-    }
-
-    window.checkAnswer = function(index){
-      if(isAlreadySubmitted) { alert("Latihan sudah dikumpulkan!"); return; }
-      
-      const q = questionsData[index];
-      const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
-      let attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
-      
-      attempts[index] = 1;
-      localStorage.setItem(attemptKey, JSON.stringify(attempts));
-
-      document.getElementById("attempts_text_" + index).innerText = "🔒 Soal Terkunci";
-
-      let correct = false;
-      let userAnswer = null;
-
-      if(q.type === "pg"){
-        const selected = document.querySelector('input[name="q' + index + '"]:checked');
-        if(!selected) { alert("Pilih opsi jawaban terlebih dahulu!"); return; }
-        userAnswer = selected.value;
-        saveAnswer(index, userAnswer);
-        correct = userAnswer == q.answer;
-      }
-      else if(q.type === "checkbox"){
-        const checked = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
-        userAnswer = checked;
-        saveAnswer(index, userAnswer);
-        correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
-      }
-      else if(q.type === "isian"){
-        const input = document.getElementById("q"+index);
-        userAnswer = input.value.trim();
-        saveAnswer(index, userAnswer);
-        correct = userAnswer.toLowerCase() === String(q.answer).toLowerCase();
-      }
-      else if(q.type === "multi_isian"){
-        userAnswer = [];
-        let totalCorrect = 0;
-        (q.fields || []).forEach((f,i)=>{
-          const val = document.querySelector('[name="multi_'+index+'_'+i+'"]').value.trim();
-          userAnswer.push(val);
-          if(val.toLowerCase() === String(f.answer).toLowerCase()) totalCorrect++;
-        });
-        saveAnswer(index, userAnswer);
-        correct = totalCorrect === q.fields.length;
-      }
-      else if(q.type === "match"){
-        const pairs = window.matchAnswers[index] || {};
-        saveAnswer(index, pairs);
-        let totalCorrect = 0;
-        (q.pairs || []).forEach((p,i)=>{
-          if(pairs[i] === p.right) totalCorrect++;
-        });
-        correct = totalCorrect === q.pairs.length;
-      }
-
-      const result = document.getElementById("result_"+index);
-      if(correct){
-        result.innerHTML = "✅ Jawaban Benar";
-        result.style.color = "#059669";
-      }else{
-        result.innerHTML = "❌ Jawaban Salah";
-        result.style.color = "#dc2626";
-      }
-
-      window.lockQuestionFields(index);
-      document.getElementById("explain_"+index).style.display = "block";
-    };
-
-    window.lockQuestionFields = function(index){
-      const btn = document.getElementById("btn_check_" + index);
-      if(btn) {
-        btn.disabled = true;
-        btn.style.background = "#cbd5e1";
-        btn.style.cursor = "not-allowed";
-      }
-      document.querySelectorAll('input[name="q'+index+'"]').forEach(el => el.disabled = true);
-      const isian = document.getElementById("q"+index);
-      if(isian) isian.disabled = true;
-      document.querySelectorAll('[name^="multi_'+index+'_"]').forEach(el => el.disabled = true);
-      
-      const matchWrap = document.getElementById("match_" + index);
-      if(matchWrap) matchWrap.dataset.locked = "true";
-    }
-
-    window.toggleExplain = function(index){
-      const el = document.getElementById("explain_content_"+index);
-      el.style.display = el.style.display === "block" ? "none" : "block";
-    };
-
-    window.submitToFirebase = async function() {
-      if(isAlreadySubmitted) return;
-
-      let totalBenar = 0;
-      const key = "exercise_" + exerciseId + "_" + studentUid;
-      const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
-
-      questionsData.forEach((q, index) => {
-        const uAns = savedAnswers[index];
-        if (uAns === undefined || uAns === null) return;
-
-        if (q.type === "pg" && uAns == q.answer) totalBenar++;
-        else if (q.type === "isian" && String(uAns).toLowerCase() === String(q.answer).toLowerCase()) totalBenar++;
-        else if (q.type === "checkbox") {
-          if (JSON.stringify([...uAns].sort()) === JSON.stringify((q.answer || []).map(String).sort())) totalBenar++;
-        }
-        else if (q.type === "multi_isian") {
-          let multiCorrect = 0;
-          (q.fields || []).forEach((f, i) => {
-            if (uAns[i] && uAns[i].toLowerCase() === String(f.answer).toLowerCase()) multiCorrect++;
-          });
-          if (multiCorrect === q.fields.length) totalBenar++;
-        }
-        else if (q.type === "match") {
-          let matchCorrect = 0;
-          (q.pairs || []).forEach((p, i) => {
-            if (uAns[i] === p.right) matchCorrect++;
-          });
-          if (matchCorrect === q.pairs.length) totalBenar++;
-        }
-      });
-
-      const score = questionsData.length > 0 ? Math.round((totalBenar / questionsData.length) * 100) : 0;
-
-      try {
-        await setDoc(doc(db, "student_submissions", studentUid + "_" + exerciseId), {
-          studentUid: studentUid,
-          exerciseId: exerciseId,
-          classId: classId,
-          schoolId: schoolId,
-          answers: savedAnswers,
-          score: score,
-          totalQuestions: questionsData.length,
-          correctAnswers: totalBenar,
-          submittedAt: new Date()
-        });
-
-        alert("🎉 Berhasil dikirim! Skor Anda: " + score);
-        window.close(); 
-      } catch (error) {
-        console.error("Gagal mengirim:", error);
-        alert("Gagal mengirim jawaban ke database.");
-      }
-    };
-
-    window.drawConnection = function(leftEl, rightEl){
-      const wrapper = leftEl.closest(".match-wrapper");
-      const svg = wrapper.querySelector(".match-lines");
-      const wrapperRect = wrapper.getBoundingClientRect();
-      const leftRect = leftEl.getBoundingClientRect();
-      const rightRect = rightEl.getBoundingClientRect();
-
-      const x1 = leftRect.right - wrapperRect.left;
-      const y1 = leftRect.top + leftRect.height / 2 - wrapperRect.top;
-      const x2 = rightRect.left - wrapperRect.left;
-      const y2 = rightRect.top + rightRect.height / 2 - wrapperRect.top;
-
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", x1); line.setAttribute("y1", y1);
-      line.setAttribute("x2", x2); line.setAttribute("y2", y2);
-      line.setAttribute("stroke", "#4f46e5"); line.setAttribute("stroke-width", "2.5");
-      svg.appendChild(line);
-    };
-
-    function restoreMatchAnswers(){
-      const key = "exercise_" + exerciseId + "_" + studentUid;
-      const saved = isAlreadySubmitted ? ${JSON.stringify(savedData)} : JSON.parse(localStorage.getItem(key) || "{}");
-      
-      Object.keys(saved).forEach(qIndex => {
-        const pairs = saved[qIndex];
-        if(typeof pairs !== "object" || Array.isArray(pairs)) return;
-        window.matchAnswers[qIndex] = pairs;
-        Object.keys(pairs).forEach(leftIndex => {
-          const rightAnswer = pairs[leftIndex];
-          const leftEl = document.querySelector('.left-item[data-question="'+qIndex+'"][data-left="'+leftIndex+'"]');
-          const rightEl = document.querySelector('.right-item[data-question="'+qIndex+'"][data-right="'+rightAnswer+'"]');
-          if(leftEl && rightEl){
-            leftEl.classList.add("connected");
-            rightEl.classList.add("connected");
-            window.drawConnection(leftEl, rightEl);
-          }
-        });
-      });
-    }
-
-    document.addEventListener("click", (e) => {
-      if(isAlreadySubmitted) return;
-      const left = e.target.closest(".left-item");
-      const right = e.target.closest(".right-item");
-
-      if (left) {
-        const wrapper = left.closest(".match-wrapper");
-        if(wrapper.dataset.locked === "true") return;
-
-        document.querySelectorAll(".left-item").forEach(x => x.classList.remove("selected"));
-        left.classList.add("selected");
-        selectedLeft = left;
-      }
-
-      if (right && selectedLeft) {
-        const wrapper = right.closest(".match-wrapper");
-        if(wrapper.dataset.locked === "true") return;
-
-        const qIndex = selectedLeft.dataset.question;
-        const leftIndex = selectedLeft.dataset.left;
-        const rightValue = right.dataset.right;
-
-        window.matchAnswers[qIndex] ??= {};
-        window.matchAnswers[qIndex][leftIndex] = rightValue;
-
-        window.drawConnection(selectedLeft, right);
-        selectedLeft.classList.remove("selected");
-        selectedLeft.classList.add("connected");
-        right.classList.add("connected");
-
-        saveAnswer(qIndex, window.matchAnswers[qIndex]);
-        selectedLeft = null;
-      }
-    });
-
-    setTimeout(() => { 
-      restoreMatchAnswers(); 
-      questionsData.forEach((q, index) => {
-        const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
-        const attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
-        if(isAlreadySubmitted || attempts[index] >= 1){
-          window.lockQuestionFields(index);
-        }
-      });
-    }, 300);
-
-    const mjScript = document.createElement('script');
-    mjScript.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
-    mjScript.async = true;
-    document.head.appendChild(mjScript);
-  `;
-  win.document.body.appendChild(scriptEl);
-};
+  return html;
+}
 
 // ==========================
 // SEARCH FILTER
