@@ -168,7 +168,7 @@ async function loadExercises(schoolId, classId) {
 }
 
 // ==========================
-// RENDER UI (CARD MAPEL LANGSUNG MUNCUL)
+// RENDER UI MODERN & REALISTIS
 // ==========================
 function renderMaterials(data) {
   const container = document.getElementById("materialSiswaList");
@@ -179,15 +179,16 @@ function renderMaterials(data) {
   if (!data.length && !exercisesSiswa.length) {
     container.innerHTML = `
       <div class="empty-state">
-        <div style="font-size: 40px; margin-bottom: 10px;">📭</div>
-        <p style="color:#6b7280; font-size:14px;">Belum ada materi atau latihan yang tersedia untuk kelas Anda saat ini.</p>
+        <div class="empty-icon">📭</div>
+        <div style="font-size: 15px; font-weight: 600; color: #334155;">Belum Ada Materi</div>
+        <p style="color:#64748b; font-size:13px; margin-top:4px;">Belum ada materi atau latihan yang tersedia untuk kelas Anda saat ini.</p>
       </div>`;
     return;
   }
 
   const grouped = {};
 
-  // Grouping Materi berdasarkan Mata Pelajaran -> Bab
+  // Grouping Materi
   data.forEach(m => {
     const mapel = m.subject || "Umum";
     const bab = m.chapter || "Umum";
@@ -197,7 +198,7 @@ function renderMaterials(data) {
     grouped[mapel][bab].materials.push(m);
   });
 
-  // Grouping Exercises berdasarkan Mata Pelajaran -> Bab
+  // Grouping Exercises
   exercisesSiswa.forEach(ex => {
     const mapel = ex.subject || "Umum";
     const bab = ex.chapter || "Umum";
@@ -207,17 +208,16 @@ function renderMaterials(data) {
     grouped[mapel][bab].exercises.push(ex);
   });
 
-  // Loop Langsung Berdasarkan Mata Pelajaran (Card Style)
   Object.keys(grouped).forEach(mapel => {
     const cardBox = document.createElement("div");
     cardBox.className = "subject-card-box";
     cardBox.innerHTML = `
-      <div class="subject-header" onclick="toggleAccordion(this)">
+      <div class="subject-header active" onclick="toggleAccordion(this)">
         <div class="subject-title-wrapper">
-          <span class="subject-icon">📘</span>
-          <span class="subject-name">${mapel}</span>
+          <div class="subject-icon">📚</div>
+          <span>${mapel}</span>
         </div>
-        <span class="chevron">▼</span>
+        <div class="chevron">▼</div>
       </div>
       <div class="subject-content" style="display: block;"></div>
     `;
@@ -227,9 +227,9 @@ function renderMaterials(data) {
       const babDiv = document.createElement("div");
       babDiv.className = "chapter-group";
       babDiv.innerHTML = `
-        <div class="chapter-header" onclick="toggleAccordion(this)">
+        <div class="chapter-header active" onclick="toggleAccordion(this)">
           <span>📖 ${bab}</span>
-          <span class="chevron">▼</span>
+          <div class="chevron">▼</div>
         </div>
         <div class="chapter-items" style="display: block;"></div>
       `;
@@ -241,10 +241,10 @@ function renderMaterials(data) {
         const item = document.createElement("div");
         item.className = "item-row material-item";
         item.innerHTML = `
-          <div class="item-icon material-icon">📄</div>
+          <div class="item-icon-box">📄</div>
           <div class="item-info">
             <div class="item-title">${m.title}</div>
-            <div class="item-badge">Materi Pembelajaran</div>
+            <div class="item-meta" style="color: var(--primary); font-weight: 600;">Materi Pembelajaran</div>
           </div>
         `;
         item.onclick = () => openMaterial(m.materialId);
@@ -275,7 +275,7 @@ function renderMaterials(data) {
         if (ex.isAssigned && !isExpired) {
           item.classList.add("status-active");
           item.innerHTML = `
-            <div class="item-icon exercise-icon">📝</div>
+            <div class="item-icon-box">📝</div>
             <div class="item-info">
               <div class="item-title">${ex.title}</div>
               <div class="item-meta text-success">⏱ Batas: ${deadlineString} • <b>Tugas Aktif</b></div>
@@ -285,7 +285,7 @@ function renderMaterials(data) {
         } else if (ex.isAssigned && isExpired) {
           item.classList.add("status-expired");
           item.innerHTML = `
-            <div class="item-icon">🔒</div>
+            <div class="item-icon-box">🔒</div>
             <div class="item-info">
               <div class="item-title"><s>${ex.title}</s></div>
               <div class="item-meta text-danger">❌ Waktu Habis (${deadlineString})</div>
@@ -295,7 +295,7 @@ function renderMaterials(data) {
         } else {
           item.classList.add("status-locked");
           item.innerHTML = `
-            <div class="item-icon">🔒</div>
+            <div class="item-icon-box">🔒</div>
             <div class="item-info">
               <div class="item-title"><s>${ex.title}</s></div>
               <div class="item-meta text-muted">Belum Ditugaskan / Terkunci</div>
@@ -314,7 +314,7 @@ function renderMaterials(data) {
 }
 
 // ==========================
-// TOGGLE ACCORDION SMOOTH
+// TOGGLE ACCORDION
 // ==========================
 window.toggleAccordion = (el) => {
   el.classList.toggle("active");
@@ -343,6 +343,7 @@ window.openMaterial = async (id) => {
     <head>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${data.title}</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
       <script>
         window.MathJax = {
           tex: {
@@ -353,14 +354,17 @@ window.openMaterial = async (id) => {
       </script>
       <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       <style>
-        body{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;padding:20px;max-width:800px;margin:auto;line-height:1.7;color:#1f2937}
-        h2{color:#2563eb;border-bottom:2px solid #e5e7eb;padding-bottom:10px;}
-        iframe, embed{width:100%;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);margin:15px 0;}
+        body{font-family:'Inter',sans-serif;padding:30px 20px;max-width:800px;margin:auto;line-height:1.8;color:#0f172a;background:#f8fafc;}
+        h2{color:#4f46e5;border-bottom:2px solid #e2e8f0;padding-bottom:12px;margin-bottom:20px;}
+        iframe, embed{width:100%;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);margin:20px 0;background:#fff;}
+        .content-box{background:#fff;padding:25px;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);}
       </style>
     </head>
     <body>
-      <h2>${data.title}</h2>
-      <div>${generateContent(data.content)}</div>
+      <div class="content-box">
+        <h2>${data.title}</h2>
+        <div>${generateContent(data.content)}</div>
+      </div>
     </body>
     </html>
   `);
@@ -388,18 +392,18 @@ function generateContent(input) {
       } else if (url.includes("youtu.be/")) {
         videoId = url.split("youtu.be/")[1].split("?")[0];
       }
-      return `<iframe width="100%" height="315" src="https://www.youtube.com/embed/${videoId}" allowfullscreen style="border:none;"></iframe>`;
+      return `<iframe width="100%" height="380" src="https://www.youtube.com/embed/${videoId}" allowfullscreen style="border:none;"></iframe>`;
     }
   );
 
   output = output.replace(
     /https?:\/\/drive\.google\.com\/file\/d\/([^\/]+)\/view[^\s<]*/gi,
-    (match, fileId) => `<iframe src="https://drive.google.com/file/d/${fileId}/preview" width="100%" height="450" style="border:none;"></iframe>`
+    (match, fileId) => `<iframe src="https://drive.google.com/file/d/${fileId}/preview" width="100%" height="500" style="border:none;"></iframe>`
   );
 
   output = output.replace(
     /(https?:\/\/[^\s<]+\.pdf(\?[^\s<]+)?)/gi,
-    (url) => `<embed src="${url}" type="application/pdf" width="100%" height="500px">`
+    (url) => `<embed src="${url}" type="application/pdf" width="100%" height="600px">`
   );
 
   output = output.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
@@ -455,36 +459,41 @@ window.openExercise = async (id) => {
   const styleEl = win.document.createElement("style");
   styleEl.textContent = `
     *{box-sizing:border-box;}
-    body{margin:0;font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;background:#f3f4f6;color:#1f2937;padding-bottom:40px;}
-    .topbar{position:sticky;top:0;z-index:999;background:white;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
-    .title{font-size:16px;font-weight:bold;color:#111827;}
-    .btn-group{display:flex;gap:8px;}
-    button{border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;}
-    .fullscreen-btn{background:#374151;color:white;}
+    body{margin:0;font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a;padding-bottom:50px;}
+    .topbar{position:sticky;top:0;z-index:999;background:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,0.05);border-bottom:1px solid #e2e8f0;}
+    .title{font-size:16px;font-weight:700;color:#0f172a;}
+    .btn-group{display:flex;gap:10px;}
+    button{border:none;padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px;transition:all 0.2s;}
+    .fullscreen-btn{background:#334151;color:white;}
+    .fullscreen-btn:hover{background:#1e293b;}
     .exit-btn{background:#ef4444;color:white;}
-    .submit-btn{background:#2563eb;color:white;width:100%;margin-top:20px;padding:14px;font-size:15px;border-radius:12px;box-shadow:0 4px 12px rgba(37,99,235,0.2);}
-    .container{max-width:800px;margin:auto;padding:15px;}
-    .question{background:white;margin-bottom:16px;padding:18px;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
-    h3{margin-top:0;font-size:15px;}
-    label{display:block;margin:10px 0;padding:10px 14px;border-radius:8px;background:#f9fafb;cursor:pointer;border:1px solid #e5e7eb;transition:all .2s;}
+    .exit-btn:hover{background:#dc2626;}
+    .submit-btn{background:#4f46e5;color:white;width:100%;margin-top:24px;padding:15px;font-size:15px;border-radius:12px;box-shadow:0 4px 12px rgba(79,70,229,0.25);}
+    .submit-btn:hover{background:#4338ca;}
+    .container{max-width:800px;margin:auto;padding:20px;}
+    .question{background:white;margin-bottom:20px;padding:22px;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);border:1px solid #e2e8f0;}
+    h3{margin-top:0;font-size:15px;color:#1e293b;font-weight:600;}
+    label{display:block;margin:12px 0;padding:12px 16px;border-radius:10px;background:#f8fafc;cursor:pointer;border:1px solid #e2e8f0;font-size:14px;transition:all .2s;}
     label:hover{background:#eef2ff;border-color:#c7d2fe;}
-    input[type="text"]{width:100%;padding:10px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;}
-    .match-wrapper{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:15px;}
-    .match-column{display:flex;flex-direction:column;gap:10px;}
-    .match-item{background:white;border:1px solid #d1d5db;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;position:relative;z-index:2;}
-    .match-item.selected{border-color:#2563eb;background:#dbeafe;}
-    .match-item.connected{border-color:#16a34a;background:#dcfce7;}
+    input[type="text"]{width:100%;padding:12px 16px;border-radius:10px;border:1px solid #cbd5e1;font-size:14px;outline:none;}
+    input[type="text"]:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,0.1);}
+    .match-wrapper{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px;}
+    .match-column{display:flex;flex-direction:column;gap:12px;}
+    .match-item{background:white;border:1px solid #cbd5e1;border-radius:10px;padding:12px;cursor:pointer;font-size:13px;position:relative;z-index:2;transition:all 0.2s;}
+    .match-item:hover{background:#f1f5f9;}
+    .match-item.selected{border-color:#4f46e5;background:#eef2ff;}
+    .match-item.connected{border-color:#10b981;background:#ecfdf5;}
     .match-lines{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
-    .attempts-info{font-size:11px;color:#ef4444;margin-top:4px;display:block;font-weight:600;}
+    .attempts-info{font-size:12px;color:#ef4444;margin-top:6px;display:block;font-weight:600;}
   `;
   win.document.head.appendChild(styleEl);
 
   let bodyContent = `
     <div class="topbar">
-      <div class="title">📝 ${exData.title} ${dbSubmission ? '<span style="color:#16a34a;font-size:12px;">(Selesai)</span>' : ''}</div>
+      <div class="title">📝 ${exData.title} ${dbSubmission ? '<span style="color:#10b981;font-size:13px;">(Selesai Dikumpulkan)</span>' : ''}</div>
       <div class="btn-group">
-        <button class="fullscreen-btn" onclick="openFullscreen()">⛶ Full</button>
-        <button class="exit-btn" onclick="closeFullscreen()">✕</button>
+        <button class="fullscreen-btn" onclick="openFullscreen()">⛶ Fullscreen</button>
+        <button class="exit-btn" onclick="closeFullscreen()">✕ Tutup</button>
       </div>
     </div>
     <div class="container">
@@ -511,7 +520,7 @@ window.openExercise = async (id) => {
         bodyContent += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
     } else if (qData.type === "isian") {
-      bodyContent += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban..." ${isLocked ? 'disabled' : ''}>`;
+      bodyContent += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban Anda..." ${isLocked ? 'disabled' : ''}>`;
     } else if (qData.type === "match") {
       const shuffled = [...(qData.pairs || [])].sort(() => Math.random() - 0.5);
       bodyContent += `
@@ -529,8 +538,8 @@ window.openExercise = async (id) => {
       (qData.fields || []).forEach((f, i) => {
         const val = savedAnswer?.[i] || "";
         bodyContent += `
-          <div style="margin-top:10px">
-            <label style="display:block; margin-bottom:5px; font-weight:600; background:none; padding:0; border:none;">${f.label}</label>
+          <div style="margin-top:12px">
+            <label style="display:block; margin-bottom:6px; font-weight:600; background:none; padding:0; border:none;">${f.label}</label>
             <input type="text" name="multi_${index}_${i}" value="${val}" placeholder="Jawaban..." ${isLocked ? 'disabled' : ''}>
           </div>
         `;
@@ -538,13 +547,13 @@ window.openExercise = async (id) => {
     }
 
     bodyContent += `
-      <div style="margin-top:15px">
-        <button id="btn_check_${index}" onclick="checkAnswer(${index})" style="background:#2563eb; color:white; padding:8px 14px; border-radius:8px;" ${isLocked ? 'disabled style="background:#9ca3af; cursor:not-allowed;"' : ''}>✅ Cek Jawaban</button>
+      <div style="margin-top:16px">
+        <button id="btn_check_${index}" onclick="checkAnswer(${index})" style="background:#4f46e5; color:white; padding:10px 16px; border-radius:10px;" ${isLocked ? 'disabled style="background:#cbd5e1; cursor:not-allowed;"' : ''}>✅ Cek Jawaban</button>
         <span class="attempts-info" id="attempts_text_${index}">${isLocked ? '🔒 Soal Terkunci' : '⚠️ Hanya bisa dicek 1 kali'}</span>
         <div id="result_${index}" style="margin-top:10px;font-weight:bold;font-size:14px;"></div>
-        <div id="explain_${index}" style="margin-top:10px; ${isLocked ? 'display:block;' : 'display:none;'}">
-          <button onclick="toggleExplain(${index})" style="background:#16a34a; color:white; padding:8px 14px; border-radius:8px;">📘 Lihat Pembahasan</button>
-          <div id="explain_content_${index}" style="display:none; margin-top:8px; background:#f9fafb; border:1px solid #e5e7eb; padding:12px; border-radius:8px; font-size:13px;">
+        <div id="explain_${index}" style="margin-top:12px; ${isLocked ? 'display:block;' : 'display:none;'}">
+          <button onclick="toggleExplain(${index})" style="background:#10b981; color:white; padding:10px 16px; border-radius:10px;">📘 Lihat Pembahasan</button>
+          <div id="explain_content_${index}" style="display:none; margin-top:10px; background:#f8fafc; border:1px solid #e2e8f0; padding:14px; border-radius:10px; font-size:13px; line-height:1.6;">
             ${qData.explanation || "Belum ada pembahasan."}
           </div>
         </div>
@@ -553,7 +562,7 @@ window.openExercise = async (id) => {
   });
 
   bodyContent += `
-      <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'disabled style="background:#9ca3af; cursor:not-allowed;"' : ''}>
+      <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'disabled style="background:#cbd5e1; cursor:not-allowed;"' : ''}>
         ${dbSubmission ? '🔒 Jawaban Telah Disimpan' : '📤 Kirim Nilai ke Guru'}
       </button>
     </div>
@@ -655,7 +664,7 @@ window.openExercise = async (id) => {
       const result = document.getElementById("result_"+index);
       if(correct){
         result.innerHTML = "✅ Jawaban Benar";
-        result.style.color = "#16a34a";
+        result.style.color = "#059669";
       }else{
         result.innerHTML = "❌ Jawaban Salah";
         result.style.color = "#dc2626";
@@ -669,7 +678,7 @@ window.openExercise = async (id) => {
       const btn = document.getElementById("btn_check_" + index);
       if(btn) {
         btn.disabled = true;
-        btn.style.background = "#9ca3af";
+        btn.style.background = "#cbd5e1";
         btn.style.cursor = "not-allowed";
       }
       document.querySelectorAll('input[name="q'+index+'"]').forEach(el => el.disabled = true);
@@ -756,7 +765,7 @@ window.openExercise = async (id) => {
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", x1); line.setAttribute("y1", y1);
       line.setAttribute("x2", x2); line.setAttribute("y2", y2);
-      line.setAttribute("stroke", "#2563eb"); line.setAttribute("stroke-width", "2");
+      line.setAttribute("stroke", "#4f46e5"); line.setAttribute("stroke-width", "2.5");
       svg.appendChild(line);
     };
 
