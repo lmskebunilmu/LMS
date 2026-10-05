@@ -2,8 +2,6 @@ import { auth, db } from "../firebase/firebase-config.js";
 import {
   onAuthStateChanged,
   updateProfile,
-  updateEmail,
-  updatePassword,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
@@ -16,6 +14,9 @@ import {
   where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadLayout } from "../assets/js/components.js";
+
+const CLOUDINARY_CLOUD_NAME = "djlvnubgn";
+const CLOUDINARY_UPLOAD_PRESET = "lms_unsigned";
 
 // ==========================
 // AUTH STATE
@@ -106,7 +107,6 @@ async function loadProfileHeader(user) {
 
   // Isi form modal edit
   if (document.getElementById("profileName")) document.getElementById("profileName").value = name;
-  if (document.getElementById("profileEmail")) document.getElementById("profileEmail").value = email;
 }
 
 // ==========================
@@ -132,7 +132,6 @@ async function loadStudentReports(studentUid) {
     for (const docSnap of snap.docs) {
       const sub = docSnap.data();
       
-      // Ambil judul exercise berdasarkan exerciseId
       let exerciseTitle = "Latihan / Tugas";
       try {
         const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
@@ -173,60 +172,71 @@ async function loadStudentReports(studentUid) {
 }
 
 // ==========================
-// MODAL PROFIL & PASSWORD
+// MODAL PROFIL
 // ==========================
 window.openProfileModal = () => document.getElementById("profileModal")?.classList.add("active");
 window.closeProfileModal = () => document.getElementById("profileModal")?.classList.remove("active");
-
-window.openPasswordModal = () => document.getElementById("passwordModal")?.classList.add("active");
-window.closePasswordModal = () => document.getElementById("passwordModal")?.classList.remove("active");
 
 window.saveProfile = async () => {
   const user = auth.currentUser;
   if (!user) return;
 
   const name = document.getElementById("profileName").value.trim();
-  const email = document.getElementById("profileEmail").value.trim();
+  const fileInput = document.getElementById("profileImageFile");
+  const saveBtn = document.getElementById("btnSaveProfile");
 
-  if (!name || !email) {
-    alert("Isi semua data!");
+  if (!name) {
+    alert("Nama tidak boleh kosong!");
     return;
   }
 
   try {
-    await updateProfile(user, { displayName: name });
-    if (email !== user.email) {
-      await updateEmail(user, email);
+    saveBtn.innerText = "Menyimpan...";
+    saveBtn.disabled = true;
+
+    let avatarURL = null;
+
+    // Upload ke Cloudinary jika file dipilih
+    if (fileInput.files && fileInput.files[0]) {
+      const file = fileInput.files[0];
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.secure_url) {
+        avatarURL = data.secure_url;
+      } else {
+        throw new Error("Gagal mengunggah foto ke Cloudinary.");
+      }
     }
-    await updateDoc(doc(db, "users", user.uid), { name, email });
+
+    // Update Auth Profile
+    const profileUpdates = { displayName: name };
+    if (avatarURL) profileUpdates.photoURL = avatarURL;
+    await updateProfile(user, profileUpdates);
+
+    // Update Firestore Users
+    const userDocRef = doc(db, "users", user.uid);
+    const userUpdates = { name };
+    if (avatarURL) userUpdates.avatarURL = avatarURL;
+    await updateDoc(userDocRef, userUpdates);
 
     alert("Profil berhasil diupdate!");
     closeProfileModal();
-    loadProfileHeader(user);
+    fileInput.value = "";
+    await loadProfileHeader(user);
   } catch (err) {
     console.error(err);
     alert("Gagal update profil: " + err.message);
-  }
-};
-
-window.updatePasswordAccount = async () => {
-  const user = auth.currentUser;
-  if (!user) return;
-
-  const newPass = document.getElementById("newPassword").value.trim();
-  if (!newPass || newPass.length < 6) {
-    alert("Password minimal 6 karakter!");
-    return;
-  }
-
-  try {
-    await updatePassword(user, newPass);
-    alert("Password berhasil diubah!");
-    document.getElementById("newPassword").value = "";
-    closePasswordModal();
-  } catch (err) {
-    console.error(err);
-    alert("Gagal mengubah password (silakan login ulang jika sesi habis): " + err.message);
+  } finally {
+    saveBtn.innerText = "Simpan";
+    saveBtn.disabled = false;
   }
 };
 
