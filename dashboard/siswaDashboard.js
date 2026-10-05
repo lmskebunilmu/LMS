@@ -253,7 +253,7 @@ function lockDashboard() {
 }
 
 // Diarahkan langsung ke folder materials-siswa sesuai permintaan
-window.goMaterialsSiswa = () => window.location.href = "./materials-siswa/materials-siswa.html";
+window.goMaterialsSiswa = () => window.location.href = "https://lmskebunilmu.github.io/LMS/modules/materials-siswa/materials-siswa.html";
 
 window.logout = async () => {
   await signOut(auth);
