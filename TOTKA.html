@@ -751,10 +751,8 @@
 
         rawSimulations = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
+        // HANYA ambil ujian yang statusnya AKTIF (true) oleh Admin
         let listToDisplay = rawSimulations.filter(s => s.isActive === true);
-        if (listToDisplay.length === 0) {
-          listToDisplay = rawSimulations;
-        }
 
         document.getElementById("loadingState").style.display = "none";
         renderTkaButtons(listToDisplay);
@@ -954,7 +952,7 @@
             style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px;">
         `;
       }
-      // 4. Tipe Matriks (Disesuaikan dengan format Admin: q.columns & q.rows sebagai array objek)
+      // 4. Tipe Matriks
       else if (q.type === "matrix" && q.columns && q.rows) {
         const currentAns = userAnswers[currentIndex] || {};
         const statementHeader = q.statementTitle || "Pernyataan / Argumen";
@@ -1066,7 +1064,7 @@
         if (typeof ans !== "object") return false;
         const totalRows = (q.rows || []).length;
         let answeredRows = Object.keys(ans).length;
-        return answeredRows >= totalRows; // Dianggap terjawab jika semua baris matriks sudah dipilih
+        return answeredRows >= totalRows;
       }
 
       if (typeof ans === "string") return ans.trim() !== "";
@@ -1149,7 +1147,6 @@
           } else if (q.type === "isian") {
             if (String(ans).trim().toLowerCase() === String(q.answer).trim().toLowerCase()) isCorrect = true;
           } else if (q.type === "matrix") {
-            // Memeriksa kecocokan jawaban matriks berdasarkan struktur q.rows[r].answer dari admin
             const rows = q.rows || [];
             let allMatch = true;
             for (let r = 0; r < rows.length; r++) {
