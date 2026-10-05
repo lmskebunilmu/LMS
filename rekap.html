@@ -153,23 +153,26 @@
   <div class="main">
     <div id="header-container"></div>
     <div class="card">
-      <div class="page-title">📊 Rekap Nilai & Hasil Latihan Siswa</div>
+      <div class="page-title" id="pageTitleText">📊 Rekap Nilai & Hasil Latihan</div>
 
-      <div class="filter-wrapper">
+      <!-- Filter Latihan (Hanya tampil untuk Guru/Admin) -->
+      <div class="filter-wrapper" id="teacherFilterSection" style="display: none;">
         <div class="filter-group">
           <label>Pilih Latihan / Tugas</label>
-          <select id="filterExercise" onchange="loadSubmissions()">
+          <select id="filterExercise" onchange="loadTeacherSubmissions()">
             <option value="">-- Pilih Latihan Terlebih Dahulu --</option>
           </select>
         </div>
       </div>
 
+      <!-- Tabel Rekap -->
       <div class="table-responsive">
         <table>
           <thead>
             <tr>
               <th>No</th>
-              <th>Nama Siswa</th>
+              <th id="thNamaSiswa">Nama Siswa</th>
+              <th>Judul Latihan</th>
               <th>Waktu Pengumpulan</th>
               <th>Benar / Total</th>
               <th>Skor Akhir</th>
@@ -178,7 +181,7 @@
           </thead>
           <tbody id="submissionTableBody">
             <tr>
-              <td colspan="6" class="empty-state">Silakan pilih latihan di atas untuk melihat rekap nilai.</td>
+              <td colspan="7" class="empty-state">Memuat data...</td>
             </tr>
           </tbody>
         </table>
@@ -187,7 +190,7 @@
   </div>
 </div>
 
-<!-- Script Gabungan -->
+<!-- Script Gabungan Dinamis (Guru & Siswa) -->
 <script type="module">
   import { auth, db } from "./firebase/firebase-config.js";
   import {
@@ -202,29 +205,40 @@
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { loadLayout } from "./assets/js/components.js";
 
-  let teacherSchoolId = null;
+  let currentUserData = null;
+  let currentUserId = null;
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) return window.location = "./login.html";
 
-    const userSnap = await getDoc(doc(db, "users", user.uid));
+    currentUserId = user.uid;
+    const userSnap = await getDoc(doc(db, "users", currentUserId));
     if (!userSnap.exists()) return;
 
-    const userData = userSnap.data();
-    if (userData.role !== "guru" && userData.role !== "admin") {
-      alert("Akses khusus guru!");
-      return window.location = "./login.html";
+    currentUserData = userSnap.data();
+    const role = currentUserData.role;
+
+    // Muat layout sesuai role
+    if (role === "guru" || role === "admin") {
+      await loadLayout("guru");
+      document.getElementById("teacherFilterSection").style.display = "flex";
+      document.getElementById("thNamaSiswa").style.display = "table-cell";
+      document.getElementById("submissionTableBody").innerHTML = `
+        <tr><td colspan="7" class="empty-state">Silakan pilih latihan di atas untuk melihat rekap nilai.</td></tr>
+      `;
+      await loadExerciseDropdown(currentUserData.schoolId);
+    } else {
+      // Jika Siswa
+      await loadLayout("siswa");
+      document.getElementById("teacherFilterSection").style.display = "none";
+      document.getElementById("pageTitleText").innerHTML = "📈 Riwayat Nilai & Latihan Saya";
+      await loadStudentSubmissions(currentUserId);
     }
-
-    teacherSchoolId = userData.schoolId;
-
-    await loadLayout("guru");
-    await loadExerciseDropdown(teacherSchoolId);
   });
 
+  // --- FUNGSI UNTUK GURU / ADMIN ---
   async function loadExerciseDropdown(schoolId) {
     const select = document.getElementById("filterExercise");
-    
     try {
       const q = query(collection(db, "exercises"), where("schoolId", "==", schoolId));
       const snap = await getDocs(q);
@@ -241,13 +255,13 @@
     }
   }
 
-  window.loadSubmissions = async () => {
+  window.loadTeacherSubmissions = async () => {
     const exerciseId = document.getElementById("filterExercise").value;
     const tbody = document.getElementById("submissionTableBody");
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Memuat data...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Memuat data...</td></tr>`;
 
     if (!exerciseId) {
-      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Silakan pilih latihan di atas untuk melihat rekap nilai.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Silakan pilih latihan di atas untuk melihat rekap nilai.</td></tr>`;
       return;
     }
 
@@ -256,7 +270,7 @@
       const snap = await getDocs(q);
 
       if (snap.empty) {
-        tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Belum ada siswa yang mengumpulkan tugas ini.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Belum ada siswa yang mengumpulkan tugas ini.</td></tr>`;
         return;
       }
 
@@ -270,6 +284,12 @@
         const studentSnap = await getDoc(doc(db, "users", sub.studentUid));
         if (studentSnap.exists()) {
           studentName = studentSnap.data().name || "Siswa";
+        }
+
+        let exerciseTitle = "-";
+        const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
+        if (exSnap.exists()) {
+          exerciseTitle = exSnap.data().title || "-";
         }
 
         let formattedDate = "-";
@@ -288,18 +308,75 @@
         tr.innerHTML = `
           <td>${no++}</td>
           <td><strong>${studentName}</strong></td>
+          <td>${exerciseTitle}</td>
           <td>${formattedDate}</td>
           <td>${sub.correctAnswers || 0} / ${sub.totalQuestions || 0}</td>
           <td><span class="badge-score ${scoreClass}">${sub.score}</span></td>
-          <td><button class="btn-detail" onclick='alert("Skor akhir: ${sub.score} (${sub.correctAnswers}/${sub.totalQuestions} benar)")'>🔍 Detail</button></td>
+          <td><button class="btn-detail" onclick='alert("Skor ${studentName}: ${sub.score} (${sub.correctAnswers}/${sub.totalQuestions} benar)")'>🔍 Detail</button></td>
         `;
         tbody.appendChild(tr);
       }
     } catch (err) {
       console.error("Gagal memuat rekap nilai:", err);
-      tbody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color:red;">Gagal memuat data dari database.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:red;">Gagal memuat data dari database.</td></tr>`;
     }
   };
+
+  // --- FUNGSI UNTUK SISWA ---
+  async function loadStudentSubmissions(studentUid) {
+    const tbody = document.getElementById("submissionTableBody");
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Memuat riwayat nilai Anda...</td></tr>`;
+
+    try {
+      const q = query(collection(db, "student_submissions"), where("studentUid", "==", studentUid));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Anda belum pernah menyelesaikan latihan apa pun.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = "";
+      let no = 1;
+
+      for (const d of snap.docs) {
+        const sub = d.data();
+
+        let exerciseTitle = "Latihan";
+        const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
+        if (exSnap.exists()) {
+          exerciseTitle = exSnap.data().title || "Latihan";
+        }
+
+        let formattedDate = "-";
+        if (sub.submittedAt?.toDate) {
+          formattedDate = sub.submittedAt.toDate().toLocaleString('id-ID', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          });
+        }
+
+        let scoreClass = "score-low";
+        if (sub.score >= 75) scoreClass = "score-high";
+        else if (sub.score >= 50) scoreClass = "score-mid";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${no++}</td>
+          <td style="display:none;">-</td>
+          <td><strong>${exerciseTitle}</strong></td>
+          <td>${formattedDate}</td>
+          <td>${sub.correctAnswers || 0} / ${sub.totalQuestions || 0}</td>
+          <td><span class="badge-score ${scoreClass}">${sub.score}</span></td>
+          <td><button class="btn-detail" onclick='alert("Skor Anda: ${sub.score}\\nJawaban Benar: ${sub.correctAnswers} dari ${sub.totalQuestions} soal")'>🔍 Detail</button></td>
+        `;
+        tbody.appendChild(tr);
+      }
+    } catch (err) {
+      console.error("Gagal memuat riwayat siswa:", err);
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:red;">Gagal memuat riwayat nilai.</td></tr>`;
+    }
+  }
 </script>
 
 </body>
