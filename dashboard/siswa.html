@@ -2,102 +2,181 @@
 <html lang="id">
 
 <head>
-<meta charset="UTF-8">
-   <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Siswa</title>
+  
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
+  
+  <!-- Style Modern Tambahan untuk Modal & Card -->
+  <style>
+    .profile-card {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      color: white;
+      padding: 24px;
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.2);
+    }
+    .profile-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(255,255,255,0.8);
+    }
+    .profile-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+    }
+    .btn-action {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      backdrop-filter: blur(5px);
+      transition: all 0.2s;
+    }
+    .btn-action:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
 
-<title>Dashboard Siswa</title>
- 
-<link rel="stylesheet" href="../assets/css/style.css">
-<link rel="stylesheet" href="../assets/css/responsive.css">
-
+    /* Modal Styling */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: white;
+      width: 100%;
+      max-width: 450px;
+      padding: 28px;
+      border-radius: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    }
+    .modal-box h3 { margin-top: 0; margin-bottom: 20px; color: #0f172a; font-size: 18px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #334155; }
+    .form-group input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; }
+    .form-group input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+    .modal-buttons { display: flex; gap: 10px; margin-top: 24px; }
+    .modal-buttons button { flex: 1; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-save { background: #4f46e5; color: white; }
+    .btn-save:hover { background: #4338ca; }
+    .btn-cancel { background: #f1f5f9; color: #475569; }
+    .btn-cancel:hover { background: #e2e8f0; }
+  </style>
 </head>
 
 <body>
 
 <div class="wrapper">
-
   <!-- SIDEBAR -->
   <div id="sidebar-container"></div>
 
   <!-- MAIN -->
   <div class="main">
-
     <!-- HEADER -->
     <div id="header-container"></div>
 
     <!-- PROFILE SISWA -->
     <div class="profile-card">
-
-      <img
-        id="headerAvatarCard"
-        class="profile-avatar"
-        src="../assets/images/default-avatar.png"
-      >
-
+      <img id="headerAvatarCard" class="profile-avatar" src="../assets/images/default-avatar.png">
       <div class="profile-details">
-        <h2 id="headerNameCard">Nama Siswa</h2>
-        <p id="headerEmailCard">email@siswa.com</p>
+        <h2 id="headerNameCard" style="margin:0 0 4px 0; font-size:18px;">Nama Siswa</h2>
+        <p id="headerEmailCard" style="margin:0; opacity:0.9; font-size:13px;">email@siswa.com</p>
+        <p id="headerSchoolCard" style="margin:4px 0 0 0; opacity:0.8; font-size:12px;">Sekolah -</p>
       </div>
-
+      <div class="profile-actions">
+        <button class="btn-action" onclick="openProfileModal()">✏️ Edit Profil</button>
+        <button class="btn-action" onclick="openPasswordModal()">🔒 Ganti Password</button>
+      </div>
     </div>
 
     <!-- DASHBOARD -->
     <div class="card">
-      <h3>Dashboard Siswa</h3>
-
-      <div class="stats-grid">
-
-        <div class="stat-card">
-          <h4 id="totalMaterials">0</h4>
-          <p>Materi</p>
+      <h3 style="margin-bottom: 16px;">Dashboard Siswa</h3>
+      <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <div class="stat-card" style="background: #f8fafc; padding: 20px; border-radius: 14px; border: 1px solid #e2e8f0;">
+          <h4 id="totalMaterials" style="font-size: 24px; margin: 0 0 4px 0; color: #4f46e5;">0</h4>
+          <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500;">Materi Tersedia</p>
         </div>
-
-        <div class="stat-card">
-          <h4 id="totalAssignments">0</h4>
-          <p>Tugas</p>
+        <div class="stat-card" style="background: #f8fafc; padding: 20px; border-radius: 14px; border: 1px solid #e2e8f0;">
+          <h4 id="totalAssignments" style="font-size: 24px; margin: 0 0 4px 0; color: #10b981;">0</h4>
+          <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 500;">Tugas / Latihan</p>
         </div>
-
       </div>
-
     </div>
 
-    <!-- KELAS & MAPEL -->
-<div class="card">
-  <h3>Kelas & Mata Pelajaran</h3>
-  <div id="classContainer"></div>
-</div>
+    <!-- KELAS & MAPEL (Tampilan Modern) -->
+    <div class="card">
+      <h3 style="margin-bottom: 16px;">Kelas & Mata Pelajaran</h3>
+      <div id="classContainer"></div>
+    </div>
 
     <!-- MENU -->
     <div class="card">
-
-      <h3>Menu</h3>
-
-<div class="menu-grid">
-
-  <button onclick="goMaterialsSiswa()">
-    📚 Materi
-  </button>
-
-  <button onclick="goAssignmentsSiswa()">
-    📝 Tugas
-  </button>
-
-  <button onclick="logout()">
-    🚪 Logout
-  </button>
-
+      <h3 style="margin-bottom: 16px;">Menu Cepat</h3>
+      <div class="menu-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+        <button onclick="goMaterialsSiswa()" style="padding: 14px; background: #eef2ff; color: #4f46e5; border: none; border-radius: 12px; font-weight: 600; cursor: pointer;">📚 Materi</button>
+        <button onclick="goAssignmentsSiswa()" style="padding: 14px; background: #f0fdf4; color: #10b981; border: none; border-radius: 12px; font-weight: 600; cursor: pointer;">📝 Tugas</button>
+        <button onclick="logout()" style="padding: 14px; background: #fef2f2; color: #ef4444; border: none; border-radius: 12px; font-weight: 600; cursor: pointer;">🚪 Logout</button>
+      </div>
+    </div>
+  </div>
 </div>
 
+<!-- MODAL EDIT PROFIL -->
+<div id="profileModal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>✏️ Edit Profil Siswa</h3>
+    <div class="form-group">
+      <label>Nama Lengkap</label>
+      <input type="text" id="profileName" placeholder="Nama lengkap...">
     </div>
-
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="profileEmail" placeholder="Email...">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-cancel" onclick="closeProfileModal()">Batal</button>
+      <button class="btn-save" onclick="saveProfile()">Simpan Perubahan</button>
+    </div>
   </div>
+</div>
 
+<!-- MODAL GANTI PASSWORD -->
+<div id="passwordModal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>🔒 Ganti Password</h3>
+    <div class="form-group">
+      <label>Password Baru</label>
+      <input type="password" id="newPassword" placeholder="Minimal 6 karakter...">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-cancel" onclick="closePasswordModal()">Batal</button>
+      <button class="btn-save" onclick="updatePasswordAccount()">Update Password</button>
+    </div>
+  </div>
 </div>
 
 <script type="module" src="./siswaDashboard.js"></script>
-
 </body>
 </html>
