@@ -18,6 +18,7 @@ let filteredMaterials = [];
 let filteredExercises = [];
 let schoolData = null;
 let studentClassId = null;
+let currentSchoolId = null; // Menyimpan schoolId global
 
 // ==========================
 // AUTH & INITIAL LOAD
@@ -34,6 +35,8 @@ onAuthStateChanged(auth, async (user) => {
     alert("Akses khusus siswa!");
     return window.location = "../../login.html";
   }
+
+  currentSchoolId = userData.schoolId; // Simpan schoolId
 
   await loadLayout("siswa");
   await waitForHeader();
@@ -170,7 +173,7 @@ async function loadExercises(schoolId, classId) {
 }
 
 // ==========================
-// RENDER UI (MAPEL -> BAB -> SUB-BAB -> ITEM) [URUT ABJAD A-Z]
+// RENDER UI (MAPEL -> BAB -> SUB-BAB -> ITEM)
 // ==========================
 function renderMaterials(matData, exData) {
   const container = document.getElementById("materialSiswaList");
@@ -552,7 +555,7 @@ window.openExercise = async (id) => {
         const exerciseId = "${id}";
         const studentUid = "${studentUid}";
         const classId = "${studentClassId || ''}";
-        const schoolId = "${schoolData?.schoolId || ''}";
+        const schoolId = "${currentSchoolId || ''}";
         const questionsData = ${JSON.stringify(questions)};
         const isAlreadySubmitted = ${dbSubmission ? true : false};
         
@@ -698,21 +701,34 @@ window.openExercise = async (id) => {
 
           const score = questionsData.length > 0 ? Math.round((totalBenar / questionsData.length) * 100) : 0;
 
-          // Validasi ketat agar tidak ada nilai undefined yang dikirim ke Firestore
+          // Bersihkan objek answers dari key/value undefined agar Firestore tidak menolak
+          const cleanedAnswers = {};
+          Object.keys(savedAnswers).forEach(k => {
+            if (savedAnswers[k] !== undefined) {
+              cleanedAnswers[k] = savedAnswers[k];
+            }
+          });
+
           const submissionData = {
-            studentUid: studentUid || "",
-            exerciseId: exerciseId || "",
-            classId: classId || "",
-            schoolId: schoolId || "",
-            answers: savedAnswers || {},
-            score: score || 0,
-            totalQuestions: questionsData.length || 0,
-            correctAnswers: totalBenar || 0,
+            studentUid: String(studentUid || ""),
+            exerciseId: String(exerciseId || ""),
+            classId: String(classId || ""),
+            schoolId: String(schoolId || ""),
+            answers: cleanedAnswers,
+            score: Number(score || 0),
+            totalQuestions: Number(questionsData.length || 0),
+            correctAnswers: Number(totalBenar || 0),
             submittedAt: new Date()
           };
 
+          if (!studentUid || !exerciseId) {
+            alert("Gagal mengirim: Data autentikasi siswa atau latihan tidak valid.");
+            return;
+          }
+
           try {
-            await setDoc(doc(db, "student_submissions", studentUid + "_" + exerciseId), submissionData);
+            const docId = studentUid + "_" + exerciseId;
+            await setDoc(doc(db, "student_submissions", docId), submissionData, { merge: true });
 
             alert("🎉 Berhasil dikirim! Skor Anda: " + score);
             window.close(); 
