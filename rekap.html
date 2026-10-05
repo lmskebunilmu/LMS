@@ -8,12 +8,10 @@
   <!-- Google Fonts: Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- SESUAIKAN PATH INI DENGAN POSISI FOLDER ANDA -->
-  <link rel="stylesheet" href="../../assets/css/style.css">
-  <link rel="stylesheet" href="../../assets/css/responsive.css">
+  <link rel="stylesheet" href="./assets/css/style.css">
+  <link rel="stylesheet" href="./assets/css/responsive.css">
 
   <style>
-    /* Styling Anda tetap sama */
     :root {
       --primary: #4f46e5;
       --success: #10b981;
@@ -189,7 +187,120 @@
   </div>
 </div>
 
-<script type="module" src="./rekap-nilai.js"></script>
+<!-- Script Gabungan -->
+<script type="module">
+  import { auth, db } from "./firebase/firebase-config.js";
+  import {
+    collection,
+    getDocs,
+    getDoc,
+    doc,
+    query,
+    where
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { loadLayout } from "./assets/js/components.js";
+
+  let teacherSchoolId = null;
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return window.location = "./login.html";
+
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    if (!userSnap.exists()) return;
+
+    const userData = userSnap.data();
+    if (userData.role !== "guru" && userData.role !== "admin") {
+      alert("Akses khusus guru!");
+      return window.location = "./login.html";
+    }
+
+    teacherSchoolId = userData.schoolId;
+
+    await loadLayout("guru");
+    await loadExerciseDropdown(teacherSchoolId);
+  });
+
+  async function loadExerciseDropdown(schoolId) {
+    const select = document.getElementById("filterExercise");
+    
+    try {
+      const q = query(collection(db, "exercises"), where("schoolId", "==", schoolId));
+      const snap = await getDocs(q);
+      
+      snap.forEach(d => {
+        const ex = d.data();
+        const opt = document.createElement("option");
+        opt.value = d.id;
+        opt.textContent = ex.title || "Latihan Tanpa Judul";
+        select.appendChild(opt);
+      });
+    } catch (err) {
+      console.error("Gagal memuat daftar latihan:", err);
+    }
+  }
+
+  window.loadSubmissions = async () => {
+    const exerciseId = document.getElementById("filterExercise").value;
+    const tbody = document.getElementById("submissionTableBody");
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Memuat data...</td></tr>`;
+
+    if (!exerciseId) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Silakan pilih latihan di atas untuk melihat rekap nilai.</td></tr>`;
+      return;
+    }
+
+    try {
+      const q = query(collection(db, "student_submissions"), where("exerciseId", "==", exerciseId));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Belum ada siswa yang mengumpulkan tugas ini.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = "";
+      let no = 1;
+
+      for (const d of snap.docs) {
+        const sub = d.data();
+        
+        let studentName = "Siswa (Tidak Dikenal)";
+        const studentSnap = await getDoc(doc(db, "users", sub.studentUid));
+        if (studentSnap.exists()) {
+          studentName = studentSnap.data().name || "Siswa";
+        }
+
+        let formattedDate = "-";
+        if (sub.submittedAt?.toDate) {
+          formattedDate = sub.submittedAt.toDate().toLocaleString('id-ID', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          });
+        }
+
+        let scoreClass = "score-low";
+        if (sub.score >= 75) scoreClass = "score-high";
+        else if (sub.score >= 50) scoreClass = "score-mid";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${no++}</td>
+          <td><strong>${studentName}</strong></td>
+          <td>${formattedDate}</td>
+          <td>${sub.correctAnswers || 0} / ${sub.totalQuestions || 0}</td>
+          <td><span class="badge-score ${scoreClass}">${sub.score}</span></td>
+          <td><button class="btn-detail" onclick='alert("Skor akhir: ${sub.score} (${sub.correctAnswers}/${sub.totalQuestions} benar)")'>🔍 Detail</button></td>
+        `;
+        tbody.appendChild(tr);
+      }
+    } catch (err) {
+      console.error("Gagal memuat rekap nilai:", err);
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color:red;">Gagal memuat data dari database.</td></tr>`;
+    }
+  };
+</script>
 
 </body>
 </html>
