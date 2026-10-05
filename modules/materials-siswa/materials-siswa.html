@@ -2,43 +2,313 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Materi Siswa</title>
+
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="../../assets/css/style.css">
   <link rel="stylesheet" href="../../assets/css/responsive.css">
 
- 
+  <!-- Style Tambahan untuk Tampilan Modern & Realistis -->
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --bg-main: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --radius: 16px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif !important;
+      background-color: var(--bg-main) !important;
+      color: var(--text-main);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border-color);
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Modern Search Bar */
+    .search-box-wrapper {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    #searchMaterialSiswa {
+      width: 100%;
+      padding: 14px 18px 14px 48px;
+      border: 2px solid var(--border-color);
+      border-radius: 14px;
+      font-size: 15px;
+      outline: none;
+      background-color: #fff;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #searchMaterialSiswa:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    .search-icon-abs {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      color: var(--text-muted);
+    }
+
+    /* Subject Card Container */
+    .subject-card-box {
+      margin-bottom: 16px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      background: #ffffff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      transition: all 0.3s ease;
+    }
+
+    .subject-card-box:hover {
+      box-shadow: 0 10px 20px -5px rgba(0,0,0,0.08);
+    }
+
+    .subject-header {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      color: white;
+      padding: 18px 22px;
+      font-weight: 700;
+      font-size: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.2s;
+    }
+
+    .subject-header:active {
+      opacity: 0.9;
+    }
+
+    .subject-title-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .subject-icon {
+      font-size: 22px;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 8px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .chevron {
+      font-size: 12px;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: rgba(255, 255, 255, 0.2);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .subject-header.active .chevron,
+    .chapter-header.active .chevron {
+      transform: rotate(180deg);
+    }
+
+    /* Chapter Group */
+    .chapter-group {
+      border-top: 1px solid var(--border-color);
+      background: #ffffff;
+    }
+
+    .chapter-header {
+      background: #f8fafc;
+      color: #334155;
+      padding: 14px 20px;
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      border-bottom: 1px dashed var(--border-color);
+      transition: background 0.2s;
+    }
+
+    .chapter-header:hover {
+      background: #f1f5f9;
+    }
+
+    .chapter-header .chevron {
+      background: rgba(0, 0, 0, 0.05);
+      color: var(--text-muted);
+    }
+
+    /* Material & Exercise Items (Realistic Cards) */
+    .item-row {
+      display: flex;
+      align-items: center;
+      padding: 14px 18px;
+      margin: 12px 16px;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .item-row:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px -3px rgba(0,0,0,0.06);
+      border-color: #cbd5e1;
+    }
+
+    .material-item {
+      border-left: 5px solid var(--primary);
+    }
+
+    .exercise-item.status-active {
+      border-left: 5px solid var(--success);
+      background: #f0fdf4;
+    }
+
+    .exercise-item.status-expired {
+      border-left: 5px solid var(--danger);
+      opacity: 0.65;
+      cursor: not-allowed;
+      background: #fef2f2;
+    }
+
+    .exercise-item.status-locked {
+      border-left: 5px solid #94a3b8;
+      opacity: 0.6;
+      cursor: not-allowed;
+      background: #f8fafc;
+    }
+
+    .item-icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-right: 14px;
+      flex-shrink: 0;
+    }
+
+    .material-item .item-icon-box {
+      background: #eef2ff;
+      color: var(--primary);
+    }
+
+    .exercise-item.status-active .item-icon-box {
+      background: #dcfce7;
+      color: var(--success);
+    }
+
+    .exercise-item.status-expired .item-icon-box {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .exercise-item.status-locked .item-icon-box {
+      background: #f1f5f9;
+      color: var(--text-muted);
+    }
+
+    .item-info {
+      flex: 1;
+    }
+
+    .item-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 3px;
+    }
+
+    .item-meta {
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .text-success { color: #059669; }
+    .text-danger { color: #dc2626; }
+    .text-muted { color: var(--text-muted); font-style: italic; }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+  </style>
 </head>
 
 <body>
 
 <div class="wrapper">
-
   <div id="sidebar-container"></div>
-
   <div class="main">
-
     <div id="header-container"></div>
-
     <div class="card">
+      <div class="page-title">📚 Materi & Latihan Saya</div>
 
-      <div class="page-title">📚 Materi Saya</div>
-
-      <input 
-        type="text"
-        id="searchMaterialSiswa"
-        placeholder="Cari materi..."
-        oninput="filterMaterialsSiswa()"
-      >
+      <div class="search-box-wrapper">
+        <span class="search-icon-abs">🔍</span>
+        <input 
+          type="text"
+          id="searchMaterialSiswa"
+          placeholder="Cari materi atau mata pelajaran..."
+          oninput="filterMaterialsSiswa()"
+        >
+      </div>
 
       <div id="materialSiswaList"></div>
-
     </div>
-
   </div>
 </div>
 
