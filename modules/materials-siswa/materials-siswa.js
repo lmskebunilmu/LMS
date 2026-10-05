@@ -170,7 +170,7 @@ async function loadExercises(schoolId, classId) {
 }
 
 // ==========================
-// RENDER UI (MAPEL -> BAB -> SUB-BAB -> ITEM)
+// RENDER UI (MAPEL -> BAB -> SUB-BAB -> ITEM) [URUT ABJAD A-Z]
 // ==========================
 function renderMaterials(matData, exData) {
   const container = document.getElementById("materialSiswaList");
@@ -214,8 +214,10 @@ function renderMaterials(matData, exData) {
     grouped[mapel][bab][sub].exercises.push(ex);
   });
 
-  // 1. Level Mata Pelajaran
-  Object.keys(grouped).forEach(mapel => {
+  // 1. Level Mata Pelajaran (Diurutkan Abjad A-Z)
+  const sortedSubjects = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
+
+  sortedSubjects.forEach(mapel => {
     const cardBox = document.createElement("div");
     cardBox.className = "subject-card-box";
     cardBox.innerHTML = `
@@ -230,8 +232,10 @@ function renderMaterials(matData, exData) {
     `;
     const subjectContent = cardBox.querySelector(".subject-content");
 
-    // 2. Level Bab
-    Object.keys(grouped[mapel]).forEach(bab => {
+    // 2. Level Bab (Diurutkan Abjad A-Z)
+    const sortedChapters = Object.keys(grouped[mapel]).sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
+
+    sortedChapters.forEach(bab => {
       const babDiv = document.createElement("div");
       babDiv.className = "chapter-group";
       babDiv.innerHTML = `
@@ -243,8 +247,10 @@ function renderMaterials(matData, exData) {
       `;
       const babContent = babDiv.querySelector(".chapter-content");
 
-      // 3. Level Sub-Bab
-      Object.keys(grouped[mapel][bab]).forEach(sub => {
+      // 3. Level Sub-Bab (Diurutkan Abjad A-Z)
+      const sortedSubChapters = Object.keys(grouped[mapel][bab]).sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
+
+      sortedSubChapters.forEach(sub => {
         const subDiv = document.createElement("div");
         subDiv.className = "subchapter-group";
         subDiv.innerHTML = `
@@ -257,8 +263,8 @@ function renderMaterials(matData, exData) {
         const subContent = subDiv.querySelector(".subchapter-items");
         const currentSub = grouped[mapel][bab][sub];
 
-        // 4. Render Materi Bacaan di dalam Sub-Bab
-        currentSub.materials.forEach(m => {
+        // 4. Render Materi Bacaan di dalam Sub-Bab (Diurutkan berdasarkan Judul)
+        currentSub.materials.sort((a, b) => a.title.localeCompare(b.title, 'id', { sensitivity: 'base' })).forEach(m => {
           const item = document.createElement("div");
           item.className = "item-row material-item";
           item.innerHTML = `
@@ -275,8 +281,8 @@ function renderMaterials(matData, exData) {
           subContent.appendChild(item);
         });
 
-        // 4. Render Latihan / Tugas di dalam Sub-Bab
-        currentSub.exercises.forEach(ex => {
+        // 4. Render Latihan / Tugas di dalam Sub-Bab (Diurutkan berdasarkan Judul)
+        currentSub.exercises.sort((a, b) => a.title.localeCompare(b.title, 'id', { sensitivity: 'base' })).forEach(ex => {
           const item = document.createElement("div");
           item.className = "item-row exercise-item";
 
