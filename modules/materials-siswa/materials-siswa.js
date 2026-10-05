@@ -263,7 +263,7 @@ function renderMaterials(matData, exData) {
         const subContent = subDiv.querySelector(".subchapter-items");
         const currentSub = grouped[mapel][bab][sub];
 
-        // 4. Render Materi Bacaan di dalam Sub-Bab (Diurutkan berdasarkan Judul)
+        // 4. Render Materi Bacaan di dalam Sub-Bab (Diurutkan Berdasarkan Judul A-Z)
         currentSub.materials.sort((a, b) => a.title.localeCompare(b.title, 'id', { sensitivity: 'base' })).forEach(m => {
           const item = document.createElement("div");
           item.className = "item-row material-item";
@@ -281,7 +281,7 @@ function renderMaterials(matData, exData) {
           subContent.appendChild(item);
         });
 
-        // 4. Render Latihan / Tugas di dalam Sub-Bab (Diurutkan berdasarkan Judul)
+        // 4. Render Latihan / Tugas di dalam Sub-Bab (Diurutkan Berdasarkan Judul A-Z)
         currentSub.exercises.sort((a, b) => a.title.localeCompare(b.title, 'id', { sensitivity: 'base' })).forEach(ex => {
           const item = document.createElement("div");
           item.className = "item-row exercise-item";
