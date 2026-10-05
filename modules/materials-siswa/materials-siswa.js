@@ -18,6 +18,7 @@ let filteredMaterials = [];
 let filteredExercises = [];
 let schoolData = null;
 let studentClassId = null;
+let currentSchoolId = null; // Tambahan variabel untuk menyimpan schoolId dengan aman
 
 // ==========================
 // AUTH & INITIAL LOAD
@@ -34,6 +35,8 @@ onAuthStateChanged(auth, async (user) => {
     alert("Akses khusus siswa!");
     return window.location = "../../login.html";
   }
+
+  currentSchoolId = userData.schoolId; // Simpan schoolId
 
   await loadLayout("siswa");
   await waitForHeader();
@@ -190,7 +193,6 @@ function renderMaterials(matData, exData) {
 
   const grouped = {};
 
-  // Grouping Materi: Mapel -> Bab -> Sub-Bab
   matData.forEach(m => {
     const mapel = m.subject || "Umum";
     const bab = m.chapter || "Umum";
@@ -202,7 +204,6 @@ function renderMaterials(matData, exData) {
     grouped[mapel][bab][sub].materials.push(m);
   });
 
-  // Grouping Exercises: Mapel -> Bab -> Sub-Bab
   exData.forEach(ex => {
     const mapel = ex.subject || "Umum";
     const bab = ex.chapter || "Umum";
@@ -214,7 +215,6 @@ function renderMaterials(matData, exData) {
     grouped[mapel][bab][sub].exercises.push(ex);
   });
 
-  // 1. Level Mata Pelajaran (Diurutkan Abjad A-Z)
   const sortedSubjects = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
 
   sortedSubjects.forEach(mapel => {
@@ -232,7 +232,6 @@ function renderMaterials(matData, exData) {
     `;
     const subjectContent = cardBox.querySelector(".subject-content");
 
-    // 2. Level Bab (Diurutkan Abjad A-Z)
     const sortedChapters = Object.keys(grouped[mapel]).sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
 
     sortedChapters.forEach(bab => {
@@ -247,7 +246,6 @@ function renderMaterials(matData, exData) {
       `;
       const babContent = babDiv.querySelector(".chapter-content");
 
-      // 3. Level Sub-Bab (Diurutkan Abjad A-Z)
       const sortedSubChapters = Object.keys(grouped[mapel][bab]).sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
 
       sortedSubChapters.forEach(sub => {
@@ -263,7 +261,6 @@ function renderMaterials(matData, exData) {
         const subContent = subDiv.querySelector(".subchapter-items");
         const currentSub = grouped[mapel][bab][sub];
 
-        // 4. Render Materi Bacaan di dalam Sub-Bab (Diurutkan Berdasarkan Judul A-Z)
         currentSub.materials.sort((a, b) => a.title.localeCompare(b.title, 'id', { sensitivity: 'base' })).forEach(m => {
           const item = document.createElement("div");
           item.className = "item-row material-item";
@@ -281,7 +278,6 @@ function renderMaterials(matData, exData) {
           subContent.appendChild(item);
         });
 
-        // 4. Render Latihan / Tugas di dalam Sub-Bab (Diurutkan Berdasarkan Judul A-Z)
         currentSub.exercises.sort((a, b) => a.title.localeCompare(b.title, 'id', { sensitivity: 'base' })).forEach(ex => {
           const item = document.createElement("div");
           item.className = "item-row exercise-item";
@@ -625,7 +621,7 @@ window.openExercise = async (id) => {
     const exerciseId = "${id}";
     const studentUid = "${studentUid}";
     const classId = "${studentClassId || ''}";
-    const schoolId = "${schoolData?.schoolId || ''}";
+    const schoolId = "${currentSchoolId || ''}";
     const questionsData = ${JSON.stringify(questions)};
     const isAlreadySubmitted = ${dbSubmission ? true : false};
     
