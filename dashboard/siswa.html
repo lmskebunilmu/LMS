@@ -236,4 +236,115 @@
       padding: 16px;
       animation: fadeIn 0.2s ease-out;
     }
-    .modal-overlay.active { display: flex;
+    .modal-overlay.active { display: flex; }
+    
+    .modal-box {
+      background: white;
+      width: 100%;
+      max-width: 450px;
+      padding: 28px;
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #334155; }
+    .form-group input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; outline: none; transition: border-color 0.2s; box-sizing: border-box;}
+    .form-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+    
+    .modal-buttons { display: flex; gap: 10px; margin-top: 24px; }
+    .modal-buttons button { flex: 1; padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; border: none; font-size: 14px; transition: opacity 0.2s;}
+    .btn-save { background: var(--primary); color: white; }
+    .btn-save:hover { background: var(--primary-hover); }
+    .btn-cancel { background: #f1f5f9; color: #475569; }
+    .btn-cancel:hover { background: #e2e8f0; }
+  </style>
+</head>
+
+<body>
+
+<div class="wrapper">
+  <!-- SIDEBAR -->
+  <div id="sidebar-container"></div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- HEADER -->
+    <div id="header-container"></div>
+
+    <!-- PROFILE SISWA (Fresh & Foto Besar) -->
+    <div class="profile-card">
+      <div class="profile-avatar-container">
+        <img id="headerAvatarCard" class="profile-avatar" src="../assets/images/default-avatar.png" alt="Avatar">
+      </div>
+      <div class="profile-details">
+        <h2 id="headerNameCard" style="margin:0 0 4px 0; font-size:24px; font-weight: 700; color: #ffffff;">Nama Siswa</h2>
+        <p id="headerEmailCard" style="margin:0; color: rgba(255,255,255,0.9); font-size:14px; font-weight: 500;">email@siswa.com</p>
+        <div>
+          <span id="headerSchoolCard" class="school-badge">🏫 Memuat sekolah...</span>
+        </div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn-action" onclick="openProfileModal()">✏ Edit Profil</button>
+      </div>
+    </div>
+
+    <!-- MENU CEPAT -->
+    <div style="margin-bottom: 24px;">
+      <h3 class="section-title">Menu Cepat</h3>
+      <div class="menu-grid">
+        <div class="menu-card" onclick="goMaterialsSiswa()">
+          <div class="icon-box">📚</div>
+          <div class="title">Materi & Tugas</div>
+        </div>
+        <div class="menu-card" onclick="goMaterialsSiswa()">
+          <div class="icon-box">📝</div>
+          <div class="title">Latihan Aktif</div>
+        </div>
+        <div class="menu-card" onclick="logout()" style="border-color: #fee2e2; background: #fffdfd;">
+          <div class="icon-box" style="background: #fef2f2;">🚪</div>
+          <div class="title" style="color: #ef4444;">Logout</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORT NILAI SAYA -->
+    <div class="report-card">
+      <h3 style="margin-top:0; font-size:16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+        📊 Report Nilai Latihan Saya
+      </h3>
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Daftar rekap nilai dari latihan dan tugas yang telah Anda kerjakan.</p>
+      <div id="reportContainer">
+        <div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px;">Memuat riwayat nilai...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL EDIT PROFIL -->
+<div id="profileModal" class="modal-overlay">
+  <div class="modal-box">
+    <h3 style="margin-top:0; font-size: 18px; font-weight: 700; margin-bottom: 16px;">✏️ Edit Profil Siswa</h3>
+    <div class="form-group">
+      <label>Nama Lengkap</label>
+      <input type="text" id="profileName" placeholder="Nama lengkap...">
+    </div>
+    <div class="form-group">
+      <label>Foto Profil Baru (Opsional)</label>
+      <input type="file" id="profileImageFile" accept="image/*" style="padding: 8px; background: #f8fafc;">
+    </div>
+    <div class="modal-buttons">
+      <button class="btn-cancel" onclick="closeProfileModal()">Batal</button>
+      <button class="btn-save" id="btnSaveProfile" onclick="saveProfile()">Simpan Perubahan</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./siswaDashboard.js"></script>
+</body>
+</html>
