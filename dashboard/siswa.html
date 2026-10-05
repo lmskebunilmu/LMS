@@ -9,7 +9,10 @@
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
   
-  <!-- Style Modern & Responsif HP -->
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Style Modern, Fresh & Responsif -->
   <style>
     :root {
       --primary: #4f46e5;
@@ -21,49 +24,96 @@
       --text-main: #0f172a;
       --text-muted: #64748b;
       --border-color: #e2e8f0;
-      --radius: 16px;
+      --radius: 20px;
     }
 
     body {
       background-color: var(--bg-main) !important;
       font-family: 'Inter', sans-serif !important;
+      color: var(--text-main);
     }
 
+    h1, h2, h3, h4 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    /* PROFIL CARD FRESH & MODERN */
     .profile-card {
+      position: relative;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
       color: white;
-      padding: 24px;
+      padding: 32px 24px;
       border-radius: var(--radius);
-      margin-bottom: 20px;
-      box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.2);
+      margin-bottom: 24px;
+      box-shadow: 0 16px 32px -8px rgba(79, 70, 229, 0.3);
     }
+
+    /* Ornamen background glow */
+    .profile-card::before {
+      content: '';
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 150px;
+      height: 150px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
     @media (min-width: 640px) {
       .profile-card {
         flex-direction: row;
         text-align: left;
-        gap: 20px;
-        padding: 28px;
+        gap: 24px;
+        padding: 36px;
       }
     }
 
+    .profile-avatar-container {
+      position: relative;
+      flex-shrink: 0;
+    }
+
     .profile-avatar {
-      width: 80px;
-      height: 80px;
+      width: 90px;
+      height: 90px;
       border-radius: 50%;
       object-fit: cover;
-      border: 3px solid rgba(255,255,255,0.8);
+      border: 4px solid rgba(255, 255, 255, 0.9);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
       margin-bottom: 12px;
+      background: #fff;
     }
     @media (min-width: 640px) {
-      .profile-avatar { margin-bottom: 0; width: 70px; height: 70px; }
+      .profile-avatar { margin-bottom: 0; width: 85px; height: 85px; }
+    }
+
+    .profile-details {
+      flex-grow: 1;
+    }
+
+    .school-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.18);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      backdrop-filter: blur(4px);
+      margin-top: 8px;
+      letter-spacing: 0.3px;
     }
 
     .profile-actions {
-      margin-top: 16px;
+      margin-top: 20px;
       display: flex;
       gap: 10px;
       width: 100%;
@@ -71,65 +121,101 @@
       flex-wrap: wrap;
     }
     @media (min-width: 640px) {
-      .profile-actions { margin-top: 0; margin-left: auto; width: auto; justify-content: flex-start; }
+      .profile-actions { margin-top: 0; margin-left: auto; width: auto; justify-content: flex-end; }
     }
 
     .btn-action {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.22);
       color: white;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 10px 18px;
+      border-radius: 12px;
       font-weight: 600;
       font-size: 13px;
       cursor: pointer;
-      backdrop-filter: blur(5px);
-      transition: all 0.2s;
+      backdrop-filter: blur(6px);
+      transition: all 0.25s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
-    .btn-action:hover { background: rgba(255, 255, 255, 0.3); }
+    .btn-action:hover { 
+      background: rgba(255, 255, 255, 0.35); 
+      transform: translateY(-2px);
+    }
 
     /* Menu Cepat Modern */
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 14px;
+    }
+
     .menu-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
     }
+
     .menu-card {
       background: white;
       border: 1px solid var(--border-color);
-      padding: 20px 16px;
+      padding: 22px 16px;
       border-radius: var(--radius);
       text-align: center;
       cursor: pointer;
-      transition: all 0.25s ease;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
     }
     .menu-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 10px 20px -5px rgba(0,0,0,0.08);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px -6px rgba(79, 70, 229, 0.12);
       border-color: var(--primary);
     }
-    .menu-card .icon { font-size: 28px; margin-bottom: 8px; }
-    .menu-card .title { font-size: 14px; font-weight: 700; color: var(--text-main); }
+    .menu-card .icon-box {
+      width: 50px;
+      height: 50px;
+      background: #eef2ff;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin: 0 auto 12px auto;
+      transition: background 0.3s;
+    }
+    .menu-card:hover .icon-box {
+      background: var(--primary);
+    }
+    .menu-card .title { 
+      font-size: 14px; 
+      font-weight: 700; 
+      color: var(--text-main); 
+    }
 
     /* Report Nilai Card */
     .report-card {
       background: white;
       border: 1px solid var(--border-color);
       border-radius: var(--radius);
-      padding: 20px;
+      padding: 24px;
       margin-top: 24px;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
     }
     .report-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 14px;
-      margin-top: 10px;
+      padding: 16px;
+      margin-top: 12px;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 12px;
+      border-radius: 14px;
+      transition: border-color 0.2s;
+    }
+    .report-item:hover {
+      border-color: #cbd5e1;
     }
 
     /* Modal Styling */
@@ -137,29 +223,40 @@
       display: none;
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
-      backdrop-filter: blur(4px);
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(6px);
       z-index: 1000;
       justify-content: center;
       align-items: center;
       padding: 16px;
+      animation: fadeIn 0.2s ease-out;
     }
     .modal-overlay.active { display: flex; }
+    
     .modal-box {
       background: white;
       width: 100%;
       max-width: 450px;
-      padding: 24px;
-      border-radius: 20px;
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+      padding: 28px;
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .form-group { margin-bottom: 14px; }
+    
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+    .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #334155; }
-    .form-group input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; outline: none; }
-    .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
-    .modal-buttons button { flex: 1; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; }
-    .btn-save { background: #4f46e5; color: white; }
+    .form-group input { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 12px; font-size: 14px; outline: none; transition: border-color 0.2s; box-sizing: border-box;}
+    .form-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+    
+    .modal-buttons { display: flex; gap: 10px; margin-top: 24px; }
+    .modal-buttons button { flex: 1; padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; border: none; font-size: 14px; transition: opacity 0.2s;}
+    .btn-save { background: var(--primary); color: white; }
+    .btn-save:hover { background: var(--primary-hover); }
     .btn-cancel { background: #f1f5f9; color: #475569; }
+    .btn-cancel:hover { background: #e2e8f0; }
   </style>
 </head>
 
@@ -174,33 +271,37 @@
     <!-- HEADER -->
     <div id="header-container"></div>
 
-    <!-- PROFILE SISWA -->
+    <!-- PROFILE SISWA (Modern & Fresh) -->
     <div class="profile-card">
-      <img id="headerAvatarCard" class="profile-avatar" src="../assets/images/default-avatar.png">
+      <div class="profile-avatar-container">
+        <img id="headerAvatarCard" class="profile-avatar" src="../assets/images/default-avatar.png" alt="Avatar">
+      </div>
       <div class="profile-details">
-        <h2 id="headerNameCard" style="margin:0 0 4px 0; font-size:18px; color: #ffffff;">Nama Siswa</h2>
-        <p id="headerEmailCard" style="margin:0; color: #ffffff; font-size:13px; font-weight: 500;">email@siswa.com</p>
-        <p id="headerSchoolCard" style="margin:4px 0 0 0; color: #ffffff; font-size:12px; opacity: 0.9;">Sekolah -</p>
+        <h2 id="headerNameCard" style="margin:0 0 4px 0; font-size:20px; font-weight: 700; color: #ffffff;">Nama Siswa</h2>
+        <p id="headerEmailCard" style="margin:0; color: rgba(255,255,255,0.9); font-size:13px; font-weight: 500;">email@siswa.com</p>
+        <div>
+          <span id="headerSchoolCard" class="school-badge">🏫 Memuat sekolah...</span>
+        </div>
       </div>
       <div class="profile-actions">
-        <button class="btn-action" onclick="openProfileModal()">✏ Edit Profil</button>
+        <button class="btn-action" onclick="openProfileModal()">✏️️ Edit Profil</button>
       </div>
     </div>
 
-    <!-- MENU CEPAT (Modern & Responsif) -->
-    <div class="card" style="background: transparent; border: none; box-shadow: none; padding: 0; margin-bottom: 24px;">
-      <h3 style="margin-bottom: 14px; font-size: 16px;">Menu Cepat</h3>
+    <!-- MENU CEPAT -->
+    <div style="margin-bottom: 24px;">
+      <h3 class="section-title">Menu Cepat</h3>
       <div class="menu-grid">
         <div class="menu-card" onclick="goMaterialsSiswa()">
-          <div class="icon">📚</div>
+          <div class="icon-box">📚</div>
           <div class="title">Materi & Tugas</div>
         </div>
         <div class="menu-card" onclick="goMaterialsSiswa()">
-          <div class="icon">📝</div>
+          <div class="icon-box">📝</div>
           <div class="title">Latihan Aktif</div>
         </div>
-        <div class="menu-card" onclick="logout()" style="border-color: #fee2e2; background: #fff5f5;">
-          <div class="icon">🚪</div>
+        <div class="menu-card" onclick="logout()" style="border-color: #fee2e2; background: #fffdfd;">
+          <div class="icon-box" style="background: #fef2f2;">🚪</div>
           <div class="title" style="color: #ef4444;">Logout</div>
         </div>
       </div>
@@ -208,10 +309,10 @@
 
     <!-- REPORT NILAI SAYA -->
     <div class="report-card">
-      <h3 style="margin-top:0; font-size:16px; display: flex; align-items: center; gap: 8px;">
+      <h3 style="margin-top:0; font-size:16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
         📊 Report Nilai Latihan Saya
       </h3>
-      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Daftar nilai dari latihan yang telah Anda kerjakan.</p>
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Daftar rekap nilai dari latihan dan tugas yang telah Anda kerjakan.</p>
       <div id="reportContainer">
         <div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px;">Memuat riwayat nilai...</div>
       </div>
@@ -223,18 +324,18 @@
 <!-- MODAL EDIT PROFIL -->
 <div id="profileModal" class="modal-overlay">
   <div class="modal-box">
-    <h3 style="margin-top:0;">✏️ Edit Profil Siswa</h3>
+    <h3 style="margin-top:0; font-size: 18px; font-weight: 700; margin-bottom: 16px;">✏️ Edit Profil Siswa</h3>
     <div class="form-group">
       <label>Nama Lengkap</label>
       <input type="text" id="profileName" placeholder="Nama lengkap...">
     </div>
     <div class="form-group">
       <label>Foto Profil Baru (Opsional)</label>
-      <input type="file" id="profileImageFile" accept="image/*" style="padding: 8px;">
+      <input type="file" id="profileImageFile" accept="image/*" style="padding: 8px; background: #f8fafc;">
     </div>
     <div class="modal-buttons">
       <button class="btn-cancel" onclick="closeProfileModal()">Batal</button>
-      <button class="btn-save" id="btnSaveProfile" onclick="saveProfile()">Simpan</button>
+      <button class="btn-save" id="btnSaveProfile" onclick="saveProfile()">Simpan Perubahan</button>
     </div>
   </div>
 </div>
