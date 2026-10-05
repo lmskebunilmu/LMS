@@ -168,7 +168,7 @@ async function loadExercises(schoolId, classId) {
 }
 
 // ==========================
-// RENDER UI MODERN (DEFAULT CLOSED / SCROLLABLE)
+// RENDER UI (MAPEL -> BAB -> SUB-BAB -> ITEM)
 // ==========================
 function renderMaterials(data) {
   const container = document.getElementById("materialSiswaList");
@@ -188,26 +188,31 @@ function renderMaterials(data) {
 
   const grouped = {};
 
-  // Grouping Materi
+  // Grouping Materi: Mapel -> Bab -> Sub-Bab
   data.forEach(m => {
     const mapel = m.subject || "Umum";
     const bab = m.chapter || "Umum";
+    const sub = m.subChapter || "Umum";
 
     grouped[mapel] ??= {};
-    grouped[mapel][bab] ??= { materials: [], exercises: [] };
-    grouped[mapel][bab].materials.push(m);
+    grouped[mapel][bab] ??= {};
+    grouped[mapel][bab][sub] ??= { materials: [], exercises: [] };
+    grouped[mapel][bab][sub].materials.push(m);
   });
 
-  // Grouping Exercises
+  // Grouping Exercises: Mapel -> Bab -> Sub-Bab
   exercisesSiswa.forEach(ex => {
     const mapel = ex.subject || "Umum";
     const bab = ex.chapter || "Umum";
+    const sub = ex.subChapter || "Umum";
 
     grouped[mapel] ??= {};
-    grouped[mapel][bab] ??= { materials: [], exercises: [] };
-    grouped[mapel][bab].exercises.push(ex);
+    grouped[mapel][bab] ??= {};
+    grouped[mapel][bab][sub] ??= { materials: [], exercises: [] };
+    grouped[mapel][bab][sub].exercises.push(ex);
   });
 
+  // 1. Level Mata Pelajaran
   Object.keys(grouped).forEach(mapel => {
     const cardBox = document.createElement("div");
     cardBox.className = "subject-card-box";
@@ -223,6 +228,7 @@ function renderMaterials(data) {
     `;
     const subjectContent = cardBox.querySelector(".subject-content");
 
+    // 2. Level Bab
     Object.keys(grouped[mapel]).forEach(bab => {
       const babDiv = document.createElement("div");
       babDiv.className = "chapter-group";
@@ -231,92 +237,108 @@ function renderMaterials(data) {
           <span>📖 ${bab}</span>
           <div class="chevron">▼</div>
         </div>
-        <div class="chapter-items scrollable-chapter" style="display: none;"></div>
+        <div class="chapter-content" style="display: none;"></div>
       `;
-      const babContent = babDiv.querySelector(".chapter-items");
-      const currentBab = grouped[mapel][bab];
+      const babContent = babDiv.querySelector(".chapter-content");
 
-      // 1. Render Materi Bacaan
-      currentBab.materials.forEach(m => {
-        const item = document.createElement("div");
-        item.className = "item-row material-item";
-        item.innerHTML = `
-          <div class="item-icon-box">📄</div>
-          <div class="item-info">
-            <div class="item-title">${m.title}</div>
-            <div class="item-meta" style="color: var(--primary); font-weight: 600;">Materi Pembelajaran</div>
+      // 3. Level Sub-Bab
+      Object.keys(grouped[mapel][bab]).forEach(sub => {
+        const subDiv = document.createElement("div");
+        subDiv.className = "subchapter-group";
+        subDiv.innerHTML = `
+          <div class="subchapter-header" onclick="toggleAccordion(this)">
+            <span>📑 ${sub}</span>
+            <div class="chevron">▼</div>
           </div>
+          <div class="subchapter-items scrollable-items" style="display: none;"></div>
         `;
-        item.onclick = (e) => {
-          e.stopPropagation();
-          openMaterial(m.materialId);
-        };
-        babContent.appendChild(item);
-      });
+        const subContent = subDiv.querySelector(".subchapter-items");
+        const currentSub = grouped[mapel][bab][sub];
 
-      // 2. Render Latihan / Tugas
-      currentBab.exercises.forEach(ex => {
-        const item = document.createElement("div");
-        item.className = "item-row exercise-item";
+        // 4. Render Materi Bacaan di dalam Sub-Bab
+        currentSub.materials.forEach(m => {
+          const item = document.createElement("div");
+          item.className = "item-row material-item";
+          item.innerHTML = `
+            <div class="item-icon-box">📄</div>
+            <div class="item-info">
+              <div class="item-title">${m.title}</div>
+              <div class="item-meta" style="color: var(--primary); font-weight: 600;">Materi Pembelajaran</div>
+            </div>
+          `;
+          item.onclick = (e) => {
+            e.stopPropagation();
+            openMaterial(m.materialId);
+          };
+          subContent.appendChild(item);
+        });
 
-        let isExpired = false;
-        let deadlineString = "Waktu fleksibel";
+        // 4. Render Latihan / Tugas di dalam Sub-Bab
+        currentSub.exercises.forEach(ex => {
+          const item = document.createElement("div");
+          item.className = "item-row exercise-item";
 
-        if (ex.deadlineDate && ex.deadlineTime) {
-          const deadlineTarget = new Date(`${ex.deadlineDate}T${ex.deadlineTime}:00`);
-          const sekarang = new Date();
-          
-          if (sekarang > deadlineTarget) {
-            isExpired = true;
+          let isExpired = false;
+          let deadlineString = "Waktu fleksibel";
+
+          if (ex.deadlineDate && ex.deadlineTime) {
+            const deadlineTarget = new Date(`${ex.deadlineDate}T${ex.deadlineTime}:00`);
+            const sekarang = new Date();
+            
+            if (sekarang > deadlineTarget) {
+              isExpired = true;
+            }
+            
+            const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
+            const tanggalRapi = new Date(ex.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
+            deadlineString = `${tanggalRapi} - ${ex.deadlineTime} WIB`;
+          }
+
+          if (ex.isAssigned && !isExpired) {
+            item.classList.add("status-active");
+            item.innerHTML = `
+              <div class="item-icon-box">📝</div>
+              <div class="item-info">
+                <div class="item-title">${ex.title}</div>
+                <div class="item-meta text-success">⏱ Batas: ${deadlineString} • <b>Tugas Aktif</b></div>
+              </div>
+            `;
+            item.onclick = (e) => {
+              e.stopPropagation();
+              openExercise(ex.exerciseId);
+            };
+          } else if (ex.isAssigned && isExpired) {
+            item.classList.add("status-expired");
+            item.innerHTML = `
+              <div class="item-icon-box">🔒</div>
+              <div class="item-info">
+                <div class="item-title"><s>${ex.title}</s></div>
+                <div class="item-meta text-danger">❌ Waktu Habis (${deadlineString})</div>
+              </div>
+            `;
+            item.onclick = (e) => {
+              e.stopPropagation();
+              alert("Maaf, waktu pengerjaan latihan ini sudah berakhir.");
+            };
+          } else {
+            item.classList.add("status-locked");
+            item.innerHTML = `
+              <div class="item-icon-box">🔒</div>
+              <div class="item-info">
+                <div class="item-title"><s>${ex.title}</s></div>
+                <div class="item-meta text-muted">Belum Ditugaskan / Terkunci</div>
+              </div>
+            `;
+            item.onclick = (e) => {
+              e.stopPropagation();
+              alert("Latihan ini belum dibuka oleh guru Anda.");
+            };
           }
           
-          const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
-          const tanggalRapi = new Date(ex.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
-          deadlineString = `${tanggalRapi} - ${ex.deadlineTime} WIB`;
-        }
+          subContent.appendChild(item);
+        });
 
-        if (ex.isAssigned && !isExpired) {
-          item.classList.add("status-active");
-          item.innerHTML = `
-            <div class="item-icon-box">📝</div>
-            <div class="item-info">
-              <div class="item-title">${ex.title}</div>
-              <div class="item-meta text-success">⏱ Batas: ${deadlineString} • <b>Tugas Aktif</b></div>
-            </div>
-          `;
-          item.onclick = (e) => {
-            e.stopPropagation();
-            openExercise(ex.exerciseId);
-          };
-        } else if (ex.isAssigned && isExpired) {
-          item.classList.add("status-expired");
-          item.innerHTML = `
-            <div class="item-icon-box">🔒</div>
-            <div class="item-info">
-              <div class="item-title"><s>${ex.title}</s></div>
-              <div class="item-meta text-danger">❌ Waktu Habis (${deadlineString})</div>
-            </div>
-          `;
-          item.onclick = (e) => {
-            e.stopPropagation();
-            alert("Maaf, waktu pengerjaan latihan ini sudah berakhir.");
-          };
-        } else {
-          item.classList.add("status-locked");
-          item.innerHTML = `
-            <div class="item-icon-box">🔒</div>
-            <div class="item-info">
-              <div class="item-title"><s>${ex.title}</s></div>
-              <div class="item-meta text-muted">Belum Ditugaskan / Terkunci</div>
-            </div>
-          `;
-          item.onclick = (e) => {
-            e.stopPropagation();
-            alert("Latihan ini belum dibuka oleh guru Anda.");
-          };
-        }
-        
-        babContent.appendChild(item);
+        babContent.appendChild(subDiv);
       });
 
       subjectContent.appendChild(babDiv);
@@ -817,6 +839,7 @@ window.openExercise = async (id) => {
       }
 
       if (right && selectedLeft) {
+        const wrapper = right.closest nonparametric style;
         const wrapper = right.closest(".match-wrapper");
         if(wrapper.dataset.locked === "true") return;
 
