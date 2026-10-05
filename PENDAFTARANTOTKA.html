@@ -9,25 +9,25 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
-body{
-  margin:0;
-  font-family:Arial, sans-serif;
-  background:#f1f5f9;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  min-height:100vh;
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f1f5f9;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
   padding: 16px;
   box-sizing: border-box;
 }
 
-.card{
-  width:100%;
-  max-width:400px;
-  background:white;
-  padding:28px 24px;
-  border-radius:16px;
-  box-shadow:0 10px 25px rgba(0,0,0,0.08);
+.card {
+  width: 100%;
+  max-width: 400px;
+  background: white;
+  padding: 28px 24px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
   box-sizing: border-box;
 }
 
@@ -66,44 +66,44 @@ body{
   margin-top: 2px;
 }
 
-h2{
-  text-align:center;
-  margin-bottom:16px;
-  color:#0f172a;
+h2 {
+  text-align: center;
+  margin-bottom: 16px;
+  color: #0f172a;
   font-size: 18px;
 }
 
-input, select{
-  width:100%;
-  padding:12px;
-  margin-bottom:12px;
-  border:1px solid #cbd5e1;
-  border-radius:10px;
-  box-sizing:border-box;
-  font-size:14px;
+input, select {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-sizing: border-box;
+  font-size: 14px;
 }
 
 .uppercase-input {
   text-transform: uppercase;
 }
 
-input:focus, select:focus{
-  outline:none;
-  border-color:#2563eb;
-  box-shadow:0 0 0 3px rgba(37,99,235,0.1);
+input:focus, select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
 }
 
-.btn{
-  width:100%;
-  padding:12px;
-  border:none;
-  border-radius:10px;
-  background:#2563eb;
-  color:white;
-  font-size:15px;
-  font-weight:bold;
-  cursor:pointer;
-  transition:background 0.2s;
+.btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #2563eb;
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -113,8 +113,8 @@ input:focus, select:focus{
   margin-bottom: 10px;
 }
 
-.btn:hover{
-  background:#1d4ed8;
+.btn:hover {
+  background: #1d4ed8;
 }
 
 .btn-success { background: #16a34a; }
@@ -172,8 +172,8 @@ input:focus, select:focus{
   <!-- CONTAINER 1: FORM PENDAFTARAN & LOGIN -->
   <div id="authContainer">
     <div class="tab-switcher">
-      <button class="tab-btn active" id="tabRegBtn" onclick="switchTab('register')">Daftar Akun</button>
-      <button class="tab-btn" id="tabLoginBtn" onclick="switchTab('login')">Sudah Punya Akun</button>
+      <button type="button" class="tab-btn active" id="tabRegBtn" onclick="switchTab('register')">Daftar Akun</button>
+      <button type="button" class="tab-btn" id="tabLoginBtn" onclick="switchTab('login')">Sudah Punya Akun</button>
     </div>
 
     <!-- Form Pendaftaran -->
@@ -192,7 +192,7 @@ input:focus, select:focus{
         <option value="SMA">SMA</option>
       </select>
 
-      <button type="submit" class="btn">Daftar Sekarang</button>
+      <button type="submit" class="btn" id="btnRegister">Daftar Sekarang</button>
     </form>
 
     <!-- Form Login -->
@@ -201,7 +201,7 @@ input:focus, select:focus{
       <input type="email" id="loginEmail" placeholder="Email" required>
       <input type="password" id="loginPassword" placeholder="Password" required>
 
-      <button type="submit" class="btn">Masuk</button>
+      <button type="submit" class="btn" id="btnLogin">Masuk</button>
     </form>
   </div>
 
@@ -268,11 +268,12 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("authContainer").classList.add("hidden");
     document.getElementById("dashboardContainer").classList.remove("hidden");
     
-    // Ambil nama user dari Firestore jika ada
     try {
       const userSnap = await getDoc(doc(db, "users", user.uid));
       if (userSnap.exists()) {
         const userData = userSnap.data();
+        document.getElementById("welcomeTextinnerText") = `Selamat Datang, ${userData.name || user.email}!`;
+        // Perbaikan kecil pada properti innerText
         document.getElementById("welcomeText").innerText = `Selamat Datang, ${userData.name || user.email}!`;
       } else {
         document.getElementById("welcomeText").innerText = `Selamat Datang, ${user.email}!`;
@@ -296,6 +297,7 @@ window.handleRegister = async function(event){
   let school = document.getElementById("regSchool").value.trim();
   let phone = document.getElementById("regPhone").value.trim();
   let level = document.getElementById("regLevel").value;
+  let btnRegister = document.getElementById("btnRegister");
 
   if(!name || !email || !password || !school || !phone || !level){
     alert("Semua kolom wajib diisi!");
@@ -303,6 +305,9 @@ window.handleRegister = async function(event){
   }
 
   try {
+    btnRegister.disabled = true;
+    btnRegister.innerText = "Memproses...";
+
     let userCredential = await createUserWithEmailAndPassword(auth, email, password);
     let uid = userCredential.user.uid;
 
@@ -320,7 +325,10 @@ window.handleRegister = async function(event){
     alert("Pendaftaran berhasil!");
   }
   catch(error){
-    alert(error.message);
+    alert("Pendaftaran gagal: " + error.message);
+  } finally {
+    btnRegister.disabled = false;
+    btnRegister.innerText = "Daftar Sekarang";
   }
 }
 
@@ -330,11 +338,17 @@ window.handleLogin = async function(event){
 
   let email = document.getElementById("loginEmail").value.trim();
   let password = document.getElementById("loginPassword").value;
+  let btnLogin = document.getElementById("btnLogin");
 
   try {
+    btnLogin.disabled = true;
+    btnLogin.innerText = "Masuk...";
     await signInWithEmailAndPassword(auth, email, password);
   } catch(error){
     alert("Login gagal: " + error.message);
+  } finally {
+    btnLogin.disabled = false;
+    btnLogin.innerText = "Masuk";
   }
 }
 
