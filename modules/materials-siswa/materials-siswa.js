@@ -17,10 +17,10 @@ let exercisesSiswa = [];
 let filteredMaterials = [];
 let classMap = {};
 let schoolData = null;
-let studentClassId = null; // Menyimpan ID Kelas tempat siswa bernaung
+let studentClassId = null;
 
 // ==========================
-// AUTH
+// AUTH & INITIAL LOAD
 // ==========================
 onAuthStateChanged(auth, async (user) => {
   if (!user) return window.location = "../../login.html";
@@ -31,24 +31,16 @@ onAuthStateChanged(auth, async (user) => {
   const userData = userSnap.data();
 
   if (userData.role !== "siswa") {
-    alert("Akses hanya siswa");
+    alert("Akses khusus siswa!");
     return window.location = "../../login.html";
   }
 
   await loadLayout("siswa");
-
-  // 🔥 WAJIB: tunggu header ready
   await waitForHeader();
-
-  // 🔥 load header profil
   await loadProfileHeader(user, userData);
-
   await loadSchoolData(userData.schoolId);
   
-  // 🔥 Cari kelas siswa berdasarkan array 'students' yang dikelola admin
   await findStudentClass(user.uid, userData.schoolId);
-  
-  // Ambil data peta nama kelas (Disinkronkan ke field 'className' milik admin)
   await loadClassMap(userData.schoolId);
   
   if (studentClassId) {
@@ -67,15 +59,11 @@ async function loadProfileHeader(user, userData){
   const school = schoolSnap.exists() ? schoolSnap.data() : {};
 
   document.getElementById("headerNameHeader").innerText = userData.name || "Siswa";
-  // Perbaikan path jika gambar default pecah/404
   document.getElementById("headerAvatarHeader").src = userData.avatarURL || "../../assets/images/default-avatar.png";
   document.getElementById("headerSchoolName").innerText = school.name || "-";
   document.getElementById("headerSchoolLogo").src = school.logoURL || "../../assets/images/default-logo.png";
 }
 
-// ==========================
-// WAIT HEADER DOM READY
-// ==========================
 function waitForHeader(){
   return new Promise(resolve => {
     const interval = setInterval(() => {
@@ -88,9 +76,6 @@ function waitForHeader(){
   });
 }
 
-// ==========================
-// SCHOOL
-// ==========================
 async function loadSchoolData(schoolId) {
   const snap = await getDoc(doc(db, "schools", schoolId));
   if (!snap.exists()) return;
@@ -101,43 +86,28 @@ async function loadSchoolData(schoolId) {
   }
 }
 
-// ==========================
-// FIND STUDENT CLASS
-// ==========================
 async function findStudentClass(studentUid, schoolId) {
   try {
     const studentDocSnap = await getDoc(doc(db, "students", studentUid));
     if (studentDocSnap.exists()) {
-      const studentData = studentDocSnap.data();
-      studentClassId = studentData.classId || null;
-      console.log("Menemukan Class ID Siswa:", studentClassId);
-    } else {
-      console.warn("Dokumen siswa di koleksi 'students' tidak ditemukan.");
+      studentClassId = studentDocSnap.data().classId || null;
     }
   } catch (err) {
     console.error("Gagal memuat kelas siswa:", err);
   }
 }
 
-// ==========================
-// CLASS MAP
-// ==========================
 async function loadClassMap(schoolId) {
-  const q = query(
-    collection(db, "classes"),
-    where("schoolId", "==", schoolId)
-  );
-
+  const q = query(collection(db, "classes"), where("schoolId", "==", schoolId));
   const snap = await getDocs(q);
   classMap = {};
-
   snap.forEach(d => {
     classMap[d.id] = d.data().name || "Kelas Tanpa Nama"; 
   });
 }
 
 // ==========================
-// MATERIAL
+// LOAD DATA MATERIALS & EXERCISES
 // ==========================
 async function loadMaterials(schoolId, classId) {
   const q = query(
@@ -158,7 +128,7 @@ async function loadMaterials(schoolId, classId) {
     temp.push({
       materialId: assign.materialId,
       classId: assign.classId,
-      subject: mat.subject,
+      subject: mat.subject || "Umum",
       chapter: mat.chapter || "Umum",
       subChapter: mat.subChapter || "Umum",
       title: mat.title,
@@ -173,9 +143,6 @@ async function loadMaterials(schoolId, classId) {
   filteredMaterials = materialsSiswa;
 }
 
-// ==========================
-// EXERCISES
-// ==========================
 async function loadExercises(schoolId, classId) {
   const q = query(
     collection(db, "exerciseGuru"),
@@ -195,7 +162,7 @@ async function loadExercises(schoolId, classId) {
     temp.push({
       exerciseId: assign.exerciseId,
       classId: assign.classId,
-      subject: ex.subject,
+      subject: ex.subject || "Umum",
       chapter: ex.chapter || "Umum",
       subChapter: ex.subChapter || "Umum",
       title: ex.title,
@@ -212,7 +179,7 @@ async function loadExercises(schoolId, classId) {
 }
 
 // ==========================
-// RENDER MATERIALS
+// RENDER UI (MODERN, FRESH & MOBILE-FRIENDLY)
 // ==========================
 function renderMaterials(data) {
   const container = document.getElementById("materialSiswaList");
@@ -221,13 +188,19 @@ function renderMaterials(data) {
   container.innerHTML = "";
 
   if (!data.length && !exercisesSiswa.length) {
-    container.innerHTML = `<p style="padding:10px">Tidak ada materi atau latihan untuk kelas Anda.</p>`;
+    container.innerHTML = `
+      <div class="empty-state">
+        <div style="font-size: 40px; margin-bottom: 10px;">📭</div>
+        <p style="color:#6b7280; font-size:14px;">Belum ada materi atau latihan yang tersedia untuk kelas Anda saat ini.</p>
+      </div>`;
     return;
   }
 
   const grouped = {};
+
+  // Grouping Materi
   data.forEach(m => {
-    const kelas = classMap[m.classId] || "Tanpa Kelas";
+    const kelas = classMap[m.classId] || "Kelas Anda";
     const mapel = m.subject || "Umum";
     const bab = m.chapter || "Umum";
 
@@ -237,8 +210,9 @@ function renderMaterials(data) {
     grouped[kelas][mapel][bab].materials.push(m);
   });
 
+  // Grouping Exercises
   exercisesSiswa.forEach(ex => {
-    const kelas = classMap[ex.classId] || "Tanpa Kelas";
+    const kelas = classMap[ex.classId] || "Kelas Anda";
     const mapel = ex.subject || "Umum";
     const bab = ex.chapter || "Umum";
 
@@ -252,44 +226,61 @@ function renderMaterials(data) {
     const box = document.createElement("div");
     box.className = "accordion-box";
     box.innerHTML = `
-      <div class="level kelas" onclick="toggle(this)">🏫 ${kelas}</div>
-      <div class="content"></div>
+      <div class="level kelas active" onclick="toggleAccordion(this)">
+        <span>🏫 ${kelas}</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="content" style="display: block;"></div>
     `;
     const kelasContent = box.querySelector(".content");
 
     Object.keys(grouped[kelas]).forEach(mapel => {
       const mapelDiv = document.createElement("div");
+      mapelDiv.className = "mapel-group";
       mapelDiv.innerHTML = `
-        <div class="level mapel" onclick="toggle(this)">📘 ${mapel}</div>
-        <div class="content"></div>
+        <div class="level mapel active" onclick="toggleAccordion(this)">
+          <span>📘 ${mapel}</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="content" style="display: block;"></div>
       `;
       const mapelContent = mapelDiv.querySelector(".content");
 
       Object.keys(grouped[kelas][mapel]).forEach(bab => {
         const babDiv = document.createElement("div");
+        babDiv.className = "bab-group";
         babDiv.innerHTML = `
-          <div class="level bab" onclick="toggle(this)">📖 ${bab}</div>
+          <div class="level bab" onclick="toggleAccordion(this)">
+            <span>📖 ${bab}</span>
+            <span class="chevron">▼</span>
+          </div>
           <div class="content"></div>
         `;
         const babContent = babDiv.querySelector(".content");
         const currentBab = grouped[kelas][mapel][bab];
 
-        // Render Materi Bacaan
+        // 1. Render Materi Bacaan
         currentBab.materials.forEach(m => {
           const item = document.createElement("div");
-          item.className = "materi-item";
-          item.innerHTML = `📄 ${m.title}`;
+          item.className = "materi-item material-card";
+          item.innerHTML = `
+            <div class="item-icon material-icon">📄</div>
+            <div class="item-info">
+              <div class="item-title">${m.title}</div>
+              <div class="item-badge">Materi Pembelajaran</div>
+            </div>
+          `;
           item.onclick = () => openMaterial(m.materialId);
           babContent.appendChild(item);
         });
 
-        // RENDER LATIHAN
+        // 2. Render Latihan / Tugas
         currentBab.exercises.forEach(ex => {
           const item = document.createElement("div");
-          item.className = "materi-item";
+          item.className = "materi-item exercise-card";
 
           let isExpired = false;
-          let deadlineString = "Tidak ditentukan";
+          let deadlineString = "Waktu fleksibel";
 
           if (ex.deadlineDate && ex.deadlineTime) {
             const deadlineTarget = new Date(`${ex.deadlineDate}T${ex.deadlineTime}:00`);
@@ -301,40 +292,39 @@ function renderMaterials(data) {
             
             const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
             const tanggalRapi = new Date(ex.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
-            deadlineString = `${tanggalRapi} - Pukul ${ex.deadlineTime} WIB`;
+            deadlineString = `${tanggalRapi} - ${ex.deadlineTime} WIB`;
           }
 
           if (ex.isAssigned && !isExpired) {
-            item.style.borderLeft = "4px solid #16a34a"; 
-            item.style.cursor = "pointer";
+            item.classList.add("status-active");
             item.innerHTML = `
-              📝 ${ex.title} 
-              <span style="color:#16a34a; font-size:11px; font-weight:bold; margin-left:8px;">
-                ⏱ Batas: ${deadlineString} (Tugas Aktif)
-              </span>`;
+              <div class="item-icon exercise-icon">📝</div>
+              <div class="item-info">
+                <div class="item-title">${ex.title}</div>
+                <div class="item-meta text-success">⏱ Batas: ${deadlineString} • <b>Tugas Aktif</b></div>
+              </div>
+            `;
             item.onclick = () => openExercise(ex.exerciseId);
-
           } else if (ex.isAssigned && isExpired) {
-            item.style.borderLeft = "4px solid #ef4444"; 
-            item.style.opacity = "0.5";
-            item.style.cursor = "not-allowed";
+            item.classList.add("status-expired");
             item.innerHTML = `
-              🔒 <s>📝 ${ex.title}</s> 
-              <span style="color:#ef4444; font-size:11px; font-weight:bold; margin-left:8px;">
-                ❌ Batas Waktu Habis (${deadlineString})
-              </span>`;
-            item.onclick = () => alert("Maaf, waktu pengerjaan latihan ini sudah habis/melewati batas pengumpulan!");
-
+              <div class="item-icon">🔒</div>
+              <div class="item-info">
+                <div class="item-title"><s>${ex.title}</s></div>
+                <div class="item-meta text-danger">❌ Waktu Habis (${deadlineString})</div>
+              </div>
+            `;
+            item.onclick = () => alert("Maaf, waktu pengerjaan latihan ini sudah berakhir.");
           } else {
-            item.style.borderLeft = "4px solid #9ca3af"; 
-            item.style.opacity = "0.6";
-            item.style.cursor = "not-allowed";
+            item.classList.add("status-locked");
             item.innerHTML = `
-              🔒 <s>📝 ${ex.title}</s> 
-              <span style="color:#6b7280; font-size:11px; font-style:italic; margin-left:8px;">
-                (Belum Ditugaskan / Terkunci)
-              </span>`;
-            item.onclick = () => alert("Latihan ini belum dibuka/ditugaskan aktif oleh gurumu.");
+              <div class="item-icon">🔒</div>
+              <div class="item-info">
+                <div class="item-title"><s>${ex.title}</s></div>
+                <div class="item-meta text-muted">Belum Ditugaskan / Terkunci</div>
+              </div>
+            `;
+            item.onclick = () => alert("Latihan ini belum dibuka oleh guru Anda.");
           }
           
           babContent.appendChild(item);
@@ -349,16 +339,22 @@ function renderMaterials(data) {
 }
 
 // ==========================
-// TOGGLE
+// TOGGLE ACCORDION SMOOTH
 // ==========================
-window.toggle = (el) => {
+window.toggleAccordion = (el) => {
+  el.classList.toggle("active");
   const content = el.nextElementSibling;
   if (!content) return;
-  content.style.display = content.style.display === "block" ? "none" : "block";
+  
+  if (content.style.display === "block") {
+    content.style.display = "none";
+  } else {
+    content.style.display = "block";
+  }
 };
 
 // ==========================
-// OPEN MATERIAL
+// OPEN MATERIAL VIEWER
 // ==========================
 window.openMaterial = async (id) => {
   const snap = await getDoc(doc(db, "materials", id));
@@ -370,6 +366,7 @@ window.openMaterial = async (id) => {
   win.document.write(`
     <html>
     <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${data.title}</title>
       <script>
         window.MathJax = {
@@ -381,7 +378,9 @@ window.openMaterial = async (id) => {
       </script>
       <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       <style>
-        body{font-family:Arial;padding:20px;line-height:1.8}
+        body{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;padding:20px;max-width:800px;margin:auto;line-height:1.7;color:#1f2937}
+        h2{color:#2563eb;border-bottom:2px solid #e5e7eb;padding-bottom:10px;}
+        iframe, embed{width:100%;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);margin:15px 0;}
       </style>
     </head>
     <body>
@@ -393,9 +392,6 @@ window.openMaterial = async (id) => {
   win.document.close();
 };
 
-// ==========================
-// LOCK PAGE IF SCHOOL INACTIVE
-// ==========================
 function lockPage(){
   const main = document.querySelector(".main");
   if (!main) return;
@@ -406,13 +402,8 @@ function lockPage(){
   `;
 }
 
-// ==========================
-// GENERATE EMBED CONTENT
-// ==========================
 function generateContent(input) {
   let output = input;
-
-  // Youtube Embed
   output = output.replace(
     /(https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s<]+)/gi,
     (url) => {
@@ -422,36 +413,26 @@ function generateContent(input) {
       } else if (url.includes("youtu.be/")) {
         videoId = url.split("youtu.be/")[1].split("?")[0];
       }
-      return `
-        <iframe width="100%" height="315" src="https://www.youtube.com/embed/${videoId}" allowfullscreen style="border:none;border-radius:10px;margin-top:15px;"></iframe>
-      `;
+      return `<iframe width="100%" height="315" src="https://www.youtube.com/embed/${videoId}" allowfullscreen style="border:none;"></iframe>`;
     }
   );
 
-  // Google Drive Embed
   output = output.replace(
     /https?:\/\/drive\.google\.com\/file\/d\/([^\/]+)\/view[^\s<]*/gi,
-    (match, fileId) => `
-        <iframe src="https://drive.google.com/file/d/${fileId}/preview" width="100%" height="500" style="border:none;border-radius:10px;"></iframe>
-      `
+    (match, fileId) => `<iframe src="https://drive.google.com/file/d/${fileId}/preview" width="100%" height="450" style="border:none;"></iframe>`
   );
 
-  // Firebase PDF Embed
   output = output.replace(
     /(https?:\/\/[^\s<]+\.pdf(\?[^\s<]+)?)/gi,
-    (url) => `
-      <embed src="${url}" type="application/pdf" width="100%" height="600px" style="margin-top:15px; border-radius:10px;">
-    `
+    (url) => `<embed src="${url}" type="application/pdf" width="100%" height="500px">`
   );
 
-  // Script tag clean up
   output = output.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
-
   return output;
 }
 
 // ==========================
-// OPEN EXERCISE (PERBAIKAN ERROR MIME TYPE & BLANK WINDOW)
+// OPEN EXERCISE
 // ==========================
 window.openExercise = async (id) => {
   const exSnap = await getDoc(doc(db, "exercises", id));
@@ -461,19 +442,11 @@ window.openExercise = async (id) => {
   }
 
   const exData = exSnap.data();
-  
-  const q = query(
-    collection(db, "questions"), 
-    where("exerciseId", "==", id)
-  );
+  const q = query(collection(db, "questions"), where("exerciseId", "==", id));
   const qSnap = await getDocs(q);
   
-  const questions = qSnap.docs.map(d => ({
-    id: d.id,
-    ...d.data()
-  }));
+  const questions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-  // Sorting pertanyaan
   questions.sort((a, b) => {
     let waktuA = a.createdAt?.toDate?.()?.getTime() || new Date(a.createdAt).getTime() || 0;
     let waktuB = b.createdAt?.toDate?.()?.getTime() || new Date(b.createdAt).getTime() || 0;
@@ -484,66 +457,59 @@ window.openExercise = async (id) => {
   const currentUser = auth.currentUser;
   const studentUid = currentUser ? currentUser.uid : "anonymous";
 
-  // VALIDASI DATABASE UTAMA
   let dbSubmission = null;
   try {
     const subSnap = await getDoc(doc(db, "student_submissions", studentUid + "_" + id));
-    if (subSnap.exists()) {
-      dbSubmission = subSnap.data();
-    }
+    if (subSnap.exists()) dbSubmission = subSnap.data();
   } catch (err) {
-    console.error("Gagal memvalidasi status database:", err);
+    console.error("Gagal memeriksa submission:", err);
   }
 
   const win = window.open("", "_blank");
   if (!win) {
-    alert("Pop-up diblokir oleh browser! Harap izinkan pop-up.");
+    alert("Pop-up diblokir browser! Izinkan pop-up untuk mengerjakan latihan.");
     return;
   }
 
-  win.document.innerHTML = ""; 
   win.document.title = exData.title;
 
-  // MathJax Config
   const inlineScript = win.document.createElement("script");
   inlineScript.text = `window.MathJax = { tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']] } };`;
   win.document.head.appendChild(inlineScript);
 
-  // CSS Styling
   const styleEl = win.document.createElement("style");
   styleEl.textContent = `
     *{box-sizing:border-box;}
-    body{margin:0;font-family:Arial;background:#f5f6fa;color:#333;}
-    .topbar{position:sticky;top:0;z-index:999;background:white;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.08);}
-    .title{font-size:20px;font-weight:bold;}
-    .btn-group{display:flex;gap:10px;}
-    button{border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:bold;}
-    .fullscreen-btn{background:#111827;color:white;}
-    .exit-btn{background:#dc2626;color:white;}
-    .submit-btn{background:#2563eb;color:white;width:100%;margin-top:30px;padding:15px;font-size:16px;}
-    .container{max-width:1000px;margin:auto;padding:25px;}
-    .question{background:white;margin-bottom:25px;padding:20px;border-radius:15px;box-shadow:0 2px 8px rgba(0,0,0,.05);}
-    h3{margin-top:0;}
-    label{display:block;margin:12px 0;padding:12px;border-radius:10px;background:#f9fafb;cursor:pointer;transition:.2s;}
-    label:hover{background:#eef2ff;}
-    input[type="text"]{width:100%;padding:12px;border-radius:10px;border:1px solid #ddd;}
-    .match-wrapper{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:50px;margin-top:20px;}
-    .match-column{display:flex;flex-direction:column;gap:15px;}
-    .match-item{background:white;border:2px solid #ddd;border-radius:12px;padding:14px;cursor:pointer;transition:.2s;position:relative;z-index:2;}
-    .match-item:hover{background:#eef2ff;}
+    body{margin:0;font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;background:#f3f4f6;color:#1f2937;padding-bottom:40px;}
+    .topbar{position:sticky;top:0;z-index:999;background:white;padding:15px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+    .title{font-size:16px;font-weight:bold;color:#111827;}
+    .btn-group{display:flex;gap:8px;}
+    button{border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;}
+    .fullscreen-btn{background:#374151;color:white;}
+    .exit-btn{background:#ef4444;color:white;}
+    .submit-btn{background:#2563eb;color:white;width:100%;margin-top:20px;padding:14px;font-size:15px;border-radius:12px;box-shadow:0 4px 12px rgba(37,99,235,0.2);}
+    .container{max-width:800px;margin:auto;padding:15px;}
+    .question{background:white;margin-bottom:16px;padding:18px;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,0.05);}
+    h3{margin-top:0;font-size:15px;}
+    label{display:block;margin:10px 0;padding:10px 14px;border-radius:8px;background:#f9fafb;cursor:pointer;border:1px solid #e5e7eb;transition:all .2s;}
+    label:hover{background:#eef2ff;border-color:#c7d2fe;}
+    input[type="text"]{width:100%;padding:10px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;}
+    .match-wrapper{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:15px;}
+    .match-column{display:flex;flex-direction:column;gap:10px;}
+    .match-item{background:white;border:1px solid #d1d5db;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;position:relative;z-index:2;}
     .match-item.selected{border-color:#2563eb;background:#dbeafe;}
     .match-item.connected{border-color:#16a34a;background:#dcfce7;}
     .match-lines{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;}
-    .attempts-info{font-size:12px;color:#ef4444;margin-top:5px;display:block;font-weight:bold;}
+    .attempts-info{font-size:11px;color:#ef4444;margin-top:4px;display:block;font-weight:600;}
   `;
   win.document.head.appendChild(styleEl);
 
   let bodyContent = `
     <div class="topbar">
-      <div class="title">📝 ${exData.title} ${dbSubmission ? '<span style="color:#16a34a;font-size:14px;">(Sudah Dikumpulkan)</span>' : ''}</div>
+      <div class="title">📝 ${exData.title} ${dbSubmission ? '<span style="color:#16a34a;font-size:12px;">(Selesai)</span>' : ''}</div>
       <div class="btn-group">
-        <button class="fullscreen-btn" onclick="openFullscreen()">⛶ Fullscreen</button>
-        <button class="exit-btn" onclick="closeFullscreen()">✕ Exit Fullscreen</button>
+        <button class="fullscreen-btn" onclick="openFullscreen()">⛶ Full</button>
+        <button class="exit-btn" onclick="closeFullscreen()">✕</button>
       </div>
     </div>
     <div class="container">
@@ -557,7 +523,7 @@ window.openExercise = async (id) => {
     const currentAttempts = dbSubmission ? 1 : (savedAttempts[index] || 0);
     const isLocked = currentAttempts >= 1;
 
-    bodyContent += `<div class="question"><h3>${index + 1}. ${qData.question || ""}</h3>`;
+    bodyContent += `<div class="question"><h3>Soal ${index + 1}. ${qData.question || ""}</h3>`;
 
     if (qData.type === "pg") {
       (qData.options || []).forEach((opt, i) => {
@@ -570,7 +536,7 @@ window.openExercise = async (id) => {
         bodyContent += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
     } else if (qData.type === "isian") {
-      bodyContent += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Jawaban..." ${isLocked ? 'disabled' : ''}>`;
+      bodyContent += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban..." ${isLocked ? 'disabled' : ''}>`;
     } else if (qData.type === "match") {
       const shuffled = [...(qData.pairs || [])].sort(() => Math.random() - 0.5);
       bodyContent += `
@@ -588,8 +554,8 @@ window.openExercise = async (id) => {
       (qData.fields || []).forEach((f, i) => {
         const val = savedAnswer?.[i] || "";
         bodyContent += `
-          <div style="margin-top:15px">
-            <label style="display:block; margin-bottom:8px; font-weight:bold; background:none; padding:0;">${f.label}</label>
+          <div style="margin-top:10px">
+            <label style="display:block; margin-bottom:5px; font-weight:600; background:none; padding:0; border:none;">${f.label}</label>
             <input type="text" name="multi_${index}_${i}" value="${val}" placeholder="Jawaban..." ${isLocked ? 'disabled' : ''}>
           </div>
         `;
@@ -597,14 +563,14 @@ window.openExercise = async (id) => {
     }
 
     bodyContent += `
-      <div style="margin-top:20px">
-        <button id="btn_check_${index}" onclick="checkAnswer(${index})" style="background:#2563eb; color:white; border:none; padding:10px 16px; border-radius:10px; cursor:pointer;" ${isLocked ? 'disabled style="background:#9ca3af; cursor:not-allowed;"' : ''}>✅ Cek Jawaban</button>
-        <span class="attempts-info" id="attempts_text_${index}">${isLocked ? '🔒 Soal Terkunci (1x Kesempatan Habis)' : '⚠️ Hanya bisa dicek 1 kali'}</span>
-        <div id="result_${index}" style="margin-top:15px;font-weight:bold"></div>
-        <div id="explain_${index}" style="margin-top:15px; ${isLocked ? 'display:block;' : 'display:none;'}">
-          <button onclick="toggleExplain(${index})" style="background:#16a34a; color:white; border:none; padding:10px 16px; border-radius:10px; cursor:pointer;">📘 Pembahasan</button>
-          <div id="explain_content_${index}" style="display:none; margin-top:10px; background:#f3f4f6; padding:15px; border-radius:10px;">
-            ${qData.explanation || "Belum ada pembahasan"}
+      <div style="margin-top:15px">
+        <button id="btn_check_${index}" onclick="checkAnswer(${index})" style="background:#2563eb; color:white; padding:8px 14px; border-radius:8px;" ${isLocked ? 'disabled style="background:#9ca3af; cursor:not-allowed;"' : ''}>✅ Cek Jawaban</button>
+        <span class="attempts-info" id="attempts_text_${index}">${isLocked ? '🔒 Soal Terkunci' : '⚠️ Hanya bisa dicek 1 kali'}</span>
+        <div id="result_${index}" style="margin-top:10px;font-weight:bold;font-size:14px;"></div>
+        <div id="explain_${index}" style="margin-top:10px; ${isLocked ? 'display:block;' : 'display:none;'}">
+          <button onclick="toggleExplain(${index})" style="background:#16a34a; color:white; padding:8px 14px; border-radius:8px;">📘 Lihat Pembahasan</button>
+          <div id="explain_content_${index}" style="display:none; margin-top:8px; background:#f9fafb; border:1px solid #e5e7eb; padding:12px; border-radius:8px; font-size:13px;">
+            ${qData.explanation || "Belum ada pembahasan."}
           </div>
         </div>
       </div>
@@ -613,14 +579,13 @@ window.openExercise = async (id) => {
 
   bodyContent += `
       <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'disabled style="background:#9ca3af; cursor:not-allowed;"' : ''}>
-        ${dbSubmission ? '🔒 Jawaban Sudah Terkirim ke Firebase' : '📤 Kirim Jawaban & Simpan Nilai ke Firebase'}
+        ${dbSubmission ? '🔒 Jawaban Telah Disimpan' : '📤 Kirim Nilai ke Guru'}
       </button>
     </div>
   `;
 
   win.document.body.innerHTML = bodyContent;
 
-  // 🔥 CDN INJECTION FIXES
   const scriptEl = win.document.createElement("script");
   scriptEl.type = "module";
   scriptEl.text = `
@@ -657,9 +622,8 @@ window.openExercise = async (id) => {
       localStorage.setItem(key, JSON.stringify(data));
     }
 
-    // Perbaikan scope: dipasang ke objek window agar onclick="checkAnswer(index)" dapat terbaca
     window.checkAnswer = function(index){
-      if(isAlreadySubmitted) { alert("Latihan ini sudah Anda kumpulkan!"); return; }
+      if(isAlreadySubmitted) { alert("Latihan sudah dikumpulkan!"); return; }
       
       const q = questionsData[index];
       const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
@@ -668,14 +632,14 @@ window.openExercise = async (id) => {
       attempts[index] = 1;
       localStorage.setItem(attemptKey, JSON.stringify(attempts));
 
-      document.getElementById("attempts_text_" + index).innerText = "🔒 Soal Terkunci (1x Kesempatan Habis)";
+      document.getElementById("attempts_text_" + index).innerText = "🔒 Soal Terkunci";
 
       let correct = false;
       let userAnswer = null;
 
       if(q.type === "pg"){
         const selected = document.querySelector('input[name="q' + index + '"]:checked');
-        if(!selected) { alert("Pilih salah satu opsi jawaban terlebih dahulu!"); return; }
+        if(!selected) { alert("Pilih opsi jawaban terlebih dahulu!"); return; }
         userAnswer = selected.value;
         saveAnswer(index, userAnswer);
         correct = userAnswer == q.answer;
@@ -716,17 +680,16 @@ window.openExercise = async (id) => {
       const result = document.getElementById("result_"+index);
       if(correct){
         result.innerHTML = "✅ Jawaban Benar";
-        result.style.color = "green";
+        result.style.color = "#16a34a";
       }else{
         result.innerHTML = "❌ Jawaban Salah";
-        result.style.color = "red";
+        result.style.color = "#dc2626";
       }
 
       window.lockQuestionFields(index);
       document.getElementById("explain_"+index).style.display = "block";
     };
 
-    // Dipasang ke window agar loop pemuatan awal dapat mengidentifikasi modul internal ini
     window.lockQuestionFields = function(index){
       const btn = document.getElementById("btn_check_" + index);
       if(btn) {
@@ -795,10 +758,10 @@ window.openExercise = async (id) => {
           submittedAt: new Date()
         });
 
-        alert("🎉 Nilai pengerjaan Anda berhasil disimpan ke Firebase!\\nSkor Nilai Anda: " + score);
+        alert("🎉 Berhasil dikirim! Skor Anda: " + score);
         window.close(); 
       } catch (error) {
-        console.error("Gagal menyimpan ke Firebase:", error);
+        console.error("Gagal mengirim:", error);
         alert("Gagal mengirim jawaban ke database.");
       }
     };
@@ -818,7 +781,7 @@ window.openExercise = async (id) => {
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", x1); line.setAttribute("y1", y1);
       line.setAttribute("x2", x2); line.setAttribute("y2", y2);
-      line.setAttribute("stroke", "#2563eb"); line.setAttribute("stroke-width", "3");
+      line.setAttribute("stroke", "#2563eb"); line.setAttribute("stroke-width", "2");
       svg.appendChild(line);
     };
 
@@ -888,7 +851,7 @@ window.openExercise = async (id) => {
         }
       });
     }, 300);
-    
+
     const mjScript = document.createElement('script');
     mjScript.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
     mjScript.async = true;
