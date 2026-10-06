@@ -10,6 +10,12 @@ let currentSchoolRef = null;
 let currentSchoolName = "-";
 let currentSchoolLogo = "/LMS/assets/images/default-logo.png";
 
+// Variabel Global Data Laporan
+let globalSubmissions = [];
+let globalClassesMap = {};
+let globalExercisesMap = {};
+let globalStudentsMap = {};
+
 // ==========================
 // AUTH + INITIALIZATION
 // ==========================
@@ -54,6 +60,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     await loadProfileHeader(userData);
+    await loadExerciseReports(user);
     await loadClassWithStudents(user);
 
   } catch (err) {
@@ -114,6 +121,150 @@ async function loadProfileHeader(userData) {
 
   const profileEmail = document.getElementById("profileEmail");
   if (profileEmail) profileEmail.value = email;
+}
+
+// ==========================================
+// LOAD EXERCISE REPORTS (LAPORAN HASIL BELAJAR)
+// ==========================================
+async function loadExerciseReports(user) {
+  try {
+    if (!currentSchoolId) return;
+
+    // 1. Ambil daftar kelas yang diampu guru ini
+    const qClasses = query(
+      collection(db, "classes"),
+      where("teacherIds", "array-contains", user.uid),
+      where("schoolId", "==", currentSchoolId)
+    );
+    const snapClasses = await getDocs(qClasses);
+    const teacherClassIds = [];
+    
+    const filterClassSelect = document.getElementById("filterClass");
+    filterClassSelect.innerHTML = `<option value="">-- Semua Kelas yang Diampu --</option>`;
+
+    snapClasses.forEach(cDoc => {
+      const cData = cDoc.data();
+      teacherClassIds.push(cDoc.id);
+      globalClassesMap[cDoc.id] = cData.name || "Kelas Tanpa Nama";
+      
+      // Tambahkan ke dropdown filter kelas
+      filterClassSelect.innerHTML += `<option value="${cDoc.id}">${cData.name}</option>`;
+    });
+
+    if (teacherClassIds.length === 0) {
+      document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8;">Belum ada kelas yang diampu.</td></tr>`;
+      return;
+    }
+
+    // 2. Ambil referensi data exercises (Judul latihan/sub-bab)
+    const exSnap = await getDocs(collection(db, "exercises"));
+    exSnap.forEach(eDoc => {
+      globalExercisesMap[eDoc.id] = eDoc.data().title || "Latihan Tanpa Judul";
+    });
+
+    // Populate dropdown filter exercise
+    const filterExSelect = document.getElementById("filterExercise");
+    filterExSelect.innerHTML = `<option value="">-- Semua Latihan --</option>`;
+    Object.keys(globalExercisesMap).forEach(exId => {
+      filterExSelect.innerHTML += `<option value="${exId}">${globalExercisesMap[exId]}</option>`;
+    });
+
+    // 3. Ambil data siswa berdasarkan kelas yang diampu
+    const studentsSnap = await getDocs(query(collection(db, "students"), where("schoolId", "==", currentSchoolId)));
+    studentsSnap.forEach(sDoc => {
+      const sData = sDoc.data();
+      if (teacherClassIds.includes(sData.classId)) {
+        globalStudentsMap[sDoc.id] = sData.name || "Siswa";
+      }
+    });
+
+    // 4. Ambil submissions siswa
+    const subSnap = await getDocs(query(collection(db, "student_submissions"), where("schoolId", "==", currentSchoolId)));
+    globalSubmissions = [];
+
+    subSnap.forEach(subDoc => {
+      const subData = subDoc.data();
+      // Filter hanya submission dari siswa di kelas yang diampu guru ini
+      if (teacherClassIds.includes(subData.classId) && globalStudentsMap[subData.studentUid]) {
+        globalSubmissions.push(subData);
+      }
+    });
+
+    renderReportTable(globalSubmissions);
+
+  } catch (err) {
+    console.error("Gagal memuat laporan hasil belajar:", err);
+    document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Gagal memuat laporan.</td></tr>`;
+  }
+}
+
+window.filterReports = () => {
+  const selectedClass = document.getElementById("filterClass").value;
+  const selectedEx = document.getElementById("filterExercise").value;
+  const keyword = document.getElementById("searchStudent").value.toLowerCase();
+
+  const filtered = globalSubmissions.filter(sub => {
+    const studentName = (globalStudentsMap[sub.studentUid] || "").toLowerCase();
+    const matchClass = selectedClass ? sub.classId === selectedClass : true;
+    const matchEx = selectedEx ? sub.exerciseId === selectedEx : true;
+    const matchName = studentName.includes(keyword);
+
+    return matchClass && matchEx && matchName;
+  });
+
+  renderReportTable(filtered);
+};
+
+function renderReportTable(dataList) {
+  const tbody = document.getElementById("reportTableBody");
+  if (!tbody) return;
+
+  if (dataList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8;">📭 Belum ada riwayat pengerjaan latihan siswa yang sesuai.</td></tr>`;
+    return;
+  }
+
+  // Urutkan berdasarkan waktu pengumpulan terbaru
+  dataList.sort((a, b) => {
+    const timeA = a.submittedAt?.toDate?.()?.getTime() || new Date(a.submittedAt).getTime() || 0;
+    const timeB = b.submittedAt?.toDate?.()?.getTime() || new Date(b.submittedAt).getTime() || 0;
+    return timeB - timeA;
+  });
+
+  let html = "";
+  dataList.forEach((item, index) => {
+    const studentName = globalStudentsMap[item.studentUid] || "Siswa Tidak Dikenal";
+    const className = globalClassesMap[item.classId] || "-";
+    const exerciseTitle = globalExercisesMap[item.exerciseId] || "Latihan";
+    const score = item.score ?? 0;
+    const correct = item.correctAnswers ?? 0;
+    const total = item.totalQuestions ?? 0;
+
+    let timeFormatted = "-";
+    if (item.submittedAt) {
+      const dateObj = item.submittedAt.toDate ? item.submittedAt.toDate() : new Date(item.submittedAt);
+      timeFormatted = dateObj.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Warna badge skor
+    let scoreColor = "#059669"; // Hijau
+    if (score < 60) scoreColor = "#dc2626"; // Merah
+    else if (score < 75) scoreColor = "#d97706"; // Kuning/Oranye
+
+    html += `
+      <tr>
+        <td>${index + 1}</td>
+        <td><b>👤 ${studentName}</b></td>
+        <td>${className}</td>
+        <td><span style="color: #4f46e5; font-weight: 500;">📖 ${exerciseTitle}</span></td>
+        <td><span style="background: ${scoreColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">${score}</span></td>
+        <td>${correct} / ${total} Benar</td>
+        <td style="font-size: 12px; color: #64748b;">${timeFormatted}</td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
 }
 
 // ===================================================
