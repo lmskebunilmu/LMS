@@ -2,170 +2,93 @@
 <html lang="id">
 
 <head>
-
-<meta charset="UTF-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Dashboard Guru</title>
-
-<link rel="stylesheet"
-href="../assets/css/style.css">
-
-<link rel="stylesheet"
-href="../assets/css/responsive.css">
-
+  <title>Dashboard Guru</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
 </head>
 
 <body>
 
-<div class="wrapper">
+  <div class="wrapper">
+    <!-- SIDEBAR -->
+    <div id="sidebar-container"></div>
 
-<!-- SIDEBAR -->
-<div id="sidebar-container"></div>
+    <!-- MAIN -->
+    <div class="main">
+      <!-- HEADER -->
+      <div id="header-container"></div>
 
-<!-- MAIN -->
-<div class="main">
+      <!-- PROFILE GURU -->
+      <div class="profile-card" id="profileCard">
+        <img id="headerAvatarCard" class="profile-avatar" src="../assets/images/default-avatar.png" alt="Avatar">
+        <div class="profile-details">
+          <h2 id="headerNameCard">Nama Guru</h2>
+          <p id="headerEmailCard">email@guru.com</p>
+          <p id="headerSchoolCard">Nama Sekolah</p>
+        </div>
+        <button class="btn-edit" onclick="openProfileModal()">
+          Edit Profile
+        </button>
+      </div>
 
-<!-- HEADER -->
-<div id="header-container"></div>
+      <!-- STATISTIK -->
+      <div class="card">
+        <h3>Dashboard Guru</h3>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h4 id="totalClasses">0</h4>
+            <p>Kelas Saya</p>
+          </div>
+          <div class="stat-card">
+            <h4 id="totalStudents">0</h4>
+            <p>Total Murid</p>
+          </div>
+          <div class="stat-card">
+            <h4 id="totalSubjects">0</h4>
+            <p>Mata Pelajaran</p>
+          </div>
+        </div>
+      </div>
 
-<!-- PROFILE GURU -->
-<div class="profile-card" id="profileCard">
-
-<img
-id="headerAvatarCard"
-class="profile-avatar"
-src="../assets/images/default-avatar.png"
-alt="Avatar">
-<div class="profile-details">
-
-<h2 id="headerNameCard">
-Nama Guru
-</h2>
-
-<p id="headerEmailCard">
-email@guru.com
-</p>
-
-<p id="headerSchoolCard">
-Nama Sekolah
-</p>
-
-</div>
-
-<button
-class="btn-edit"
-onclick="openProfileModal()">
-
-Edit Profile
-
-</button>
-
-</div>
-<!-- STATISTIK -->
-<div class="card">
-
-<h3>Dashboard Guru</h3>
-
-<div class="stats-grid">
-
-<div class="stat-card">
-<h4 id="totalClasses">0</h4>
-<p>Kelas Saya</p>
-</div>
-
-
-
-</div>
-
-</div>
-
-
-<!-- DAFTAR KELAS & SISWA -->
-<div class="card">
-  <h3>Daftar Kelas & Siswa</h3>
-
-  <div id="classListContainer">
-    <!-- akan diisi dari JS -->
+      <!-- DAFTAR KELAS & SISWA -->
+      <div class="card">
+        <h3>Daftar Kelas & Siswa</h3>
+        <div id="classListContainer">
+          <!-- akan diisi dari JS -->
+        </div>
+      </div>
+    </div>
   </div>
-</div>
-</div>
 
-</div>
+  <!-- MODAL PROFILE -->
+  <div id="profileModal" class="modal">
+    <div class="modal-content">
+      <h3>Edit Profile Guru</h3>
+      <input type="text" id="profileName" placeholder="Nama Guru">
+      <input type="email" id="profileEmail" placeholder="Email">
+      <input type="file" id="profileAvatarFile" accept="image/*">
+      
+      <!-- PASSWORD BARU -->
+      <input type="password" id="profilePassword" placeholder="Password Baru (opsional)">
+      <input type="password" id="profilePasswordConfirm" placeholder="Konfirmasi Password">
 
-<!-- MODAL PROFILE -->
+      <div class="modal-actions">
+        <button class="primary" onclick="saveProfile()">Simpan</button>
+        <button class="danger" onclick="closeProfileModal()">Batal</button>
+      </div>
+    </div>
+  </div>
 
-<div id="profileModal"
-class="modal">
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast">
+    <span id="toastMessage">Berhasil</span>
+  </div>
 
-<div class="modal-content">
-
-<h3>Edit Profile Guru</h3>
-
-<input 
-type="text"
-id="profileName"
-placeholder="Nama Guru">
-
-<input 
-type="email"
-id="profileEmail"
-placeholder="Email">
-
-<input 
-type="file"
-id="profileAvatarFile"
-accept="image/*">
-
-<!-- PASSWORD BARU -->
-
-<input 
-type="password"
-id="profilePassword"
-placeholder="Password Baru (opsional)">
-
-<input 
-type="password"
-id="profilePasswordConfirm"
-placeholder="Konfirmasi Password">
-
-<div class="modal-actions">
-
-<button 
-class="primary"
-onclick="saveProfile()">
-
-Simpan
-
-</button>
-
-<button 
-class="danger"
-onclick="closeProfileModal()">
-
-Batal
-
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-<div id="toast"
-class="toast">
-
-<span id="toastMessage">
-Berhasil
-</span>
-
-</div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-<script type="module"
-src="./guruDashboard.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script type="module" src="./guruDashboard.js"></script>
 
 </body>
-
 </html>
