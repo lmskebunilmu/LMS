@@ -163,9 +163,9 @@ function renderQuestions(questions, studentUid) {
   `;
   container.innerHTML = html;
 
-  // Render ulang MathJax setelah DOM terisi soal dinamis
-  if (window.MathJax && typeof MathJax.typesetPromise === "function") {
-    MathJax.typesetPromise().catch((err) => console.log("MathJax error:", err));
+  // Render ulang MathJax setelah elemen dimasukkan
+  if (window.MathJax && typeof MathJax.typeset === "function") {
+    MathJax.typeset();
   }
 }
 
@@ -263,9 +263,9 @@ window.toggleExplain = function(index) {
   const isHidden = el.style.display === "none" || el.style.display === "";
   el.style.display = isHidden ? "block" : "none";
 
-  // Pastikan rumus di dalam pembahasan terender saat dibuka
-  if (isHidden && window.MathJax && typeof MathJax.typesetPromise === "function") {
-    MathJax.typesetPromise([el]).catch((err) => console.log("MathJax error:", err));
+  // Render MathJax di dalam kotak pembahasan saat dibuka
+  if (isHidden && window.MathJax && typeof MathJax.typeset === "function") {
+    MathJax.typeset([el]);
   }
 };
 
