@@ -54,7 +54,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     await loadProfileHeader(userData);
-    await loadStats(user);
     await loadClassWithStudents(user);
 
   } catch (err) {
@@ -115,50 +114,6 @@ async function loadProfileHeader(userData) {
 
   const profileEmail = document.getElementById("profileEmail");
   if (profileEmail) profileEmail.value = email;
-}
-
-// ==========================
-// LOAD STATS
-// ==========================
-async function loadStats(user) {
-  try {
-    if (!currentSchoolId) return;
-
-    const qClasses = query(
-      collection(db, "classes"),
-      where("teacherIds", "array-contains", user.uid),
-      where("schoolId", "==", currentSchoolId)
-    );
-
-    const snapClasses = await getDocs(qClasses);
-    const totalClassesEl = document.getElementById("totalClasses");
-    if (totalClassesEl) totalClassesEl.innerText = snapClasses.size;
-
-    const subjectSet = new Set();
-    let totalStudentsCount = 0;
-
-    for (const classDoc of snapClasses.docs) {
-      const classData = classDoc.data();
-      const classId = classDoc.id;
-
-      const classTeachersMapping = classData.teachers || {};
-      const mySubjects = classTeachersMapping[user.uid] || [];
-      mySubjects.forEach(sub => subjectSet.add(sub));
-
-      const qStudents = query(collection(db, "students"), where("classId", "==", classId));
-      const snapStudents = await getDocs(qStudents);
-      totalStudentsCount += snapStudents.size;
-    }
-
-    const totalStudentsEl = document.getElementById("totalStudents");
-    if (totalStudentsEl) totalStudentsEl.innerText = totalStudentsCount;
-
-    const totalSubjectsEl = document.getElementById("totalSubjects");
-    if (totalSubjectsEl) totalSubjectsEl.innerText = subjectSet.size;
-
-  } catch (err) {
-    console.error("Gagal memuat data statistik dashboard guru:", err);
-  }
 }
 
 // ===================================================
