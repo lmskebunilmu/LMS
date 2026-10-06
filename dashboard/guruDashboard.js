@@ -1,6 +1,6 @@
 import { auth, db } from "/LMS/firebase/firebase-config.js";
 import { onAuthStateChanged, updateProfile, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, getDocs, doc, getDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { loadLayout } from "/LMS/assets/js/components.js";
 window.loadLayout = loadLayout;
@@ -11,10 +11,10 @@ let currentSchoolName = "-";
 let currentSchoolLogo = "/LMS/assets/images/default-logo.png";
 
 // Variabel Global Data Laporan
-let globalSubmissions = [];
+let globalMasterData = []; // Menyimpan kombinasi semua siswa & exercise
 let globalClassesMap = {};
 let globalExercisesMap = {};
-let globalStudentsMap = {};
+let currentStatusFilter = 'all';
 
 // ==========================
 // AUTH + INITIALIZATION
@@ -123,9 +123,9 @@ async function loadProfileHeader(userData) {
   if (profileEmail) profileEmail.value = email;
 }
 
-// ==========================================
-// LOAD EXERCISE REPORTS (LAPORAN HASIL BELAJAR)
-// ==========================================
+// ========================================================
+// LOAD EXERCISE REPORTS (SUDAH & BELUM MENGERJAKAN)
+// ========================================================
 async function loadExerciseReports(user) {
   try {
     if (!currentSchoolId) return;
@@ -145,71 +145,101 @@ async function loadExerciseReports(user) {
     snapClasses.forEach(cDoc => {
       const cData = cDoc.data();
       teacherClassIds.push(cDoc.id);
-      globalClassesMap[cDoc.id] = cData.name || "Kelas Tanpa Nama";
-      
-      // Tambahkan ke dropdown filter kelas
+      globalClassesMap[cDoc.id] = cData.name || "Kelas";
       filterClassSelect.innerHTML += `<option value="${cDoc.id}">${cData.name}</option>`;
     });
 
     if (teacherClassIds.length === 0) {
-      document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8;">Belum ada kelas yang diampu.</td></tr>`;
+      document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">Belum ada kelas yang diampu.</td></tr>`;
       return;
     }
 
-    // 2. Ambil referensi data exercises (Judul latihan/sub-bab)
+    // 2. Ambil daftar exercises
     const exSnap = await getDocs(collection(db, "exercises"));
-    exSnap.forEach(eDoc => {
-      globalExercisesMap[eDoc.id] = eDoc.data().title || "Latihan Tanpa Judul";
-    });
-
-    // Populate dropdown filter exercise
     const filterExSelect = document.getElementById("filterExercise");
     filterExSelect.innerHTML = `<option value="">-- Semua Latihan --</option>`;
-    Object.keys(globalExercisesMap).forEach(exId => {
-      filterExSelect.innerHTML += `<option value="${exId}">${globalExercisesMap[exId]}</option>`;
+
+    exSnap.forEach(eDoc => {
+      const eData = eDoc.data();
+      globalExercisesMap[eDoc.id] = eData.title || "Latihan";
+      filterExSelect.innerHTML += `<option value="${eDoc.id}">${eData.title}</option>`;
     });
 
-    // 3. Ambil data siswa berdasarkan kelas yang diampu
+    // 3. Ambil data siswa di kelas yang diampu
     const studentsSnap = await getDocs(query(collection(db, "students"), where("schoolId", "==", currentSchoolId)));
+    const studentsList = [];
     studentsSnap.forEach(sDoc => {
       const sData = sDoc.data();
       if (teacherClassIds.includes(sData.classId)) {
-        globalStudentsMap[sDoc.id] = sData.name || "Siswa";
+        studentsList.push({ uid: sDoc.id, name: sData.name || "Siswa", classId: sData.classId });
       }
     });
 
-    // 4. Ambil submissions siswa
+    // 4. Ambil semua submissions
     const subSnap = await getDocs(query(collection(db, "student_submissions"), where("schoolId", "==", currentSchoolId)));
-    globalSubmissions = [];
-
+    const submissionsMap = {}; // Key: "studentUid_exerciseId" -> data submission
     subSnap.forEach(subDoc => {
       const subData = subDoc.data();
-      // Filter hanya submission dari siswa di kelas yang diampu guru ini
-      if (teacherClassIds.includes(subData.classId) && globalStudentsMap[subData.studentUid]) {
-        globalSubmissions.push(subData);
-      }
+      submissionsMap[`${subData.studentUid}_${subData.exerciseId}`] = {
+        subId: subDoc.id,
+        ...subData
+      };
     });
 
-    renderReportTable(globalSubmissions);
+    // 5. Gabungkan menjadi master matrix (Setiap siswa untuk setiap exercise yang ada)
+    globalMasterData = [];
+    const exerciseIds = Object.keys(globalExercisesMap);
+
+    studentsList.forEach(student => {
+      exerciseIds.forEach(exId => {
+        const key = `${student.uid}_${exId}`;
+        const submission = submissionsMap[key];
+
+        globalMasterData.push({
+          studentUid: student.uid,
+          studentName: student.name,
+          classId: student.classId,
+          exerciseId: exId,
+          isSubmitted: !!submission,
+          submissionId: submission ? submission.subId : null,
+          score: submission ? submission.score : null,
+          correctAnswers: submission ? submission.correctAnswers : null,
+          totalQuestions: submission ? submission.totalQuestions : null,
+          submittedAt: submission ? submission.submittedAt : null
+        });
+      });
+    });
+
+    filterReports();
 
   } catch (err) {
-    console.error("Gagal memuat laporan hasil belajar:", err);
-    document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Gagal memuat laporan.</td></tr>`;
+    console.error("Gagal memuat laporan pengerjaan:", err);
+    document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Gagal memuat laporan.</td></tr>`;
   }
 }
+
+window.switchStatusTab = (status, btnEl) => {
+  currentStatusFilter = status;
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  btnEl.classList.add('active');
+  filterReports();
+};
 
 window.filterReports = () => {
   const selectedClass = document.getElementById("filterClass").value;
   const selectedEx = document.getElementById("filterExercise").value;
   const keyword = document.getElementById("searchStudent").value.toLowerCase();
 
-  const filtered = globalSubmissions.filter(sub => {
-    const studentName = (globalStudentsMap[sub.studentUid] || "").toLowerCase();
-    const matchClass = selectedClass ? sub.classId === selectedClass : true;
-    const matchEx = selectedEx ? sub.exerciseId === selectedEx : true;
-    const matchName = studentName.includes(keyword);
+  const filtered = globalMasterData.filter(item => {
+    const matchClass = selectedClass ? item.classId === selectedClass : true;
+    const matchEx = selectedEx ? item.exerciseId === selectedEx : true;
+    const matchName = item.studentName.toLowerCase().includes(keyword);
+    
+    let matchStatus = true;
+    if (currentStatusFilter === 'sudah') matchStatus = item.isSubmitted;
+    if (currentStatusFilter === 'belum') matchStatus = !item.isSubmitted;
 
-    return matchClass && matchEx && matchName;
+    return matchClass && matchEx && matchName && matchStatus;
   });
 
   renderReportTable(filtered);
@@ -220,52 +250,77 @@ function renderReportTable(dataList) {
   if (!tbody) return;
 
   if (dataList.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #94a3b8;">📭 Belum ada riwayat pengerjaan latihan siswa yang sesuai.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">📭 Tidak ada data pengerjaan yang sesuai dengan filter.</td></tr>`;
     return;
   }
 
-  // Urutkan berdasarkan waktu pengumpulan terbaru
-  dataList.sort((a, b) => {
-    const timeA = a.submittedAt?.toDate?.()?.getTime() || new Date(a.submittedAt).getTime() || 0;
-    const timeB = b.submittedAt?.toDate?.()?.getTime() || new Date(b.submittedAt).getTime() || 0;
-    return timeB - timeA;
-  });
+  // Urutkan berdasarkan nama siswa
+  dataList.sort((a, b) => a.studentName.localeCompare(b.studentName));
 
   let html = "";
   dataList.forEach((item, index) => {
-    const studentName = globalStudentsMap[item.studentUid] || "Siswa Tidak Dikenal";
     const className = globalClassesMap[item.classId] || "-";
     const exerciseTitle = globalExercisesMap[item.exerciseId] || "Latihan";
-    const score = item.score ?? 0;
-    const correct = item.correctAnswers ?? 0;
-    const total = item.totalQuestions ?? 0;
 
-    let timeFormatted = "-";
-    if (item.submittedAt) {
-      const dateObj = item.submittedAt.toDate ? item.submittedAt.toDate() : new Date(item.submittedAt);
-      timeFormatted = dateObj.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    let statusBadge = `<span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">⏳ Belum</span>`;
+    let scoreText = "-";
+    let timeText = "-";
+    let actionBtn = `<span style="color: #94a3b8; font-size: 12px;">-</span>`;
+
+    if (item.isSubmitted) {
+      let scoreColor = "#059669";
+      if (item.score < 60) scoreColor = "#dc2626";
+      else if (item.score < 75) scoreColor = "#d97706";
+
+      statusBadge = `<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">✅ Selesai</span>`;
+      scoreText = `<span style="background: ${scoreColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">${item.score}</span> (${item.correctAnswers}/${item.totalQuestions})`;
+
+      if (item.submittedAt) {
+        const dateObj = item.submittedAt.toDate ? item.submittedAt.toDate() : new Date(item.submittedAt);
+        timeText = dateObj.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+
+      actionBtn = `<button onclick="deleteSubmission('${item.submissionId}')" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">🗑️ Hapus</button>`;
     }
-
-    // Warna badge skor
-    let scoreColor = "#059669"; // Hijau
-    if (score < 60) scoreColor = "#dc2626"; // Merah
-    else if (score < 75) scoreColor = "#d97706"; // Kuning/Oranye
 
     html += `
       <tr>
         <td>${index + 1}</td>
-        <td><b>👤 ${studentName}</b></td>
+        <td><b>👤 ${item.studentName}</b></td>
         <td>${className}</td>
         <td><span style="color: #4f46e5; font-weight: 500;">📖 ${exerciseTitle}</span></td>
-        <td><span style="background: ${scoreColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">${score}</span></td>
-        <td>${correct} / ${total} Benar</td>
-        <td style="font-size: 12px; color: #64748b;">${timeFormatted}</td>
+        <td>${statusBadge}</td>
+        <td>${scoreText}</td>
+        <td style="font-size: 12px; color: #64748b;">${timeText}</td>
+        <td>${actionBtn}</td>
       </tr>
     `;
   });
 
   tbody.innerHTML = html;
 }
+
+// ==========================
+// HAPUS SUBMISSION SISWA
+// ==========================
+window.deleteSubmission = async (subId) => {
+  if (!confirm("Apakah Anda yakin ingin menghapus riwayat pengerjaan ini? Siswa dapat mengerjakan ulang latihan ini jika dihapus.")) {
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(db, "student_submissions", subId));
+    showToast("Riwayat pengerjaan berhasil dihapus");
+    
+    // Refresh data laporan
+    const user = auth.currentUser;
+    if (user) await loadExerciseReports(user);
+
+  } catch (err) {
+    console.error("Gagal menghapus submission:", err);
+    showToast("Gagal menghapus riwayat", "error");
+  }
+};
 
 // ===================================================
 // LOAD DAFTAR KELAS & BREAKDOWN ANGGOTA SISWA REAL-TIME
