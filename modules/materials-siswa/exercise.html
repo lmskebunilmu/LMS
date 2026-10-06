@@ -5,12 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mengerjakan Latihan</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Konfigurasi MathJax dengan pembatas \\(...\\) dan \\[...\\] -->
   <script>
     window.MathJax = {
-      tex: { inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']] }
+      tex: { 
+        inlineMath: [['\\\\(', '\\\\)']], 
+        displayMath: [['\\\\[', '\\\\]']] 
+      },
+      startup: {
+        typeset: false // Mengontrol typesetting secara manual agar lebih stabil dengan JS dinamis
+      }
     };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+
   <style>
     *{box-sizing:border-box;}
     body{margin:0;font-family:'Inter',sans-serif;background:#f8fafc;color:#0f172a;padding-bottom:50px;}
