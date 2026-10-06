@@ -124,7 +124,7 @@ async function loadProfileHeader(userData) {
 }
 
 // ========================================================
-// LOAD EXERCISE REPORTS (KHUSUS DITUGASKAN OLEH GURU INI)
+// LOAD EXERCISE REPORTS (HANYA EXERCISE YANG DITUGASKAN GURU)
 // ========================================================
 async function loadExerciseReports(user) {
   try {
@@ -154,31 +154,45 @@ async function loadExerciseReports(user) {
       return;
     }
 
-    // 2. Ambil HANYA exercises yang dibuat/ditugaskan oleh guru ini (berdasarkan field teacherUid atau creatorUid, disesuaikan dengan struktur database Anda)
-    // Mencoba query berdasarkan teacherUid atau creatorUid, fallback ambil semua jika field belum ada
-    let qExercises = query(collection(db, "exercises"), where("teacherUid", "==", user.uid));
-    let exSnap = await getDocs(qExercises);
-    
-    if (exSnap.empty) {
-      // Coba opsi field 'creatorUid' jika 'teacherUid' kosong
-      qExercises = query(collection(db, "exercises"), where("creatorUid", "==", user.uid));
-      exSnap = await getDocs(qExercises);
+    // 2. Ambil HANYA exercise yang benar-benar ditugaskan (isAssigned == true) oleh guru ini dari koleksi `exerciseGuru`
+    const qAssignedEx = query(
+      collection(db, "exerciseGuru"),
+      where("teacherId", "==", user.uid),
+      where("isAssigned", "==", true)
+    );
+    const assignedExSnap = await getDocs(qAssignedEx);
+
+    const assignedExerciseMapByClass = {}; 
+    const uniqueExerciseIds = new Set();
+
+    assignedExSnap.forEach(d => {
+      const data = d.data();
+      if (data.classId && data.exerciseId) {
+        uniqueExerciseIds.add(data.exerciseId);
+        if (!assignedExerciseMapByClass[data.classId]) {
+          assignedExerciseMapByClass[data.classId] = [];
+        }
+        assignedExerciseMapByClass[data.classId].push(data.exerciseId);
+      }
+    });
+
+    if (uniqueExerciseIds.size === 0) {
+      document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">📭 Belum ada latihan (exercise) yang Anda tugaskan ke kelas.</td></tr>`;
+      return;
     }
 
-    const teacherExerciseIds = [];
+    // Ambil detail judul exercise dari koleksi `exercises`
+    globalExercisesMap = {};
     const filterExSelect = document.getElementById("filterExercise");
     filterExSelect.innerHTML = `<option value="">-- Semua Latihan --</option>`;
 
-    exSnap.forEach(eDoc => {
-      const eData = eDoc.data();
-      teacherExerciseIds.push(eDoc.id);
-      globalExercisesMap[eDoc.id] = eData.title || "Latihan";
-      filterExSelect.innerHTML += `<option value="${eDoc.id}">${eData.title}</option>`;
-    });
-
-    if (teacherExerciseIds.length === 0) {
-      document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">📭 Belum ada exercise/latihan yang Anda buat atau tugaskan.</td></tr>`;
-      return;
+    for (const exId of uniqueExerciseIds) {
+      const exDoc = await getDoc(doc(db, "exercises", exId));
+      if (exDoc.exists()) {
+        const exTitle = exDoc.data().title || "Latihan";
+        globalExercisesMap[exId] = exTitle;
+        filterExSelect.innerHTML += `<option value="${exId}">${exTitle}</option>`;
+      }
     }
 
     // 3. Ambil data siswa di kelas yang diampu
@@ -191,7 +205,7 @@ async function loadExerciseReports(user) {
       }
     });
 
-    // 4. Ambil semua submissions
+    // 4. Ambil semua submissions siswa
     const subSnap = await getDocs(query(collection(db, "student_submissions"), where("schoolId", "==", currentSchoolId)));
     const submissionsMap = {};
     subSnap.forEach(subDoc => {
@@ -202,10 +216,12 @@ async function loadExerciseReports(user) {
       };
     });
 
-    // 5. Gabungkan menjadi master matrix khusus untuk exercise guru ini
+    // 5. Gabungkan menjadi master matrix HANYA untuk exercise yang ditugaskan ke kelas masing-masing siswa
     globalMasterData = [];
     studentsList.forEach(student => {
-      teacherExerciseIds.forEach(exId => {
+      const classAssignedExs = assignedExerciseMapByClass[student.classId] || [];
+      
+      classAssignedExs.forEach(exId => {
         const key = `${student.uid}_${exId}`;
         const submission = submissionsMap[key];
 
