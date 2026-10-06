@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
 
-  <!-- STYLE TAMBAHAN KHUSUS RESPONSIF & LAPORAN -->
+  <!-- STYLE TAMBAHAN KHUSUS PROFILE CARD & LAPORAN (RESPONSIF TANPA UBAH responsive.css) -->
   <style>
     .profile-card {
       display: flex;
@@ -122,11 +122,11 @@
         </button>
       </div>
 
-      <!-- LAPORAN HASIL BELAJAR SISWA (EXERCISE) -->
+      <!-- LAPORAN & STATUS PENGERJAAN EXERCISE -->
       <div class="card">
         <h3>📊 Laporan & Status Pengerjaan Exercise</h3>
         <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">
-          Pantau siapa siswa yang sudah maupun belum mengerjakan latihan, nilai, serta kelola ulang data pengerjaan.
+          Pantau siapa siswa yang sudah maupun belum mengerjakan latihan yang Anda tugaskan, nilai, serta kelola ulang data pengerjaan.
         </p>
 
         <!-- Filter Kontrol -->
@@ -198,7 +198,10 @@
       <input type="email" id="profileEmail" placeholder="Email">
       <input type="file" id="profileAvatarFile" accept="image/*">
       
-    
+      <!-- PASSWORD BARU -->
+      <input type="password" id="profilePassword" placeholder="Password Baru (opsional)">
+      <input type="password" id="profilePasswordConfirm" placeholder="Konfirmasi Password">
+
       <div class="modal-actions">
         <button class="primary" onclick="saveProfile()">Simpan</button>
         <button class="danger" onclick="closeProfileModal()">Batal</button>
