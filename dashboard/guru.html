@@ -28,7 +28,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 12px;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
     }
     .report-filter-grid select, .report-filter-grid input {
       width: 100%;
@@ -39,6 +39,28 @@
       box-sizing: border-box;
       background: #fff;
     }
+    .status-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #475569;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: #4f46e5;
+      color: #fff;
+      border-color: #4f46e5;
+    }
     .table-responsive {
       width: 100%;
       overflow-x: auto;
@@ -47,7 +69,7 @@
     table.report-table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 600px;
+      min-width: 650px;
       font-size: 13px;
     }
     table.report-table th, table.report-table td {
@@ -102,9 +124,9 @@
 
       <!-- LAPORAN HASIL BELAJAR SISWA (EXERCISE) -->
       <div class="card">
-        <h3>📊 Laporan Hasil Belajar Siswa (Exercise)</h3>
+        <h3>📊 Laporan & Status Pengerjaan Exercise</h3>
         <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">
-          Pantau nilai dan rekap pengerjaan latihan soal (exercise) dari siswa di kelas yang Anda ampu.
+          Pantau siapa siswa yang sudah maupun belum mengerjakan latihan, nilai, serta kelola ulang data pengerjaan.
         </p>
 
         <!-- Filter Kontrol -->
@@ -127,6 +149,13 @@
           </div>
         </div>
 
+        <!-- Tombol Tab Status Pengerjaan -->
+        <div class="status-tabs">
+          <button class="tab-btn active" onclick="switchStatusTab('all', this)">Semua Status</button>
+          <button class="tab-btn" onclick="switchStatusTab('sudah', this)">✅ Sudah Mengerjakan</button>
+          <button class="tab-btn" onclick="switchStatusTab('belum', this)">⏳ Belum Mengerjakan</button>
+        </div>
+
         <!-- Tabel Hasil Laporan -->
         <div class="table-responsive">
           <table class="report-table">
@@ -135,15 +164,16 @@
                 <th>No</th>
                 <th>Nama Siswa</th>
                 <th>Kelas</th>
-                <th>Judul Latihan / Sub Bab</th>
-                <th>Skor</th>
-                <th>Benar / Total</th>
-                <th>Waktu Pengumpulan</th>
+                <th>Judul Latihan</th>
+                <th>Status</th>
+                <th>Skor (Benar/Total)</th>
+                <th>Waktu Kumpul</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody id="reportTableBody">
               <tr>
-                <td colspan="7" style="text-align: center; color: #94a3b8;">Memuat data laporan...</td>
+                <td colspan="8" style="text-align: center; color: #94a3b8;">Memuat data laporan...</td>
               </tr>
             </tbody>
           </table>
