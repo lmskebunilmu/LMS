@@ -2,9 +2,9 @@ import { auth, db } from "/LMS/firebase/firebase-config.js";
 import { onAuthStateChanged, updateProfile, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, doc, getDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// 🔌 TAMBAHKAN BARIS INI AGAR SIDEBAR & HEADER BISA MUNCUL:
 import { loadLayout } from "/LMS/assets/js/components.js";
 window.loadLayout = loadLayout;
+
 let currentSchoolId = null;
 let currentSchoolRef = null;
 let currentSchoolName = "-";
@@ -34,7 +34,6 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
 
-    // 🔒 CEK STATUS AKTIF GURU (Sinkron dengan teachers collection)
     const teacherSnap = await getDoc(doc(db, "teachers", user.uid));
     if (teacherSnap.exists() && teacherSnap.data().status === "nonaktif") {
       document.querySelector(".main").innerHTML = `
@@ -50,7 +49,6 @@ onAuthStateChanged(auth, async (user) => {
     currentSchoolId = userData.schoolId || null;
     window.role = userData.role;
 
-    // Load Layout bawaan proyek LMS (jika fungsi globalnya terdeteksi)
     if (window.loadLayout) {
       await window.loadLayout(window.role);
     }
@@ -72,20 +70,17 @@ async function loadProfileHeader(userData) {
   const email = userData.email || "";
   const avatar = userData.avatarURL || "/LMS/assets/images/default-avatar.png";
 
-  // Update elemen komponen header global jika terpasang di HTML
   const nameEl = document.getElementById("headerNameHeader");
   if (nameEl) nameEl.innerText = name;
 
   const avatarEl = document.getElementById("headerAvatarHeader");
   if (avatarEl) avatarEl.src = avatar;
 
-  // Tarik data validasi sekolah
   if (currentSchoolId) {
     const schoolSnap = await getDoc(doc(db, "schools", currentSchoolId));
     if (schoolSnap.exists()) {
       const schoolData = schoolSnap.data();
       
-      // 🚨 CEK STATUS SEKATIF SEKOLAH
       if (schoolData.status !== "aktif") {
         lockDashboard();
         return;
@@ -97,14 +92,12 @@ async function loadProfileHeader(userData) {
     }
   }
 
-  // Update komponen Nama Sekolah di header
   const schoolNameEl = document.getElementById("headerSchoolName");
   if (schoolNameEl) schoolNameEl.innerText = currentSchoolName;
 
   const schoolLogoEl = document.getElementById("headerSchoolLogo");
   if (schoolLogoEl) schoolLogoEl.src = currentSchoolLogo;
 
-  // Update Isian Komponen Profile Card Utama Guru
   const nameCard = document.getElementById("headerNameCard");
   if (nameCard) nameCard.innerText = name;
 
@@ -117,7 +110,6 @@ async function loadProfileHeader(userData) {
   const schoolCard = document.getElementById("headerSchoolCard");
   if (schoolCard) schoolCard.innerText = currentSchoolName;
 
-  // Sinkronisasikan nilai isian ke dalam modal form edit profile
   const profileName = document.getElementById("profileName");
   if (profileName) profileName.value = name;
 
@@ -126,13 +118,12 @@ async function loadProfileHeader(userData) {
 }
 
 // ==========================
-// LOAD STATS (SINKRON DATA KELAS)
+// LOAD STATS
 // ==========================
 async function loadStats(user) {
   try {
     if (!currentSchoolId) return;
 
-    // Ambil list semua kelas di mana guru ini terdaftar dalam pengampu (teacherIds)
     const qClasses = query(
       collection(db, "classes"),
       where("teacherIds", "array-contains", user.uid),
@@ -140,7 +131,8 @@ async function loadStats(user) {
     );
 
     const snapClasses = await getDocs(qClasses);
-    document.getElementById("totalClasses").innerText = snapClasses.size;
+    const totalClassesEl = document.getElementById("totalClasses");
+    if (totalClassesEl) totalClassesEl.innerText = snapClasses.size;
 
     const subjectSet = new Set();
     let totalStudentsCount = 0;
@@ -149,19 +141,20 @@ async function loadStats(user) {
       const classData = classDoc.data();
       const classId = classDoc.id;
 
-      // Ambil pemetaan mapel tercentang khusus guru ini dari field object `teachers` baru
       const classTeachersMapping = classData.teachers || {};
       const mySubjects = classTeachersMapping[user.uid] || [];
       mySubjects.forEach(sub => subjectSet.add(sub));
 
-      // 🔄 SINKRON: Hitung total siswa terdaftar real-time murni dari query field classId
       const qStudents = query(collection(db, "students"), where("classId", "==", classId));
       const snapStudents = await getDocs(qStudents);
       totalStudentsCount += snapStudents.size;
     }
 
-    document.getElementById("totalStudents").innerText = totalStudentsCount;
-    document.getElementById("totalSubjects").innerText = subjectSet.size;
+    const totalStudentsEl = document.getElementById("totalStudents");
+    if (totalStudentsEl) totalStudentsEl.innerText = totalStudentsCount;
+
+    const totalSubjectsEl = document.getElementById("totalSubjects");
+    if (totalSubjectsEl) totalSubjectsEl.innerText = subjectSet.size;
 
   } catch (err) {
     console.error("Gagal memuat data statistik dashboard guru:", err);
@@ -176,6 +169,7 @@ async function loadClassWithStudents(user) {
     if (!currentSchoolId) return;
 
     const container = document.getElementById("classListContainer");
+    if (!container) return;
     container.innerHTML = "⏳ Memuat data kelas dan daftar siswa...";
 
     const qClasses = query(
@@ -193,23 +187,19 @@ async function loadClassWithStudents(user) {
 
     container.innerHTML = "";
 
-    // Loop data kelas yang diampu guru
     for (const classDoc of snapClasses.docs) {
       const classData = classDoc.data();
       const classId = classDoc.id;
 
-      // 1. Cek Jabatan: Apakah guru ini bertindak sebagai Wali Kelas di sini?
       const isWaliKelas = classData.homeroomTeacherId === user.uid;
       const waliKelasBadge = isWaliKelas 
         ? `<span style="background-color: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px;">👑 Wali Kelas</span>` 
         : "";
 
-      // 2. Ambil list mata pelajaran spesifik tercentang milik guru ini di kelas ini
       const classTeachersMapping = classData.teachers || {};
       const mySubjects = classTeachersMapping[user.uid] || [];
       const subjectsText = mySubjects.length > 0 ? mySubjects.join(", ") : "- Tidak ada mapel terpilih";
 
-      // 3. 🔄 QUERY REAL-TIME SISWA SINKRON: Ambil data siswa yang terdaftar di classId kelas saat ini
       const qStudents = query(collection(db, "students"), where("classId", "==", classId));
       const snapStudents = await getDocs(qStudents);
 
@@ -218,7 +208,6 @@ async function loadClassWithStudents(user) {
         cleanStudents.push(sDoc.data());
       });
 
-      // Urutkan nama daftar siswa secara berurutan (A-Z)
       cleanStudents.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
       const div = document.createElement("div");
@@ -228,7 +217,7 @@ async function loadClassWithStudents(user) {
       div.innerHTML = `
         <button class="class-toggle" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center; padding:12px; cursor:pointer;">
           <span>📋 <b>${classData.name}</b> ${waliKelasBadge}</span>
-          <span style="font-size:12px; color:#FFFFFF;">📖 ${mySubjects.length} Mapel</span>
+          <span style="font-size:12px; color:#4f46e5; font-weight:600;">📖 ${mySubjects.length} Mapel</span>
         </button>
 
         <div class="class-detail" style="display:none; padding:15px; border:1px solid #e2e8f0; border-top:none; border-radius:0 0 6px 6px; background:#fff;">
@@ -239,8 +228,8 @@ async function loadClassWithStudents(user) {
           </div>
 
           <div class="export-buttons" style="margin-bottom:15px;">
-            <button class="btn-export btn-csv">Export CSV</button>
-            <button class="btn-export btn-pdf">Download PDF</button>
+            <button class="btn-export btn-csv" style="padding: 6px 12px; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer;">Export CSV</button>
+            <button class="btn-export btn-pdf" style="padding: 6px 12px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; margin-left:5px;">Download PDF</button>
           </div>
 
           <strong style="font-size:13px; display:block; margin-bottom:5px; color:#1e293b;">Daftar Murid Kelas:</strong>
@@ -254,13 +243,11 @@ async function loadClassWithStudents(user) {
         </div>
       `;
 
-      // Event listener klik tombol ekspansi isi kelas
       div.querySelector(".class-toggle").onclick = () => {
         const detail = div.querySelector(".class-detail");
         detail.style.display = detail.style.display === "none" ? "block" : "none";
       };
 
-      // Listener pengeksporan file dokumen
       div.querySelector(".btn-csv").onclick = () => exportCSV(cleanStudents, classData.name);
       div.querySelector(".btn-pdf").onclick = () => exportPDF(cleanStudents, classData.name);
 
@@ -269,7 +256,8 @@ async function loadClassWithStudents(user) {
 
   } catch (err) {
     console.error("Gagal merelasikan data siswa dan kelas guru:", err);
-    document.getElementById("classListContainer").innerHTML = "<p style='color:red;'>❌ Gagal memuat detail data siswa</p>";
+    const container = document.getElementById("classListContainer");
+    if (container) container.innerHTML = "<p style='color:red;'>❌ Gagal memuat detail data siswa</p>";
   }
 }
 
@@ -363,7 +351,6 @@ window.saveProfile = async () => {
     const userData = userSnap.data();
     let avatarURL = userData?.avatarURL ?? "/LMS/assets/images/default-avatar.png";
 
-    // Modul pengunggahan gambar ke Cloudinary CDN
     if (file) {
       const formData = new FormData();
       formData.append("file", file);
@@ -382,13 +369,11 @@ window.saveProfile = async () => {
       }
     }
 
-    // Perbarui Profile internal Firebase Auth
     await updateProfile(user, { displayName: name, photoURL: avatarURL });
     if (email !== user.email) {
       await updateEmail(user, email);
     }
 
-    // Penanganan update sandi/password baru opsional
     const password = document.getElementById("profilePassword")?.value.trim();
     const confirmPassword = document.getElementById("profilePasswordConfirm")?.value.trim();
 
@@ -406,12 +391,10 @@ window.saveProfile = async () => {
       document.getElementById("profilePasswordConfirm").value = "";
     }
 
-    // Tulis pembaruan data terbaru ke Firestore
     await updateDoc(doc(db, "users", user.uid), { name, email, avatarURL });
     showToast("Profil guru berhasil diperbarui");
     closeProfileModal();
 
-    // Segarkan ulang tampilan header profil utama
     const updatedUserSnap = await getDoc(doc(db, "users", user.uid));
     await loadProfileHeader(updatedUserSnap.data());
 
@@ -446,4 +429,3 @@ function showToast(message, type = "success") {
     setTimeout(() => toast.classList.remove("active"), 3000);
   }
 }
-
