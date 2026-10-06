@@ -6,15 +6,12 @@
   <title>Mengerjakan Latihan</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
-  <!-- Konfigurasi MathJax dengan pembatas \\(...\\) dan \\[...\\] -->
+  <!-- Konfigurasi MathJax v3 dengan dukungan \\(...\\), \\[...\\] dan $$...$$ -->
   <script>
     window.MathJax = {
-      tex: { 
-        inlineMath: [['\\\\(', '\\\\)']], 
-        displayMath: [['\\\\[', '\\\\]']] 
-      },
-      startup: {
-        typeset: false // Mengontrol typesetting secara manual agar lebih stabil dengan JS dinamis
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']]
       }
     };
   </script>
