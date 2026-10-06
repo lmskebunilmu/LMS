@@ -7,6 +7,37 @@
   <title>Dashboard Guru</title>
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
+
+  <!-- STYLE TAMBAHAN KHUSUS PROFILE CARD AGAR RESPONSIF TANPA UBAH responsive.css -->
+  <style>
+    .profile-card {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+    }
+    .profile-details {
+      flex: 1;
+      min-width: 200px;
+    }
+    .profile-card .btn-edit {
+      flex-shrink: 0;
+    }
+    @media (max-width: 768px) {
+      .profile-card {
+        flex-direction: column;
+        text-align: center;
+      }
+      .profile-card .profile-avatar {
+        margin: 0 auto;
+      }
+      .profile-card .btn-edit {
+        width: 100%;
+        margin-top: 10px;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -31,25 +62,6 @@
         <button class="btn-edit" onclick="openProfileModal()">
           Edit Profile
         </button>
-      </div>
-
-      <!-- STATISTIK -->
-      <div class="card">
-        <h3>Dashboard Guru</h3>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <h4 id="totalClasses">0</h4>
-            <p>Kelas Saya</p>
-          </div>
-          <div class="stat-card">
-            <h4 id="totalStudents">0</h4>
-            <p>Total Murid</p>
-          </div>
-          <div class="stat-card">
-            <h4 id="totalSubjects">0</h4>
-            <p>Mata Pelajaran</p>
-          </div>
-        </div>
       </div>
 
       <!-- DAFTAR KELAS & SISWA -->
