@@ -53,10 +53,11 @@ async function loadExerciseData(exId, studentUid) {
       return;
     }
     const exData = exSnap.data();
-    document.getElementById("exerciseTitle").innerText = exData.title + (dbSubmission ? " (Selesai Dikumpulkan)" : "");
-
+    
     const subSnap = await getDoc(doc(db, "student_submissions", studentUid + "_" + exId));
     if (subSnap.exists()) dbSubmission = subSnap.data();
+
+    document.getElementById("exerciseTitle").innerText = exData.title + (dbSubmission ? " (Selesai Dikumpulkan)" : "");
 
     const qQuery = query(collection(db, "questions"), where("exerciseId", "==", exId));
     const qSnap = await getDocs(qQuery);
@@ -162,8 +163,9 @@ function renderQuestions(questions, studentUid) {
   `;
   container.innerHTML = html;
 
-  if (window.MathJax) {
-    MathJax.typesetPromise();
+  // Render ulang MathJax setelah DOM terisi soal dinamis
+  if (window.MathJax && typeof MathJax.typesetPromise === "function") {
+    MathJax.typesetPromise().catch((err) => console.log("MathJax error:", err));
   }
 }
 
@@ -258,7 +260,13 @@ window.lockQuestionFields = function(index) {
 
 window.toggleExplain = function(index) {
   const el = document.getElementById("explain_content_" + index);
-  el.style.display = el.style.display === "block" ? "none" : "block";
+  const isHidden = el.style.display === "none" || el.style.display === "";
+  el.style.display = isHidden ? "block" : "none";
+
+  // Pastikan rumus di dalam pembahasan terender saat dibuka
+  if (isHidden && window.MathJax && typeof MathJax.typesetPromise === "function") {
+    MathJax.typesetPromise([el]).catch((err) => console.log("MathJax error:", err));
+  }
 };
 
 window.submitToFirebase = async function() {
