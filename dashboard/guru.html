@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
 
-  <!-- STYLE TAMBAHAN KHUSUS PROFILE CARD AGAR RESPONSIF TANPA UBAH responsive.css -->
+  <!-- STYLE TAMBAHAN KHUSUS RESPONSIF & LAPORAN -->
   <style>
     .profile-card {
       display: flex;
@@ -23,6 +23,42 @@
     }
     .profile-card .btn-edit {
       flex-shrink: 0;
+    }
+    .report-filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+    .report-filter-grid select, .report-filter-grid input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 13px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    table.report-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px;
+      font-size: 13px;
+    }
+    table.report-table th, table.report-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+    }
+    table.report-table th {
+      background-color: #f8fafc;
+      color: #1e293b;
+      font-weight: 600;
     }
     @media (max-width: 768px) {
       .profile-card {
@@ -62,6 +98,56 @@
         <button class="btn-edit" onclick="openProfileModal()">
           Edit Profile
         </button>
+      </div>
+
+      <!-- LAPORAN HASIL BELAJAR SISWA (EXERCISE) -->
+      <div class="card">
+        <h3>📊 Laporan Hasil Belajar Siswa (Exercise)</h3>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">
+          Pantau nilai dan rekap pengerjaan latihan soal (exercise) dari siswa di kelas yang Anda ampu.
+        </p>
+
+        <!-- Filter Kontrol -->
+        <div class="report-filter-grid">
+          <div>
+            <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filter Kelas:</label>
+            <select id="filterClass" onchange="filterReports()">
+              <option value="">-- Semua Kelas yang Diampu --</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filter Latihan (Exercise):</label>
+            <select id="filterExercise" onchange="filterReports()">
+              <option value="">-- Semua Latihan --</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Cari Nama Siswa:</label>
+            <input type="text" id="searchStudent" placeholder="Ketik nama siswa..." oninput="filterReports()">
+          </div>
+        </div>
+
+        <!-- Tabel Hasil Laporan -->
+        <div class="table-responsive">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Nama Siswa</th>
+                <th>Kelas</th>
+                <th>Judul Latihan / Sub Bab</th>
+                <th>Skor</th>
+                <th>Benar / Total</th>
+                <th>Waktu Pengumpulan</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: #94a3b8;">Memuat data laporan...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- DAFTAR KELAS & SISWA -->
