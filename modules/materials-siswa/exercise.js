@@ -103,19 +103,26 @@ function renderQuestions(questions, studentUid) {
 
     html += `<div class="question"><h3>Soal ${index + 1}. ${qData.question || ""}</h3>`;
 
+    // 1. Pilihan Ganda (PG)
     if (qData.type === "pg") {
       (qData.options || []).forEach((opt, i) => {
         const checked = savedAnswer == i ? "checked" : "";
         html += `<label><input type="radio" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
-    } else if (qData.type === "checkbox") {
+    } 
+    // 2. Checkbox
+    else if (qData.type === "checkbox") {
       (qData.options || []).forEach((opt, i) => {
         const checked = Array.isArray(savedAnswer) && savedAnswer.includes(String(i)) ? "checked" : "";
         html += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
-    } else if (qData.type === "isian") {
+    } 
+    // 3. Isian Singkat
+    else if (qData.type === "isian") {
       html += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban Anda..." ${isLocked ? 'disabled' : ''}>`;
-    } else if (qData.type === "multi_isian") {
+    } 
+    // 4. Multi Isian
+    else if (qData.type === "multi_isian") {
       (qData.fields || []).forEach((f, i) => {
         const val = savedAnswer?.[i] || "";
         html += `
@@ -125,7 +132,9 @@ function renderQuestions(questions, studentUid) {
           </div>
         `;
       });
-    } else if (qData.type === "match") {
+    } 
+    // 5. Menjodohkan (Match)
+    else if (qData.type === "match") {
       const shuffled = [...(qData.pairs || [])].sort(() => Math.random() - 0.5);
       html += `
         <div class="match-wrapper" id="match_${index}" data-locked="${isLocked}">
@@ -136,6 +145,35 @@ function renderQuestions(questions, studentUid) {
           <div class="match-column">
             ${shuffled.map((p, i) => `<div class="match-item right-item" data-question="${index}" data-right="${p.right}">${p.right}</div>`).join("")}
           </div>
+        </div>
+      `;
+    } 
+    // 6. Matrix (Tabel Matriks Pilihan)
+    else if (qData.type === "matrix" && qData.matrix) {
+      html += `
+        <div class="matrix-table-wrapper">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Pernyataan</th>
+                ${qData.matrix.columns.map(col => `<th>${col}</th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${qData.matrix.rows.map((row, rIdx) => `
+                <tr>
+                  <td>${row.statement}</td>${qData.matrix.columns.map((_, cIdx) => {
+                    const isChecked = savedAnswer?.[rIdx] == cIdx ? "checked" : "";
+                    return `
+                      <td>
+                        <input type="radio" name="matrix_${index}_${rIdx}" value="${cIdx}" ${isChecked} ${isLocked ? 'disabled' : ''}>
+                      </td>
+                    `;
+                  }).join("")}
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
         </div>
       `;
     }
@@ -163,7 +201,6 @@ function renderQuestions(questions, studentUid) {
   `;
   container.innerHTML = html;
 
-  // Render ulang MathJax setelah elemen dimasukkan
   if (window.MathJax && typeof MathJax.typeset === "function") {
     MathJax.typeset();
   }
@@ -199,17 +236,20 @@ window.checkAnswer = function(index) {
     userAnswer = selected.value;
     saveAnswer(index, userAnswer);
     correct = userAnswer == q.answer;
-  } else if (q.type === "checkbox") {
+  } 
+  else if (q.type === "checkbox") {
     const checked = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
     userAnswer = checked;
     saveAnswer(index, userAnswer);
     correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
-  } else if (q.type === "isian") {
+  } 
+  else if (q.type === "isian") {
     const input = document.getElementById("q" + index);
     userAnswer = input.value.trim();
     saveAnswer(index, userAnswer);
     correct = userAnswer.toLowerCase() === String(q.answer).toLowerCase();
-  } else if (q.type === "multi_isian") {
+  } 
+  else if (q.type === "multi_isian") {
     userAnswer = [];
     let totalCorrect = 0;
     (q.fields || []).forEach((f, i) => {
@@ -219,7 +259,8 @@ window.checkAnswer = function(index) {
     });
     saveAnswer(index, userAnswer);
     correct = totalCorrect === q.fields.length;
-  } else if (q.type === "match") {
+  } 
+  else if (q.type === "match") {
     const pairs = window.matchAnswers[index] || {};
     saveAnswer(index, pairs);
     let totalCorrect = 0;
@@ -227,6 +268,18 @@ window.checkAnswer = function(index) {
       if (pairs[i] === p.right) totalCorrect++;
     });
     correct = totalCorrect === q.pairs.length;
+  } 
+  else if (q.type === "matrix") {
+    userAnswer = {};
+    let totalCorrect = 0;
+    q.matrix.rows.forEach((row, rIdx) => {
+      const checked = document.querySelector(`input[name="matrix_${index}_${rIdx}"]:checked`);
+      const val = checked ? parseInt(checked.value) : null;
+      userAnswer[rIdx] = val;
+      if (val === row.answerKey) totalCorrect++;
+    });
+    saveAnswer(index, userAnswer);
+    correct = totalCorrect === q.matrix.rows.length;
   }
 
   const result = document.getElementById("result_" + index);
@@ -253,6 +306,7 @@ window.lockQuestionFields = function(index) {
   const isian = document.getElementById("q" + index);
   if (isian) isian.disabled = true;
   document.querySelectorAll('[name^="multi_' + index + '_"]').forEach(el => el.disabled = true);
+  document.querySelectorAll(`input[name^="matrix_${index}_"]`).forEach(el => el.disabled = true);
   
   const matchWrap = document.getElementById("match_" + index);
   if (matchWrap) matchWrap.dataset.locked = "true";
@@ -263,7 +317,6 @@ window.toggleExplain = function(index) {
   const isHidden = el.style.display === "none" || el.style.display === "";
   el.style.display = isHidden ? "block" : "none";
 
-  // Render MathJax di dalam kotak pembahasan saat dibuka
   if (isHidden && window.MathJax && typeof MathJax.typeset === "function") {
     MathJax.typeset([el]);
   }
@@ -280,9 +333,11 @@ window.submitToFirebase = async function() {
     const uAns = savedAnswers[index];
     if (uAns === undefined || uAns === null) return;
 
-    if (q.type === "pg" && uAns == q.answer) totalBenar++;
-    else if (q.type === "isian" && String(uAns).toLowerCase() === String(q.answer).toLowerCase()) totalBenar++;
-    else if (q.type === "checkbox") {
+    if (q.type === "pg" && uAns == q.answer) {
+      totalBenar++;
+    } else if (q.type === "isian" && String(uAns).toLowerCase() === String(q.answer).toLowerCase()) {
+      totalBenar++;
+    } else if (q.type === "checkbox") {
       if (JSON.stringify([...uAns].sort()) === JSON.stringify((q.answer || []).map(String).sort())) totalBenar++;
     } else if (q.type === "multi_isian") {
       let multiCorrect = 0;
@@ -296,6 +351,12 @@ window.submitToFirebase = async function() {
         if (uAns[i] === p.right) matchCorrect++;
       });
       if (matchCorrect === q.pairs.length) totalBenar++;
+    } else if (q.type === "matrix") {
+      let matrixCorrect = 0;
+      q.matrix.rows.forEach((row, rIdx) => {
+        if (uAns[rIdx] === row.answerKey) matrixCorrect++;
+      });
+      if (matrixCorrect === q.matrix.rows.length) totalBenar++;
     }
   });
 
