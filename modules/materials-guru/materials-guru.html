@@ -13,17 +13,38 @@
 
 <!-- Tambahkan CSS ini agar kontainer materi bisa di-scroll -->
 <style>
-  /* Batasi tinggi area list materi dan aktifkan fungsi scroll vertikal */
-  #materialGuruList.material-container {
-    max-height: 65vh; /* Sesuaikan tinggi maksimal di layar */
-    overflow-y: auto;  /* Memunculkan scrollbar jika kontennya panjang */
-    padding-right: 5px;
-    margin-top: 15px;
+  /* Biarkan seluruh halaman utama (.main) yang mengatur scroll utama jika kontennya panjang */
+  html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden; /* Mengunci body agar layout dashboard rapi */
   }
 
-  /* Opsional: Rapikan tampilan card agar tidak terlalu melebar mentok */
+  .wrapper {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow-y: auto; /* Memastikan area utama dashboard bisa di-scroll ke bawah */
+    padding-bottom: 40px;
+  }
+
   .card {
     box-sizing: border-box;
+    margin-bottom: 20px;
+  }
+
+  /* Area list materi di dalam card */
+  #materialGuruList.material-container {
+    max-height: none; /* Hilangkan batasan ketat agar mengikuti alur scroll card */
+    overflow-y: visible; 
+    margin-top: 15px;
   }
 </style>
 </head>
