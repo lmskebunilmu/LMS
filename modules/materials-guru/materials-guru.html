@@ -9,21 +9,20 @@
   <link rel="stylesheet" href="../../assets/css/responsive.css">
 
   <style>
-    /* Styling tambahan untuk memastikan layout responsif dan area scroll berjalan sempurna */
     .card {
       box-sizing: border-box;
     }
-    .material-container {
-      max-height: 60vh;
-      min-height: 400px;
+    .module-container {
+      max-height: 65vh;
+      min-height: 350px;
       overflow-y: auto;
       border: 1px solid #e0e0e0;
-      padding: 12px;
+      padding: 15px;
       border-radius: 6px;
       background: #fff;
     }
     @media (max-width: 768px) {
-      .action-buttons {
+      .action-buttons, .grid-2 {
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -58,81 +57,82 @@
         </button>
       </div>
 
-      <!-- FORM MATERI BARU -->
+      <!-- FORM BUAT MATERI BARU -->
       <div id="formMateri" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; background: #fafafa;">
         <h4 style="margin-top: 0;">Form Buat Materi Baru</h4>
-        
         <input type="text" id="newMaterialTitle" placeholder="Judul Sub-Bab / Materi Spesifik (Contoh: Perkalian Aljabar)" style="width:100%; margin-bottom:10px; padding:8px; box-sizing: border-box;"><br><br>
         
         <select id="newMaterialSubject" onchange="populateExistingChapters()" style="width:100%; margin-bottom:10px; padding:8px; box-sizing: border-box;"></select><br><br>
 
         <div style="border: 1px dashed #aaa; padding: 10px; margin-bottom: 10px; border-radius: 4px; background: #fff;">
           <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Bab:</label>
-          
           <select id="newMaterialChapterSelect" style="width:100%; margin-bottom:10px; padding:8px; box-sizing: border-box;" onchange="handleChapterSelectChange()">
             <option value="">-- Pilih Bab Yang Sudah Ada --</option>
           </select>
-          
           <p style="text-align: center; margin: 5px 0; font-size: 12px; color: gray;">atau</p>
-          
           <input type="text" id="newMaterialChapterInput" placeholder="Ketik Nama Bab Baru (Contoh: Bab 1: Aljabar)" style="width:100%; padding:8px; box-sizing: border-box;">
         </div>
 
-        <textarea id="newMaterialContent" placeholder="Isi materi atau link video YouTube / PDF..." style="width:100%; height:120px; margin-bottom:10px; padding:8px; box-sizing: border-box;"></textarea><br><br>
+        <textarea id="newMaterialContent" placeholder="Isi materi atau link video YouTube / PDF..." style="width:100%; height:100px; margin-bottom:10px; padding:8px; box-sizing: border-box;"></textarea><br>
         
         <button onclick="saveNewMaterial()" style="background-color: #28a745; color:white; padding:8px 15px; border:none; border-radius:4px; cursor:pointer;">Simpan Materi</button>
         <button onclick="toggleForm('formMateri')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px; cursor:pointer; margin-left: 5px;">Batal</button>
       </div>
 
-      <!-- FORM LATIHAN BARU -->
+      <!-- FORM BUAT LATIHAN BARU -->
       <div id="formExercise" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; background: #fafafa;">
-        <h4 style="margin-top: 0;">Form Buat Latihan (Exercise) Baru</h4>
-        
-        <label style="font-size: 13px; font-weight: bold;">1. Pilih Mata Pelajaran:</label>
-        <select id="newExerciseSubject" onchange="window.updateExerciseChapters()" style="width:100%; margin-bottom:10px; padding:8px; box-sizing: border-box;">
-          <option value="">-- Pilih Mapel --</option>
-        </select><br><br>
+        <h4 style="margin-top: 0;">Form Buat Latihan Baru</h4>
+        <label style="font-size: 13px; font-weight: bold;">1. Pilih Mapel:</label>
+        <select id="newExerciseSubject" onchange="window.updateExerciseChapters()" style="width:100%; margin-bottom:10px; padding:8px; box-sizing: border-box;"><option value="">-- Pilih Mapel --</option></select><br><br>
 
         <label style="font-size: 13px; font-weight: bold;">2. Pilih Bab:</label>
-        <select id="newExerciseChapter" onchange="window.updateExerciseMaterials()" style="width:100%; margin-bottom:10px; padding:8px; box-sizing: border-box;" disabled>
-          <option value="">-- Pilih Bab --</option>
-        </select><br><br>
+        <select id="newExerciseChapter" onchange="window.updateExerciseMaterials()" style="width:100%; margin-bottom:10px; padding:8px; box-sizing: border-box;" disabled><option value="">-- Pilih Bab --</option></select><br><br>
 
-        <label style="font-size: 13px; font-weight: bold;">3. Pilih Sub-Bab / Materi Terkait:</label>
-        <select id="newExerciseMaterialId" style="width:100%; margin-bottom:15px; padding:8px; box-sizing: border-box;" disabled>
-          <option value="">-- Pilih Sub-Bab / Materi --</option>
-        </select><br><br>
+        <label style="font-size: 13px; font-weight: bold;">3. Pilih Materi:</label>
+        <select id="newExerciseMaterialId" style="width:100%; margin-bottom:15px; padding:8px; box-sizing: border-box;" disabled><option value="">-- Pilih Materi --</option></select><br><br>
 
-        <label style="font-size: 13px; font-weight: bold;">4. Nama / Judul Latihan:</label>
-        <input type="text" id="newExerciseTitle" placeholder="Contoh: Kuis Harian 1, Ulangan Bab 1" style="width:100%; margin-bottom:15px; padding:8px; box-sizing: border-box;"><br><br>
-        
-        <p style="font-size:12px; color:gray;">*Catatan: Isian soal dan sistem kuis detailnya bisa diarahkan ke halaman pembuatan soal terpisah seperti milik superadmin.</p>
+        <label style="font-size: 13px; font-weight: bold;">4. Judul Latihan:</label>
+        <input type="text" id="newExerciseTitle" placeholder="Contoh: Kuis Harian 1" style="width:100%; margin-bottom:15px; padding:8px; box-sizing: border-box;"><br>
         
         <button onclick="saveNewExercise()" style="background-color: #007bff; color:white; padding:8px 15px; border:none; border-radius:4px; cursor:pointer;">Simpan Latihan</button>
         <button onclick="toggleForm('formExercise')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px; cursor:pointer; margin-left: 5px;">Batal</button>
       </div>
 
-      <h3 style="margin-bottom: 10px;">Pilih Materi untuk Kelas</h3>
-
-      <!-- FILTER KELAS & MAPEL -->
-      <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
-        <select id="classSelect" style="flex: 1; min-width: 150px; padding: 8px;"></select>
-        <select id="subjectFilter" onchange="filterBySubject()" style="flex: 1; min-width: 150px; padding: 8px;">
-          <option value="">Semua Mapel</option>
-        </select>
+      <!-- MODUL PEMILIHAN BERTAHAP -->
+      <h3 style="margin-bottom: 15px;">Modul Pilih Materi & Latihan Kelas</h3>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;" class="grid-2">
+        <div>
+          <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Kelas:</label>
+          <select id="classSelect" style="width: 100%; padding: 8px; box-sizing: border-box;"></select>
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Mata Pelajaran:</label>
+          <select id="subjectFilter" onchange="onModuleSubjectChange()" style="width: 100%; padding: 8px; box-sizing: border-box;">
+            <option value="">-- Pilih Mapel --</option>
+          </select>
+        </div>
       </div>
 
-      <!-- SEARCH -->
-      <input 
-        type="text"
-        id="searchMaterialGuru"
-        placeholder="Cari materi..."
-        oninput="filterMaterialsGuru()"
-        style="width: 100%; padding: 8px; margin-bottom: 15px; box-sizing: border-box;"
-      >
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;" class="grid-2">
+        <div>
+          <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Bab:</label>
+          <select id="moduleChapterSelect" onchange="onModuleChapterChange()" style="width: 100%; padding: 8px; box-sizing: border-box;" disabled>
+            <option value="">-- Pilih Bab --</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Sub-Bab / Materi:</label>
+          <select id="moduleMaterialSelect" onchange="onModuleMaterialChange()" style="width: 100%; padding: 8px; box-sizing: border-box;" disabled>
+            <option value="">-- Pilih Sub-Bab --</option>
+          </select>
+        </div>
+      </div>
 
-      <!-- LIST MATERI & LATIHAN -->
-      <div id="materialGuruList" class="material-container"></div>
+      <!-- AREA HASIL MODUL -->
+      <div id="moduleResultContainer" class="module-container">
+        <p style="text-align: center; color: #777; margin-top: 50px;">Silakan pilih Kelas dan Mata Pelajaran terlebih dahulu di atas.</p>
+      </div>
 
     </div>
 
