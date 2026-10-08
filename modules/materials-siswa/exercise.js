@@ -1,4 +1,4 @@
-import { auth, db } from "../../firebase/firebase-config.js";
+import { auth, db, dbSecondary } from "../../firebase/firebase-config.js";
 import { doc, getDoc, collection, query, where, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -47,6 +47,7 @@ window.openFullscreen = () => {
 
 async function loadExerciseData(exId, studentUid) {
   try {
+    // Ambil soal dari Firebase UTAMA (db)
     const exSnap = await getDoc(doc(db, "exercises", exId));
     if (!exSnap.exists()) {
       alert("Latihan tidak ditemukan");
@@ -54,7 +55,8 @@ async function loadExerciseData(exId, studentUid) {
     }
     const exData = exSnap.data();
     
-    const subSnap = await getDoc(doc(db, "student_submissions", studentUid + "_" + exId));
+    // Cek riwayat pengerjaan dari Firebase KEDUA (dbSecondary) jika ingin tersinkron di sana
+    const subSnap = await getDoc(doc(dbSecondary, "student_submissions", studentUid + "_" + exId));
     if (subSnap.exists()) dbSubmission = subSnap.data();
 
     document.getElementById("exerciseTitle").innerText = exData.title + (dbSubmission ? " (Selesai Dikumpulkan)" : "");
@@ -103,26 +105,19 @@ function renderQuestions(questions, studentUid) {
 
     html += `<div class="question"><h3>Soal ${index + 1}. ${qData.question || ""}</h3>`;
 
-    // 1. Pilihan Ganda (PG)
     if (qData.type === "pg") {
       (qData.options || []).forEach((opt, i) => {
         const checked = savedAnswer == i ? "checked" : "";
         html += `<label><input type="radio" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
-    } 
-    // 2. Checkbox
-    else if (qData.type === "checkbox") {
+    } else if (qData.type === "checkbox") {
       (qData.options || []).forEach((opt, i) => {
         const checked = Array.isArray(savedAnswer) && savedAnswer.includes(String(i)) ? "checked" : "";
         html += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
       });
-    } 
-    // 3. Isian Singkat
-    else if (qData.type === "isian") {
+    } else if (qData.type === "isian") {
       html += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban Anda..." ${isLocked ? 'disabled' : ''}>`;
-    } 
-    // 4. Multi Isian
-    else if (qData.type === "multi_isian") {
+    } else if (qData.type === "multi_isian") {
       (qData.fields || []).forEach((f, i) => {
         const val = savedAnswer?.[i] || "";
         html += `
@@ -132,9 +127,7 @@ function renderQuestions(questions, studentUid) {
           </div>
         `;
       });
-    } 
-    // 5. Menjodohkan (Match)
-    else if (qData.type === "match") {
+    } else if (qData.type === "match") {
       const shuffled = [...(qData.pairs || [])].sort(() => Math.random() - 0.5);
       html += `
         <div class="match-wrapper" id="match_${index}" data-locked="${isLocked}">
@@ -147,9 +140,7 @@ function renderQuestions(questions, studentUid) {
           </div>
         </div>
       `;
-    } 
-    // 6. Matrix (Tabel Matriks Pilihan)
-    else if (qData.type === "matrix" && qData.matrix) {
+    } else if (qData.type === "matrix" && qData.matrix) {
       html += `
         <div class="matrix-table-wrapper">
           <table class="matrix-table">
@@ -236,20 +227,17 @@ window.checkAnswer = function(index) {
     userAnswer = selected.value;
     saveAnswer(index, userAnswer);
     correct = userAnswer == q.answer;
-  } 
-  else if (q.type === "checkbox") {
+  } else if (q.type === "checkbox") {
     const checked = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
     userAnswer = checked;
     saveAnswer(index, userAnswer);
     correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
-  } 
-  else if (q.type === "isian") {
+  } else if (q.type === "isian") {
     const input = document.getElementById("q" + index);
     userAnswer = input.value.trim();
     saveAnswer(index, userAnswer);
     correct = userAnswer.toLowerCase() === String(q.answer).toLowerCase();
-  } 
-  else if (q.type === "multi_isian") {
+  } else if (q.type === "multi_isian") {
     userAnswer = [];
     let totalCorrect = 0;
     (q.fields || []).forEach((f, i) => {
@@ -259,8 +247,7 @@ window.checkAnswer = function(index) {
     });
     saveAnswer(index, userAnswer);
     correct = totalCorrect === q.fields.length;
-  } 
-  else if (q.type === "match") {
+  } else if (q.type === "match") {
     const pairs = window.matchAnswers[index] || {};
     saveAnswer(index, pairs);
     let totalCorrect = 0;
@@ -268,8 +255,7 @@ window.checkAnswer = function(index) {
       if (pairs[i] === p.right) totalCorrect++;
     });
     correct = totalCorrect === q.pairs.length;
-  } 
-  else if (q.type === "matrix") {
+  } else if (q.type === "matrix") {
     userAnswer = {};
     let totalCorrect = 0;
     q.matrix.rows.forEach((row, rIdx) => {
@@ -382,7 +368,9 @@ window.submitToFirebase = async function() {
   };
 
   try {
-    await setDoc(doc(db, "student_submissions", studentUid + "_" + exerciseId), submissionData, { merge: true });
+    // KIRIM KE FIREBASE KEDUA (ulangansains2025 / dbSecondary)
+    await setDoc(doc(dbSecondary, "student_submissions", studentUid + "_" + exerciseId), submissionData, { merge: true });
+    
     alert("🎉 Berhasil dikirim! Skor Anda: " + score);
     window.close();
   } catch (error) {
