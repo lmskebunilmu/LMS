@@ -76,7 +76,7 @@ onAuthStateChanged(auth, async (user) => {
   await loadClasses(user);
   await loadSchoolData(userData.schoolId);
   
-  // Pastikan exercises dimuat terlebih dahulu sebelum materials
+  // Muat data latihan global terlebih dahulu
   await loadExercises();
 
   const classSelect = document.getElementById("classSelect");
@@ -160,7 +160,6 @@ async function loadExercises() {
         ...doc.data()
       });
     });
-    console.log("Total exercises loaded:", exercisesData.length);
   } catch (error) {
     console.error("Gagal memuat latihan:", error);
   }
@@ -210,11 +209,38 @@ async function loadMaterials() {
 
   filteredMaterials = materialsGuru;
   
-  // Pastikan data latihan selalu diperbarui sebelum render materi
+  // Sinkronisasi data latihan dan penugasan kelas
   await loadExercises();
   await loadAssignments();
   
   renderMaterials(filteredMaterials);
+}
+
+// ==========================
+// LOAD ASSIGNMENTS
+// ==========================
+async function loadAssignments() {
+  const classId = getSelectedClassId();
+  const user = auth.currentUser;
+  if (!classId || !user) return;
+
+  const mq = query(
+    collection(db, "materialGuru"),
+    where("classId", "==", classId),
+    where("teacherId", "==", user.uid)
+  );
+
+  const msnap = await getDocs(mq);
+  assignedMaterials = msnap.docs.map(d => d.data().materialId);
+
+  const eq = query(
+    collection(db, "exerciseGuru"),
+    where("classId", "==", classId),
+    where("teacherId", "==", user.uid)
+  );
+
+  const esnap = await getDocs(eq);
+  assignedExercises = esnap.docs.map(d => d.data().exerciseId);
 }
 
 // ==========================
@@ -276,8 +302,7 @@ function renderMaterials(data) {
                         class="exercise-check"
                         data-material="${m.id}"
                         value="${ex.id}"
-                        ${isExerciseChecked}
-                        disabled >
+                        ${isExerciseChecked} >
                       📝 ${ex.title}
                     </label>
                   `;
@@ -380,7 +405,7 @@ window.assignSelected = async (bab) => {
       title: selectedMaterial.title, subject: selectedMaterial.subject, createdAt: new Date()
     });
 
-    // Otomatis mengambil dan menyimpan latihan yang terikat pada materi ini
+    // Ambil dan simpan latihan yang terikat pada materi ini berdasarkan checkbox yang dicentang
     const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
     for (const exCb of checkedExercises) {
       const exerciseId = exCb.value;
@@ -395,7 +420,7 @@ window.assignSelected = async (bab) => {
         schoolId: userData.schoolId,
         title: ex.title,
         subject: ex.subject || "",
-        isAssigned: false, 
+        isAssigned: true, 
         duration: 0,        
         createdAt: new Date()
       });
@@ -502,30 +527,6 @@ function loadSubjectFilter(teacherSubjects) {
 window.filterBySubject = () => {
   filterMaterialsGuru();
 };
-
-async function loadAssignments() {
-  const classId = getSelectedClassId();
-  const user = auth.currentUser;
-  if (!classId || !user) return;
-
-  const mq = query(
-    collection(db, "materialGuru"),
-    where("classId", "==", classId),
-    where("teacherId", "==", user.uid)
-  );
-
-  const msnap = await getDocs(mq);
-  assignedMaterials = msnap.docs.map(d => d.data().materialId);
-
-  const eq = query(
-    collection(db, "exerciseGuru"),
-    where("classId", "==", classId),
-    where("teacherId", "==", user.uid)
-  );
-
-  const esnap = await getDocs(eq);
-  assignedExercises = esnap.docs.map(d => d.data().exerciseId);
-}
 
 window.toggleForm = (formId) => {
   const form = document.getElementById(formId);
@@ -721,7 +722,6 @@ window.saveNewExercise = async () => {
     document.getElementById("newExerciseTitle").value = "";
     toggleForm('formExercise');
     
-    // Sinkronisasi ulang data latihan & render ulang tampilan
     await loadExercises();       
     await loadAssignments();     
     renderMaterials(filteredMaterials); 
