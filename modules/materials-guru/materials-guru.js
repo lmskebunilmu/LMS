@@ -35,8 +35,6 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!user) return window.location = "../../login.html";
 
-  console.log("AUTH UID:", user.uid);
-
   const userRef = doc(db, "users", user.uid);
   const userSnap = await getDoc(userRef);
 
@@ -46,8 +44,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const userData = userSnap.data();
-
-  console.log("USER DATA:", userData);
 
   if (userData.role !== "guru") {
     alert("Akses hanya guru!");
@@ -121,8 +117,8 @@ async function loadClasses(user) {
     });
   });
 
-  // Urutkan kelas berdasarkan abjad (A-Z)
-  classesList.sort((a, b) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base' }));
+  // Urutkan kelas berdasarkan abjad (A-Z) dengan dukungan numerik
+  classesList.sort((a, b) => a.name.localeCompare(b.name, 'id', { numeric: true, sensitivity: 'base' }));
 
   if (classesList.length === 0) {
     select.innerHTML = `<option value="">-- Belum ada kelas --</option>`;
@@ -147,7 +143,6 @@ async function loadSchoolData(schoolId) {
 
   const data = snap.data();
 
-  // 🚨 VALIDASI STATUS SEKOLAH
   if(data.status !== "aktif"){
     showToast("Sekolah tidak aktif", "error");
     lockPage();
@@ -204,6 +199,13 @@ async function loadMaterials() {
     materialsGuru.push(m);
   });
 
+  // Urutkan materi secara global berdasarkan Judul/Sub-Bab secara alfabetis
+  materialsGuru.sort((a, b) => {
+    const titleA = (a.subChapter || a.title || "").toLowerCase();
+    const titleB = (b.subChapter || b.title || "").toLowerCase();
+    return titleA.localeCompare(titleB, 'id', { numeric: true });
+  });
+
   filteredMaterials = materialsGuru;
   await loadAssignments();
   renderMaterials(filteredMaterials);
@@ -222,6 +224,9 @@ async function loadExercises(){
       ...doc.data()
     });
   });
+
+  // Urutkan latihan berdasarkan judul (A-Z)
+  exercisesData.sort((a, b) => (a.title || "").localeCompare(b.title || "", 'id', { numeric: true }));
 }
 
 // ==========================
@@ -243,9 +248,19 @@ function renderMaterials(data){
     grouped[bab].push(m);
   });
 
-  Object.keys(grouped).forEach(bab => {
+  // Urutkan kunci Bab secara alfabetis (A-Z)
+  const sortedChapters = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
+
+  sortedChapters.forEach(bab => {
     const babDiv = document.createElement("div");
     babDiv.className = "bab-box";
+
+    // Urutkan materi di dalam bab ini secara alfabetis
+    grouped[bab].sort((a, b) => {
+      const subA = (a.subChapter || a.title || "").toLowerCase();
+      const subB = (b.subChapter || b.title || "").toLowerCase();
+      return subA.localeCompare(subB, 'id', { numeric: true });
+    });
 
     babDiv.innerHTML = `
       <h3 class="bab-title">
@@ -367,7 +382,6 @@ window.assignSelected = async (bab) => {
   const userSnap = await getDoc(doc(db,"users",user.uid));
   const userData = userSnap.data();
 
-  // Bersihkan Master Alokasi lama kelas ini
   const q = query(collection(db,"materialGuru"), where("classId","==",classId), where("teacherId","==",user.uid));
   const oldSnap = await getDocs(q);
   for(const d of oldSnap.docs) await deleteDoc(d.ref);
@@ -376,7 +390,6 @@ window.assignSelected = async (bab) => {
   const exSnap = await getDocs(eq);
   for(const d of exSnap.docs) await deleteDoc(d.ref);
 
-  // Simpan data baru ke Master Siswa
   for (const cb of checkedMaterials) {
     const materialId = cb.value;
     const selectedMaterial = materialsGuru.find(m => m.id === materialId);
@@ -387,7 +400,6 @@ window.assignSelected = async (bab) => {
       title: selectedMaterial.title, subject: selectedMaterial.subject, createdAt: new Date()
     });
 
-    // Otomatis mengambil dan menyimpan latihan yang terikat pada materi ini
     const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
     for (const exCb of checkedExercises) {
       const exerciseId = exCb.value;
@@ -413,16 +425,10 @@ window.assignSelected = async (bab) => {
   await loadMaterials();
 };
 
-// ==========================
-// PREVIEW
-// ==========================
 window.previewMaterial = (id) => {
   window.open(`preview.html?id=${id}`, "_blank");
 };
 
-// ==========================
-// TOAST & HEADER
-// ==========================
 function showToast(msg, type="success"){
   const t = document.getElementById("toast");
   if(!t) return;
@@ -499,7 +505,10 @@ function loadSubjectFilter(teacherSubjects) {
 
   select.innerHTML = `<option value="">Semua Mapel</option>`;
 
-  teacherSubjects.forEach(sub => {
+  // Urutkan daftar mapel secara alfabetis (A-Z)
+  const sortedSubjects = [...teacherSubjects].sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
+
+  sortedSubjects.forEach(sub => {
     const opt = document.createElement("option");
     opt.value = sub;
     opt.textContent = sub;
@@ -618,6 +627,9 @@ window.updateExerciseChapters = () => {
     }
   });
 
+  // Urutkan bab secara alfabetis (A-Z)
+  chapters.sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
+
   chapters.forEach(bab => {
     const opt = document.createElement("option");
     opt.value = bab;
@@ -642,6 +654,9 @@ window.updateExerciseMaterials = () => {
   }
 
   const filtered = materialsGuru.filter(m => m.subject === subject && m.chapter === chapter);
+
+  // Urutkan materi secara alfabetis (A-Z)
+  filtered.sort((a, b) => (a.subChapter || a.title || "").localeCompare(b.subChapter || b.title || "", 'id', { numeric: true }));
 
   filtered.forEach(m => {
     const opt = document.createElement("option");
@@ -678,7 +693,7 @@ window.saveNewMaterial = async () => {
       content: content,
       level: schoolData.level,         
       curriculum: schoolData.curriculum, 
-      createdBy: user.uid,               
+      createdBy: user.uid,                 
       isCustomTeacher: true,
       createdAt: new Date()
     });
@@ -754,6 +769,9 @@ window.populateExistingChapters = () => {
       }
     }
   });
+
+  // Urutkan bab secara alfabetis (A-Z)
+  chapters.sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
 
   chapters.forEach(bab => {
     const opt = document.createElement("option");
