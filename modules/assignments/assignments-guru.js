@@ -508,7 +508,6 @@ function renderAssignmentPanel(data) {
   });
 }
 
-
 // ==========================
 
 // FILTER LOGIC
