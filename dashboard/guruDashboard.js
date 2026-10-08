@@ -1,4 +1,4 @@
-import { auth, db } from "/LMS/firebase/firebase-config.js";
+import { auth, db, dbSecondary } from "/LMS/firebase/firebase-config.js";
 import { onAuthStateChanged, updateProfile, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -205,8 +205,8 @@ async function loadExerciseReports(user) {
       }
     });
 
-    // 4. Ambil semua submissions siswa
-    const subSnap = await getDocs(query(collection(db, "student_submissions"), where("schoolId", "==", currentSchoolId)));
+    // 4. Ambil semua submissions siswa DARI FIREBASE KEDUA (dbSecondary)
+    const subSnap = await getDocs(query(collection(dbSecondary, "student_submissions"), where("schoolId", "==", currentSchoolId)));
     const submissionsMap = {};
     subSnap.forEach(subDoc => {
       const subData = subDoc.data();
@@ -330,7 +330,7 @@ function renderReportTable(dataList) {
 }
 
 // ==========================
-// HAPUS SUBMISSION SISWA
+// HAPUS SUBMISSION SISWA (DARI dbSecondary)
 // ==========================
 window.deleteSubmission = async (subId) => {
   if (!confirm("Apakah Anda yakin ingin menghapus riwayat pengerjaan ini? Siswa dapat mengerjakan ulang latihan ini jika dihapus.")) {
@@ -338,7 +338,7 @@ window.deleteSubmission = async (subId) => {
   }
 
   try {
-    await deleteDoc(doc(db, "student_submissions", subId));
+    await deleteDoc(doc(dbSecondary, "student_submissions", subId));
     showToast("Riwayat pengerjaan berhasil dihapus");
     
     const user = auth.currentUser;
