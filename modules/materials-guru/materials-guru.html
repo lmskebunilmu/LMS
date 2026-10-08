@@ -11,6 +11,21 @@
 <link rel="stylesheet" href="../../assets/css/style.css">
 <link rel="stylesheet" href="../../assets/css/responsive.css">
 
+<!-- Tambahkan CSS ini agar kontainer materi bisa di-scroll -->
+<style>
+  /* Batasi tinggi area list materi dan aktifkan fungsi scroll vertikal */
+  #materialGuruList.material-container {
+    max-height: 65vh; /* Sesuaikan tinggi maksimal di layar */
+    overflow-y: auto;  /* Memunculkan scrollbar jika kontennya panjang */
+    padding-right: 5px;
+    margin-top: 15px;
+  }
+
+  /* Opsional: Rapikan tampilan card agar tidak terlalu melebar mentok */
+  .card {
+    box-sizing: border-box;
+  }
+</style>
 </head>
 
 <body>
