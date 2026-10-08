@@ -95,7 +95,7 @@ async function loadAssignedExercisesForManagement() {
   const classSelect = document.getElementById("classSelect");
   if (!classSelect) return;
   const classId = classSelect.value;
-  const container = document.getElementById("exerciseManagementContainer"); // Wadah list tugas di HTML Anda
+  const container = document.getElementById("exerciseManagementContainer");
   
   if (!classId) {
     if (container) container.innerHTML = "<p>Pilih kelas terlebih dahulu.</p>";
@@ -107,7 +107,6 @@ async function loadAssignedExercisesForManagement() {
   container.innerHTML = "⏳ Memuat data penugasan...";
 
   try {
-    // Ambil data exerciseGuru yang sudah di-assign / dipilih sebelumnya untuk kelas ini
     const q = query(
       collection(db, "exerciseGuru"),
       where("classId", "==", classId),
@@ -127,7 +126,6 @@ async function loadAssignedExercisesForManagement() {
   }
 }
 
-// Render UI Pengaturan Tanggal, Status Aktif, dan Tombol Hapus/Simpan
 function renderExerciseManagementUI(container) {
   if (assignedExercisesList.length === 0) {
     container.innerHTML = `
@@ -148,11 +146,10 @@ function renderExerciseManagementUI(container) {
   `;
 
   assignedExercisesList.forEach((item, index) => {
-    // Format tanggal deadline jika ada
     let deadlineVal = "";
     if (item.deadline) {
       const dObj = item.deadline.toDate ? item.deadline.toDate() : new Date(item.deadline);
-      deadlineVal = dObj.toISOString().slice(0, 16); // Format input datetime-local YYYY-MM-DDTHH:mm
+      deadlineVal = dObj.toISOString().slice(0, 16);
     }
 
     html += `
@@ -193,10 +190,8 @@ function renderExerciseManagementUI(container) {
 }
 
 // ==========================
-// AKSI: SIMPAN, TAMBAH, HAPUS PENUGASAN
+// AKSI: SIMPAN & HAPUS
 // ==========================
-
-// Simpan massal perubahan status, deadline, dan durasi semua latihan di kelas ini
 window.saveAllAssignmentsSettings = async () => {
   try {
     for (const item of assignedExercisesList) {
@@ -223,7 +218,6 @@ window.saveAllAssignmentsSettings = async () => {
   }
 };
 
-// Hapus satu latihan dari daftar tugas kelas ini (tidak menghilangkan data master latihan pusat)
 window.removeAssignedExercise = async (docId) => {
   if (!confirm("Apakah Anda yakin ingin menghapus latihan ini dari daftar penugasan kelas?")) return;
 
@@ -238,7 +232,7 @@ window.removeAssignedExercise = async (docId) => {
 };
 
 // ==========================
-// PENDUKUNG (TOAST & HEADER)
+// PENDUKUNG (TOAST & HEADER AMAN 404)
 // ==========================
 function showToast(msg, type="success"){
   const t = document.getElementById("toast");
@@ -268,14 +262,21 @@ async function loadProfileHeader(user){
   const data = userSnap.data();
 
   if(document.getElementById("headerNameHeader")) document.getElementById("headerNameHeader").innerText = data.name || "Guru";
-  if(document.getElementById("headerAvatarHeader")) document.getElementById("headerAvatarHeader").src = data.avatarURL || "../assets/images/default-avatar.png";
+  if(document.getElementById("headerAvatarHeader")) {
+    document.getElementById("headerAvatarHeader").src = data.avatarURL || "../../assets/images/default-avatar.png";
+    document.getElementById("headerAvatarHeader").onerror = function() { this.src = "../../assets/images/default-avatar.png"; };
+  }
   
   if(data.schoolId){
     const schoolSnap = await getDoc(doc(db,"schools",data.schoolId));
     if(schoolSnap.exists()){
       const schoolData = schoolSnap.data();
       if(document.getElementById("headerSchoolName")) document.getElementById("headerSchoolName").innerText = schoolData.name || "-";
-      if(document.getElementById("headerSchoolLogo")) document.getElementById("headerSchoolLogo").src = schoolData.logoURL || "../assets/images/default-logo.png";
+      const logoEl = document.getElementById("headerSchoolLogo");
+      if(logoEl) {
+        logoEl.src = schoolData.logoURL || "../../assets/images/default-logo.png";
+        logoEl.onerror = function() { this.src = "../../assets/images/default-logo.png"; };
+      }
     }
   }
 }
