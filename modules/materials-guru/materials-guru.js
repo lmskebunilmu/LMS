@@ -1,7 +1,5 @@
 import { auth, db } from "../../firebase/firebase-config.js";
 
-
-
 import {
   collection,
   getDocs,
@@ -25,18 +23,15 @@ let exercisesData = [];
 let assignedMaterials = [];
 let assignedExercises = [];
 
-
 function getSelectedClassId() {
   return document.getElementById("classSelect").value;
 }
+
 // ==========================
 // AUTH
 // ==========================
 onAuthStateChanged(auth, async (user) => {
-
   if (!user) return window.location = "../../login.html";
-
-  console.log("AUTH UID:", user.uid);
 
   const userRef = doc(db, "users", user.uid);
   const userSnap = await getDoc(userRef);
@@ -48,51 +43,43 @@ onAuthStateChanged(auth, async (user) => {
 
   const userData = userSnap.data();
 
-  console.log("USER DATA:", userData);
-
   if (userData.role !== "guru") {
     alert("Akses hanya guru!");
     return window.location = "../../login.html";
   }
 
   // 🔒 CEK STATUS GURU
-const teacherSnap = await getDoc(doc(db, "teachers", user.uid));
-
-if (teacherSnap.exists()) {
-  const teacherData = teacherSnap.data();
-
-  if (teacherData.status === "nonaktif") {
-    showToast("Akun kamu dinonaktifkan!", "error");
-
-    document.querySelector(".main").innerHTML = `
-      <div style="text-align:center;margin-top:100px;">
-        <h1 style="color:red;">🚫 Akun Dinonaktifkan</h1>
-        <p>Hubungi admin sekolah</p>
-        <button onclick="window.location='../../login.html'">Logout</button>
-      </div>
-    `;
-
-    return;
+  const teacherSnap = await getDoc(doc(db, "teachers", user.uid));
+  if (teacherSnap.exists()) {
+    const teacherData = teacherSnap.data();
+    if (teacherData.status === "nonaktif") {
+      showToast("Akun kamu dinonaktifkan!", "error");
+      document.querySelector(".main").innerHTML = `
+        <div style="text-align:center;margin-top:100px;">
+          <h1 style="color:red;">🚫 Akun Dinonaktifkan</h1>
+          <p>Hubungi admin sekolah</p>
+          <button onclick="window.location='../../login.html'">Logout</button>
+        </div>
+      `;
+      return;
+    }
   }
-}
 
   await loadLayout("guru");
+  await waitForHeader();
+  await loadProfileHeader(user);
 
-await waitForHeader();
-await loadProfileHeader(user);
+  await loadClasses(user);
+  await loadSchoolData(userData.schoolId);
+  await loadExercises();
 
-await loadClasses(user);
-await loadSchoolData(userData.schoolId);
-await loadExercises();
+  const classSelect = document.getElementById("classSelect");
+  classSelect.addEventListener("change", async () => {
+    document.getElementById("subjectFilter").value = "";
+    await loadMaterials();
+  });
 
-const classSelect = document.getElementById("classSelect");
-
-classSelect.addEventListener("change", async () => {
-  document.getElementById("subjectFilter").value = "";
   await loadMaterials();
-});
-
-await loadMaterials();
 });
 
 // ==========================
@@ -630,7 +617,7 @@ window.saveNewMaterial = async () => {
       content: content,
       level: schoolData.level,         
       curriculum: schoolData.curriculum, 
-      createdBy: user.uid,             
+      createdBy: user.uid,               
       isCustomTeacher: true,
       createdAt: new Date()
     });
