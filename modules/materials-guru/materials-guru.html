@@ -13,40 +13,87 @@
 
 <!-- Tambahkan CSS ini agar kontainer materi bisa di-scroll -->
 <style>
-  /* Reset dasar agar body dan html fleksibel */
-  html, body {
-    height: 100%;
-    margin: 0;
-    overflow-x: hidden; /* Mencegah geser horizontal */
-  }
+/* =========================================
+   FIX SCROLL HALAMAN MATERI GURU
+   ========================================= */
 
-  .wrapper {
-    display: flex;
-    min-height: 100vh; /* Menggunakan min-height agar bisa memanjang ke bawah */
+html,
+body {
     width: 100%;
-  }
+    min-height: 100%;
+    height: auto !important;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
 
-  .main {
-    flex: 1;
+body {
+    position: relative;
+}
+
+/* Wrapper mengikuti tinggi seluruh isi */
+.wrapper {
     display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    overflow-y: visible; /* Biarkan body/wrapper utama yang menangani scroll secara natural */
-    padding-bottom: 40px;
-    box-sizing: border-box;
-  }
+    width: 100%;
+    min-height: 100vh !important;
+    height: auto !important;
+    overflow: visible !important;
+}
 
-  .card {
+/* Area utama jangan dikunci tingginya */
+.main {
+    flex: 1;
+    min-width: 0;
+    min-height: 100vh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-bottom: 60px;
+    box-sizing: border-box;
+}
+
+/* Card mengikuti isi */
+.card {
+    width: 100%;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
     box-sizing: border-box;
     margin-bottom: 20px;
-  }
+}
 
-  /* Area list materi di dalam card */
-  #materialGuruList.material-container {
-    max-height: none; 
-    overflow-y: visible; 
+/* LIST MATERI */
+#materialGuruList,
+#materialGuruList.material-container {
+    width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
     margin-top: 15px;
-  }
+}
+
+/* BAB */
+.bab-box {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* DAFTAR SUBBAB */
+.subbab-list {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* BAB YANG DIBUKA */
+.bab-box.active .subbab-list {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
 </style>
 </head>
 
