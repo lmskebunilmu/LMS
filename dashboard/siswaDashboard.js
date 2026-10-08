@@ -1,4 +1,4 @@
-import { auth, db } from "../firebase/firebase-config.js";
+import { auth, db, dbSecondary } from "../firebase/firebase-config.js";
 import {
   onAuthStateChanged,
   updateProfile,
@@ -117,8 +117,9 @@ async function loadStudentReports(studentUid) {
   if (!container) return;
 
   try {
+    // MENGAMBIL DATA SUBMISSION DARI FIREBASE KEDUA (dbSecondary)
     const q = query(
-      collection(db, "student_submissions"),
+      collection(dbSecondary, "student_submissions"),
       where("studentUid", "==", studentUid)
     );
     const snap = await getDocs(q);
@@ -134,6 +135,7 @@ async function loadStudentReports(studentUid) {
       
       let exerciseTitle = "Latihan / Tugas";
       try {
+        // Mengambil judul latihan tetap dari Firebase UTAMA (db) tempat soal berada
         const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
         if (exSnap.exists()) {
           exerciseTitle = exSnap.data().title || exerciseTitle;
