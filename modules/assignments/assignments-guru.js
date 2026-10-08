@@ -381,217 +381,131 @@ async function loadAssignments() {
 
 
 // ==========================
-
 // RENDER PANEL LOGIC
-
 // ==========================
-
 function renderAssignmentPanel(data) {
-
   const container = document.getElementById("assignmentGuruList");
-
   container.innerHTML = "";
 
-
   if (data.length === 0) {
-
     container.innerHTML = `<p>Tidak ada materi atau kuis latihan ditemukan.</p>`;
-
     return;
-
   }
 
-
   const grouped = {};
-
   data.forEach(m => {
-
     const bab = m.chapter || "Bab Umum";
-
     if (!grouped[bab]) grouped[bab] = [];
-
     grouped[bab].push(m);
-
   });
 
+  // 1. URUTKAN NAMA BAB SECARA ALFABETIS (A-Z)
+  const sortedChapters = Object.keys(grouped).sort((a, b) => 
+    a.localeCompare(b, 'id', { numeric: true, sensitivity: 'accent' })
+  );
 
-  Object.keys(grouped).forEach(bab => {
-
+  sortedChapters.forEach(bab => {
     const babDiv = document.createElement("div");
-
     babDiv.className = "bab-box";
 
+    // 2. URUTKAN SUB-BAB DI DALAM BAB INI SECARA ALFABETIS (A-Z)
+    let subChapters = grouped[bab];
+    subChapters.sort((a, b) => {
+      const titleA = (a.subChapter || a.title || "").toLowerCase();
+      const titleB = (b.subChapter || b.title || "").toLowerCase();
+      return titleA.localeCompare(titleB, 'id', { numeric: true, sensitivity: 'accent' });
+    });
 
     babDiv.innerHTML = `
-
       <h3 class="bab-title">
-
         <span>📘 ${bab}</span>
-
         <button class="toggle-btn">Lihat Materi & Latihan</button>
-
       </h3>
 
-
       <div class="subbab-list">
-
-        ${grouped[bab].map(m => {
-
+        ${subChapters.map(m => {
           let materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
-
           
-
+          // 3. URUTKAN LATIHAN DI DALAM SUB-BAB SECARA ALFABETIS (A-Z)
           materialExercises.sort((a, b) => {
-
             const titleA = (a.title || "").toLowerCase();
-
             const titleB = (b.title || "").toLowerCase();
-
-            return titleA.localeCompare(titleB);
-
+            return titleA.localeCompare(titleB, 'id', { numeric: true, sensitivity: 'accent' });
           });
-
 
           const isMaterialChecked = assignedMaterials.includes(m.id) ? "checked" : "";
 
-
           return `
-
             <div class="subbab-item">
-
               <label style="font-weight: bold;">
-
                 <input type="checkbox" class="subbab-check" value="${m.id}" ${isMaterialChecked} disabled>
-
                 📄 Sub-Bab: ${m.subChapter || m.title}
-
               </label>
 
-
               <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 10px; border-radius: 4px; max-height: 250px; overflow-y: auto; border: 1px solid #e0e0e0;">
-
                 ${materialExercises.map(ex => {
-
                   const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
-
                   const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
-
                   
-
                   const savedDeadlineDate = dbAssign ? dbAssign.deadlineDate || "" : "";
-
                   const savedDeadlineTime = dbAssign ? dbAssign.deadlineTime || "" : "";
 
-
                   return `
-
                     <div class="exercise-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0; background: #fff; padding: 10px; border-radius:4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 10px;">
-
                       <label class="exercise-item" style="margin: 0; cursor:pointer; font-weight: 500;">
-
                         <input
-
                           type="checkbox"
-
                           class="exercise-check"
-
                           data-material="${m.id}"
-
                           value="${ex.id}"
-
                           ${isChecked} 
-
                         >
-
                         📝 Latihan: ${ex.title}
-
                       </label>
-
                       
-
                       <div style="display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
-
                         <span style="font-size:12px; color:gray;">Batas Pengumpulan:</span>
-
                         <input 
-
                           type="date" 
-
                           class="exercise-date" 
-
                           data-id="${ex.id}" 
-
                           value="${savedDeadlineDate}" 
-
                           style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
-
                         >
-
                         <input 
-
                           type="time" 
-
                           class="exercise-time" 
-
                           data-id="${ex.id}" 
-
                           value="${savedDeadlineTime}" 
-
                           style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
-
                         >
-
                       </div>
-
                     </div>
-
                   `;
-
                 }).join("")}
-
                 ${materialExercises.length === 0 ? '<p style="font-size:12px; color:gray; margin:0;">Tidak ada latihan di sub-bab ini</p>' : ''}
-
               </div>
-
             </div>
-
           `;
-
         }).join("")}
-
       </div>
 
-
       <button onclick="saveAssignmentStructure('${bab}')">
-
         💾 Tugaskan & Aktifkan Latihan Durasi
-
       </button>
-
     `;
 
-
     const btn = babDiv.querySelector(".toggle-btn");
-
     btn.onclick = () => {
-
       document.querySelectorAll(".bab-box").forEach(b => {
-
         if (b !== babDiv) b.classList.remove("active");
-
       });
-
       babDiv.classList.toggle("active");
-
       btn.textContent = babDiv.classList.contains("active") ? "Tutup" : "Lihat Materi & Latihan";
-
     };
 
-
     container.appendChild(babDiv);
-
   });
-
 }
 
 
