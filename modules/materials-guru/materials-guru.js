@@ -89,6 +89,7 @@ onAuthStateChanged(auth, async (user) => {
   classSelect.addEventListener("change", async () => {
     // 🔥 RESET FILTER MAPEL
     document.getElementById("subjectFilter").value = "";
+    await loadExercises();     // Pastikan data latihan ikut ter-refresh saat ganti kelas
     await loadMaterials();
   });
 
@@ -678,7 +679,7 @@ window.saveNewMaterial = async () => {
       content: content,
       level: schoolData.level,         
       curriculum: schoolData.curriculum, 
-      createdBy: user.uid,               
+      createdBy: user.uid,                 
       isCustomTeacher: true,
       createdAt: new Date()
     });
@@ -729,8 +730,9 @@ window.saveNewExercise = async () => {
     document.getElementById("newExerciseTitle").value = "";
     toggleForm('formExercise');
     
-    await loadExercises();
-    renderMaterials(filteredMaterials);
+    await loadExercises();       // Sinkronisasi data latihan terbaru
+    await loadAssignments();     // Sinkronisasi penugasan kelas aktif
+    renderMaterials(filteredMaterials); // Render ulang tampilan
   } catch (error) {
     console.error("Error creating exercise:", error);
     showToast("Gagal membuat latihan", "error");
