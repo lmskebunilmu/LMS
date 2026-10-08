@@ -206,19 +206,18 @@ async function loadAssignments() {
 }
 
 // ==========================
-// ==========================
-// RENDER PANEL LOGIC (Struktur: Bab -> Sub-Bab -> Materi -> Latihan)
+// RENDER PANEL LOGIC (Tampilan Vertikal ke Bawah & Responsif HP)
 // ==========================
 function renderAssignmentPanel(data) {
   const container = document.getElementById("assignmentGuruList");
   container.innerHTML = "";
 
   if (data.length === 0) {
-    container.innerHTML = `<p>Tidak ada materi atau kuis latihan ditemukan.</p>`;
+    container.innerHTML = `<p style="text-align:center; color:gray; padding:20px;">Tidak ada materi atau kuis latihan ditemukan.</p>`;
     return;
   }
 
-  // 1. Grouping data materi berdasarkan Bab (Chapter)
+  // 1. Grouping berdasarkan Bab (Chapter)
   const groupedByChapter = {};
   data.forEach(m => {
     const bab = m.chapter || "Bab Umum";
@@ -230,7 +229,6 @@ function renderAssignmentPanel(data) {
     const babDiv = document.createElement("div");
     babDiv.className = "bab-box";
 
-    // Di dalam bab, kita kelompokkan lagi berdasarkan Sub-Bab (subChapter)
     const materialsInChapter = groupedByChapter[bab];
     const groupedBySubChapter = {};
     materialsInChapter.forEach(m => {
@@ -242,19 +240,18 @@ function renderAssignmentPanel(data) {
     babDiv.innerHTML = `
       <h3 class="bab-title">
         <span>📘 Bab: ${bab}</span>
-        <button class="toggle-btn">Lihat Materi & Latihan</button>
+        <button class="toggle-btn" style="padding: 6px 12px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">Lihat Materi & Latihan</button>
       </h3>
 
-      <div class="subbab-list" style="padding: 10px 16px;">
+      <div class="subbab-list">
         ${Object.keys(groupedBySubChapter).map(subChp => {
           return `
-            <div class="subbab-group" style="margin-bottom: 20px; border-left: 3px solid #0d6efd; padding-left: 12px;">
-              <div style="font-weight: bold; font-size: 15px; color: #2c3e50; margin-bottom: 10px;">
+            <div class="subbab-group" style="margin-bottom: 15px; border-left: 3px solid #0d6efd; padding-left: 10px;">
+              <div style="font-weight: bold; font-size: 14px; color: #1e293b; margin-bottom: 8px;">
                 📂 Sub-Bab: ${subChp}
               </div>
 
               ${groupedBySubChapter[subChp].map(m => {
-                // Ambil latihan yang terikat ke materi ini (berdasarkan materialId)
                 let materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
                 
                 materialExercises.sort((a, b) => {
@@ -266,19 +263,17 @@ function renderAssignmentPanel(data) {
                 const isMaterialChecked = assignedMaterials.includes(m.id) ? "checked" : "";
 
                 return `
-                  <div class="materi-item" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                  <div class="materi-item" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 10px;">
                     
-                    <!-- KOTAK MATERI -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                      <label style="font-weight: 600; color: #1e293b; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" class="subbab-check" value="${m.id}" ${isMaterialChecked} disabled>
-                        📄 Materi: ${m.title}
+                    <div style="margin-bottom: 8px;">
+                      <label style="font-weight: 600; color: #334155; cursor: pointer; display: flex; align-items: flex-start; gap: 8px; font-size: 14px;">
+                        <input type="checkbox" class="subbab-check" value="${m.id}" ${isMaterialChecked} disabled style="margin-top: 3px;">
+                        <span>📄 Materi: ${m.title}</span>
                       </label>
                     </div>
 
-                    <!-- DAFTAR LATIHAN DI BAWAH MATERI INI -->
-                    <div class="exercise-list" style="margin-top: 8px; background: #f8fafc; padding: 10px; border-radius: 4px; max-height: 250px; overflow-y: auto; border: 1px solid #cbd5e1;">
-                      <div style="font-size: 12px; font-weight: bold; color: #64748b; margin-bottom: 6px;">📝 Daftar Latihan Soal:</div>
+                    <div class="exercise-list">
+                      <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 6px; text-transform: uppercase;">📝 Daftar Latihan Soal:</div>
                       
                       ${materialExercises.map(ex => {
                         const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
@@ -288,39 +283,42 @@ function renderAssignmentPanel(data) {
                         const savedDeadlineTime = dbAssign ? dbAssign.deadlineTime || "" : "";
 
                         return `
-                          <div class="exercise-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0; background: #fff; padding: 8px 10px; border-radius:4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex-wrap: wrap; gap: 10px;">
-                            <label class="exercise-item" style="margin: 0; cursor:pointer; font-weight: 500; font-size: 13px;">
+                          <div class="exercise-row">
+                            <label class="exercise-item" style="margin: 0; cursor: pointer; font-weight: 500; font-size: 13px; display: flex; align-items: flex-start; gap: 8px;">
                               <input
                                 type="checkbox"
                                 class="exercise-check"
                                 data-material="${m.id}"
                                 value="${ex.id}"
                                 ${isChecked} 
+                                style="margin-top: 2px;"
                               >
-                              Latihan: ${ex.title}
+                              <span>Latihan: ${ex.title}</span>
                             </label>
                             
-                            <div style="display:flex; align-items:center; gap:6px; flex-wrap: wrap;">
-                              <span style="font-size:11px; color:gray;">Batas:</span>
-                              <input 
-                                type="date" 
-                                class="exercise-date" 
-                                data-id="${ex.id}" 
-                                value="${savedDeadlineDate}" 
-                                style="padding: 3px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;"
-                              >
-                              <input 
-                                type="time" 
-                                class="exercise-time" 
-                                data-id="${ex.id}" 
-                                value="${savedDeadlineTime}" 
-                                style="padding: 3px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;"
-                              >
+                            <div class="exercise-deadline-container">
+                              <span style="font-size: 11px; color: #64748b; font-weight: 500;">Batas Waktu:</span>
+                              <div style="display: flex; gap: 6px; width: 100%;">
+                                <input 
+                                  type="date" 
+                                  class="exercise-date" 
+                                  data-id="${ex.id}" 
+                                  value="${savedDeadlineDate}" 
+                                  style="flex: 1; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; background: #fff;"
+                                >
+                                <input 
+                                  type="time" 
+                                  class="exercise-time" 
+                                  data-id="${ex.id}" 
+                                  value="${savedDeadlineTime}" 
+                                  style="width: 90px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; background: #fff;"
+                                >
+                              </div>
                             </div>
                           </div>
                         `;
                       }).join("")}
-                      ${materialExercises.length === 0 ? '<p style="font-size:12px; color:gray; margin:0;">Tidak ada latihan di materi ini</p>' : ''}
+                      ${materialExercises.length === 0 ? '<p style="font-size:12px; color:gray; margin:0; padding: 4px;">Tidak ada latihan di materi ini</p>' : ''}
                     </div>
 
                   </div>
@@ -332,8 +330,8 @@ function renderAssignmentPanel(data) {
         }).join("")}
       </div>
 
-      <div style="padding: 0 16px 16px 16px;">
-        <button onclick="saveAssignmentStructure('${bab}')" style="width: 100%; padding: 10px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+      <div style="padding: 12px 16px; background: #fff; border-top: 1px solid #f1f5f9;">
+        <button onclick="saveAssignmentStructure('${bab}')" style="width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">
           💾 Simpan Penugasan Bab Ini
         </button>
       </div>
