@@ -35,7 +35,7 @@
   </button>
 </div>
 
-<div id="formMateri" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px;">
+<div id="formMateri" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; background: #fafafa;">
   <h4>Form Buat Materi Baru</h4>
   
   <input type="text" id="newMaterialTitle" placeholder="Judul Sub-Bab / Materi Spesifik (Contoh: Perkalian Aljabar)" style="width:100%; margin-bottom:10px; padding:8px;"><br><br>
@@ -43,7 +43,7 @@
   <select id="newMaterialSubject" onchange="populateExistingChapters()" style="width:100%; margin-bottom:10px; padding:8px;">
     </select><br><br>
 
-  <div style="border: 1px dashed #aaa; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+  <div style="border: 1px dashed #aaa; padding: 10px; margin-bottom: 10px; border-radius: 4px; background: #fff;">
     <label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px;">Pilih Bab:</label>
     
     <select id="newMaterialChapterSelect" style="width:100%; margin-bottom:10px; padding:8px;" onchange="handleChapterSelectChange()">
@@ -55,13 +55,13 @@
     <input type="text" id="newMaterialChapterInput" placeholder="Ketik Nama Bab Baru (Contoh: Bab 1: Aljabar)" style="width:100%; padding:8px;">
   </div>
 
-  <textarea id="newMaterialContent" placeholder="Isi materi atau link video YouTube / PDF..." style="width:100%; height:150px; margin-bottom:10px; padding:8px;"></textarea><br><br>
+  <textarea id="newMaterialContent" placeholder="Isi materi atau link video YouTube / PDF..." style="width:100%; height:120px; margin-bottom:10px; padding:8px;"></textarea><br><br>
   
-  <button onclick="saveNewMaterial()" style="background-color: #28a745; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Materi</button>
-  <button onclick="toggleForm('formMateri')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
+  <button onclick="saveNewMaterial()" style="background-color: #28a745; color:white; padding:8px 15px; border:none; border-radius:4px; cursor:pointer;">Simpan Materi</button>
+  <button onclick="toggleForm('formMateri')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px; cursor:pointer;">Batal</button>
 </div>
 
-<div id="formExercise" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px;">
+<div id="formExercise" class="card" style="display: none; border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; background: #fafafa;">
   <h4>Form Buat Latihan (Exercise) Baru</h4>
   
   <label style="font-size: 13px; font-weight: bold;">1. Pilih Mata Pelajaran:</label>
@@ -84,18 +84,19 @@
   
   <p style="font-size:12px; color:gray;">*Catatan: Isian soal dan sistem kuis detailnya bisa diarahkan ke halaman pembuatan soal terpisah seperti milik superadmin.</p>
   
-  <button onclick="saveNewExercise()" style="background-color: #007bff; color:white; padding:8px 15px; border:none; border-radius:4px;">Simpan Latihan</button>
-  <button onclick="toggleForm('formExercise')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px;">Batal</button>
+  <button onclick="saveNewExercise()" style="background-color: #007bff; color:white; padding:8px 15px; border:none; border-radius:4px; cursor:pointer;">Simpan Latihan</button>
+  <button onclick="toggleForm('formExercise')" style="background-color: #dc3545; color:white; padding:8px 15px; border:none; border-radius:4px; cursor:pointer;">Batal</button>
 </div>
 
       <h3>Pilih Materi untuk Kelas</h3>
 
-      <!-- PILIH KELAS -->
-      <select id="classSelect"></select>
-
-      <select id="subjectFilter" onchange="filterBySubject()">
-  <option value="">Semua Mapel</option>
-</select>
+      <!-- FILTER KELAS & MAPEL -->
+      <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+        <select id="classSelect" style="flex: 1; min-width: 150px; padding: 8px;"></select>
+        <select id="subjectFilter" onchange="filterBySubject()" style="flex: 1; min-width: 150px; padding: 8px;">
+          <option value="">Semua Mapel</option>
+        </select>
+      </div>
 
       <!-- SEARCH -->
       <input 
@@ -103,10 +104,11 @@
         id="searchMaterialGuru"
         placeholder="Cari materi..."
         oninput="filterMaterialsGuru()"
+        style="width: 100%; padding: 8px; margin-bottom: 15px; box-sizing: border-box;"
       >
 
-      <!-- LIST (Dilengkapi Scroll Container) -->
-      <div id="materialGuruList" class="material-container" style="max-height: 550px; overflow-y: auto; border: 1px solid #e0e0e0; padding: 10px; border-radius: 6px; background: #fff;"></div>
+      <!-- LIST (Diperbaiki dengan max-height berbasis viewport & overflow lancar) -->
+      <div id="materialGuruList" class="material-container" style="max-height: 65vh; min-height: 350px; overflow-y: auto; border: 1px solid #e0e0e0; padding: 10px; border-radius: 6px; background: #fff;"></div>
 
     </div>
 
