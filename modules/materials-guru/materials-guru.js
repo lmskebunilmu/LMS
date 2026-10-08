@@ -24,7 +24,8 @@ let assignedMaterials = [];
 let assignedExercises = [];
 
 function getSelectedClassId() {
-  return document.getElementById("classSelect").value;
+  const classSelect = document.getElementById("classSelect");
+  return classSelect ? classSelect.value : "";
 }
 
 // ==========================
@@ -76,17 +77,20 @@ onAuthStateChanged(auth, async (user) => {
   await loadClasses(user);
   await loadSchoolData(userData.schoolId);
   
-  // Muat data latihan global terlebih dahulu
+  // Muat data latihan global terlebih dahulu sebelum memuat materi
   await loadExercises();
 
   const classSelect = document.getElementById("classSelect");
-  classSelect.addEventListener("change", async () => {
-    document.getElementById("subjectFilter").value = "";
-    await loadExercises();      
-    await loadMaterials();
-  });
+  if (classSelect) {
+    classSelect.addEventListener("change", async () => {
+      const subjectFilter = document.getElementById("subjectFilter");
+      if (subjectFilter) subjectFilter.value = "";
+      await loadExercises();      
+      await loadMaterials();
+    });
+  }
 
-  // load pertama materi
+  // Load pertama materi
   await loadMaterials();
 });
 
@@ -105,6 +109,7 @@ async function loadClasses(user) {
 
   const snap = await getDocs(q);
   const select = document.getElementById("classSelect");
+  if (!select) return;
   select.innerHTML = "";
 
   const classesList = [];
@@ -154,12 +159,13 @@ async function loadExercises() {
   try {
     const snap = await getDocs(collection(db, "exercises"));
     exercisesData = [];
-    snap.forEach(doc => {
+    snap.forEach(docSnap => {
       exercisesData.push({
-        id: doc.id,
-        ...doc.data()
+        id: docSnap.id,
+        ...docSnap.data()
       });
     });
+    console.log("Exercises loaded:", exercisesData.length);
   } catch (error) {
     console.error("Gagal memuat latihan:", error);
   }
@@ -170,7 +176,7 @@ async function loadExercises() {
 // ==========================
 async function loadMaterials() {
   const classId = getSelectedClassId();
-  if (!classId) return;
+  if (!classId || !schoolData) return;
 
   const classSnap = await getDoc(doc(db, "classes", classId));
   if (!classSnap.exists()) return;
@@ -200,8 +206,8 @@ async function loadMaterials() {
   const snap = await getDocs(q);
   materialsGuru = [];
 
-  snap.forEach(doc => {
-    const m = { id: doc.id, ...doc.data() };
+  snap.forEach(docSnap => {
+    const m = { id: docSnap.id, ...docSnap.data() };
     if (!approved.includes(m.subject)) return;
     if (teacherSubjects.length && !teacherSubjects.includes(m.subject)) return;
     materialsGuru.push(m);
@@ -209,7 +215,7 @@ async function loadMaterials() {
 
   filteredMaterials = materialsGuru;
   
-  // Sinkronisasi data latihan dan penugasan kelas
+  // Pastikan data latihan dan penugasan kelas selesai ditarik sebelum render
   await loadExercises();
   await loadAssignments();
   
@@ -244,10 +250,11 @@ async function loadAssignments() {
 }
 
 // ==========================
-// RENDER (DENGAN OTOMATIS PILIH LATIHAN)
+// RENDER
 // ==========================
 function renderMaterials(data) {
   const container = document.getElementById("materialGuruList");
+  if (!container) return;
   container.innerHTML = "";
 
   if (data.length === 0) {
@@ -269,7 +276,7 @@ function renderMaterials(data) {
     babDiv.innerHTML = `
       <h3 class="bab-title">
         <span>📘 ${bab}</span>
-        <button class="toggle-btn">Lihat Materi</button>
+        <button class="toggle-btn" type="button">Lihat Materi</button>
       </h3>
 
       <div class="subbab-list">
@@ -289,7 +296,7 @@ function renderMaterials(data) {
                 <b>${m.subChapter || m.title}</b>
               </label>
 
-              <button onclick="previewMaterial('${m.id}')">👁</button>
+              <button type="button" onclick="previewMaterial('${m.id}')">👁</button>
 
               <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 6px; border-left: 2px solid #e2e8f0; margin-top: 6px; border-radius: 4px;">
                 <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">📝 Latihan otomatis yang ikut terpilih:</div>
@@ -313,7 +320,7 @@ function renderMaterials(data) {
         }).join("")}
       </div>
 
-      <button onclick="assignSelected('${bab}')" style="margin-top: 15px; background: #4f46e5; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+      <button type="button" onclick="assignSelected('${bab}')" style="margin-top: 15px; background: #4f46e5; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
         ➕ Pakai Materi & Latihan Ini Otomatis
       </button>
     `;
@@ -348,8 +355,11 @@ window.toggleMaterialExercises = (materialCheckbox) => {
 // FILTER
 // ==========================
 window.filterMaterialsGuru = () => {
-  const search = document.getElementById("searchMaterialGuru").value.toLowerCase();
-  const selectedSubject = document.getElementById("subjectFilter").value;
+  const searchInput = document.getElementById("searchMaterialGuru");
+  const subjectFilter = document.getElementById("subjectFilter");
+  
+  const search = searchInput ? searchInput.value.toLowerCase() : "";
+  const selectedSubject = subjectFilter ? subjectFilter.value : "";
 
   filteredMaterials = materialsGuru.filter(m => {
     const matchSearch =
@@ -369,7 +379,7 @@ window.filterMaterialsGuru = () => {
 // ASSIGN
 // ==========================
 window.assignSelected = async (bab) => {
-  const classId = document.getElementById("classSelect").value;
+  const classId = getSelectedClassId();
   if (!classId) {
     showToast("Pilih kelas dulu", "error");
     return;
@@ -394,7 +404,7 @@ window.assignSelected = async (bab) => {
   const exSnap = await getDocs(eq);
   for (const d of exSnap.docs) await deleteDoc(d.ref);
 
-  // Simpan data baru ke Master Siswa
+  // Simpan data baru
   for (const cb of checkedMaterials) {
     const materialId = cb.value;
     const selectedMaterial = materialsGuru.find(m => m.id === materialId);
@@ -405,7 +415,6 @@ window.assignSelected = async (bab) => {
       title: selectedMaterial.title, subject: selectedMaterial.subject, createdAt: new Date()
     });
 
-    // Ambil dan simpan latihan yang terikat pada materi ini berdasarkan checkbox yang dicentang
     const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
     for (const exCb of checkedExercises) {
       const exerciseId = exCb.value;
@@ -532,7 +541,7 @@ window.toggleForm = (formId) => {
   const form = document.getElementById(formId);
   if (!form) return;
 
-  if (form.style.display === "none") {
+  if (form.style.display === "none" || form.style.display === "") {
     form.style.display = "block";
     if (formId === 'formMateri') populateNewMaterialSubjects();
     if (formId === 'formExercise') populateExerciseSubjects();
@@ -576,22 +585,25 @@ function populateExerciseSubjects() {
     }
   }
 
-  if (document.getElementById("newExerciseChapter")) {
-    document.getElementById("newExerciseChapter").innerHTML = '<option value="">-- Pilih Bab --</option>';
-    document.getElementById("newExerciseChapter").disabled = true;
+  const chapterEl = document.getElementById("newExerciseChapter");
+  const materialEl = document.getElementById("newExerciseMaterialId");
+  if (chapterEl) {
+    chapterEl.innerHTML = '<option value="">-- Pilih Bab --</option>';
+    chapterEl.disabled = true;
   }
-  if (document.getElementById("newExerciseMaterialId")) {
-    document.getElementById("newExerciseMaterialId").innerHTML = '<option value="">-- Pilih Sub-Bab / Materi --</option>';
-    document.getElementById("newExerciseMaterialId").disabled = true;
+  if (materialEl) {
+    materialEl.innerHTML = '<option value="">-- Pilih Sub-Bab / Materi --</option>';
+    materialEl.disabled = true;
   }
 }
 
 window.updateExerciseChapters = () => {
-  const subject = document.getElementById("newExerciseSubject").value;
+  const subjectEl = document.getElementById("newExerciseSubject");
   const chapterSelect = document.getElementById("newExerciseChapter");
   const materialSelect = document.getElementById("newExerciseMaterialId");
 
-  if (!chapterSelect || !materialSelect) return;
+  if (!subjectEl || !chapterSelect || !materialSelect) return;
+  const subject = subjectEl.value;
 
   chapterSelect.innerHTML = '<option value="">-- Pilih Bab --</option>';
   materialSelect.innerHTML = '<option value="">-- Pilih Sub-Bab / Materi --</option>';
@@ -622,11 +634,14 @@ window.updateExerciseChapters = () => {
 };
 
 window.updateExerciseMaterials = () => {
-  const subject = document.getElementById("newExerciseSubject").value;
-  const chapter = document.getElementById("newExerciseChapter").value;
+  const subjectEl = document.getElementById("newExerciseSubject");
+  const chapterEl = document.getElementById("newExerciseChapter");
   const materialSelect = document.getElementById("newExerciseMaterialId");
 
-  if (!materialSelect) return;
+  if (!subjectEl || !chapterEl || !materialSelect) return;
+  const subject = subjectEl.value;
+  const chapter = chapterEl.value;
+
   materialSelect.innerHTML = '<option value="">-- Pilih Sub-Bab / Materi --</option>';
 
   if (!chapter) {
@@ -647,12 +662,12 @@ window.updateExerciseMaterials = () => {
 };
 
 window.saveNewMaterial = async () => {
-  const title = document.getElementById("newMaterialTitle").value;
-  const subject = document.getElementById("newMaterialSubject").value;
-  const content = document.getElementById("newMaterialContent").value;
+  const title = document.getElementById("newMaterialTitle")?.value;
+  const subject = document.getElementById("newMaterialSubject")?.value;
+  const content = document.getElementById("newMaterialContent")?.value;
   
-  const selectedChapter = document.getElementById("newMaterialChapterSelect").value;
-  const inputtedChapter = document.getElementById("newMaterialChapterInput").value;
+  const selectedChapter = document.getElementById("newMaterialChapterSelect")?.value;
+  const inputtedChapter = document.getElementById("newMaterialChapterInput")?.value;
   const chapter = selectedChapter || inputtedChapter;
 
   if (!title || !chapter || !subject) {
@@ -693,10 +708,10 @@ window.saveNewMaterial = async () => {
 };
 
 window.saveNewExercise = async () => {
-  const subject = document.getElementById("newExerciseSubject").value;
-  const chapter = document.getElementById("newExerciseChapter").value;
-  const materialId = document.getElementById("newExerciseMaterialId").value;
-  const title = document.getElementById("newExerciseTitle").value;
+  const subject = document.getElementById("newExerciseSubject")?.value;
+  const chapter = document.getElementById("newExerciseChapter")?.value;
+  const materialId = document.getElementById("newExerciseMaterialId")?.value;
+  const title = document.getElementById("newExerciseTitle")?.value;
   
   if (!subject || !chapter || !materialId || !title) {
     showToast("Semua tingkatan (Mapel, Bab, Materi) dan Judul Latihan wajib dipilih/diisi!", "error");
@@ -722,8 +737,8 @@ window.saveNewExercise = async () => {
     document.getElementById("newExerciseTitle").value = "";
     toggleForm('formExercise');
     
-    await loadExercises();       
-    await loadAssignments();     
+    await loadExercises();        
+    await loadAssignments();       
     renderMaterials(filteredMaterials); 
   } catch (error) {
     console.error("Error creating exercise:", error);
@@ -732,7 +747,7 @@ window.saveNewExercise = async () => {
 };
 
 window.populateExistingChapters = () => {
-  const selectedSubject = document.getElementById("newMaterialSubject").value;
+  const selectedSubject = document.getElementById("newMaterialSubject")?.value;
   const chapterSelect = document.getElementById("newMaterialChapterSelect");
   if (!chapterSelect) return;
   
@@ -756,11 +771,12 @@ window.populateExistingChapters = () => {
     chapterSelect.appendChild(opt);
   });
   
-  document.getElementById("newMaterialChapterInput").value = "";
+  const inputEl = document.getElementById("newMaterialChapterInput");
+  if (inputEl) inputEl.value = "";
 };
 
 window.handleChapterSelectChange = () => {
-  const selectVal = document.getElementById("newMaterialChapterSelect").value;
+  const selectVal = document.getElementById("newMaterialChapterSelect")?.value;
   const inputEl = document.getElementById("newMaterialChapterInput");
   if (!inputEl) return;
   
