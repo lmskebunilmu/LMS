@@ -18,7 +18,8 @@ import {
 
   where,
 
-  updateDoc
+  updateDoc,
+ writeBatch
 
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -663,73 +664,53 @@ window.filterBySubject = () => {
 
 // ==========================
 
+// ==========================
+// SAVE LOGIC (OPTIMIZED & BULK)
+// ==========================
 window.saveAssignmentStructure = async (bab) => {
-
   const classId = document.getElementById("classSelect").value;
-
   if (!classId) return showToast("Pilih kelas dulu", "error");
 
-
+  // Ambil semua elemen checkbox latihan yang ada di halaman / dalam bab tersebut
   const exerciseRows = document.querySelectorAll(".exercise-check");
-
   
-
   try {
+    const batch = writeBatch(db); // Gunakan Firestore Batch untuk efisiensi
+    let updateCount = 0;
 
     for (const el of exerciseRows) {
-
       const exerciseId = el.value;
-
       const isChecked = el.checked;
-
       
-
       const dateInput = document.querySelector(`.exercise-date[data-id="${exerciseId}"]`);
-
       const timeInput = document.querySelector(`.exercise-time[data-id="${exerciseId}"]`);
-
       
-
       const deadlineDate = dateInput ? dateInput.value : "";
-
       const deadlineTime = timeInput ? timeInput.value : "";
 
-
       const matchDb = assignedExercisesDetail.find(e => e.exerciseId === exerciseId);
-
+      
       if (matchDb) {
-
         const docRef = doc(db, "exerciseGuru", matchDb.docId);
-
-        
-
-        await updateDoc(docRef, {
-
+        batch.update(docRef, {
           isAssigned: isChecked,
-
           deadlineDate: deadlineDate,
-
           deadlineTime: deadlineTime
-
         });
-
+        updateCount++;
       }
-
     }
 
+    if (updateCount > 0) {
+      await batch.commit(); // Jalankan semua perubahan sekaligus
+    }
 
-    showToast("Pengaturan tanggal batas pengumpulan tugas berhasil disimpan!");
-
+    showToast("Pengaturan tanggal & penugasan berhasil disimpan untuk semua data!");
     await loadMaterialsData(); 
-
   } catch (error) {
-
     console.error(error);
-
     showToast("Gagal memperbarui batas penugasan", "error");
-
   }
-
 };
 
 
