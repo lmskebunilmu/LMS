@@ -11,7 +11,8 @@ import {
   collection,
   getDocs,
   query,
-  where
+  where,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadLayout } from "../assets/js/components.js";
 
@@ -45,8 +46,10 @@ onAuthStateChanged(auth, async (user) => {
     await loadLayout("siswa");
     await waitForHeader();
     await loadProfileHeader(user);
-    await loadStudentReports(user.uid);
-    await loadPendingExercises(user.uid); // Memuat notifikasi tugas aktif
+    
+    // Menggunakan real-time listener agar otomatis update tanpa refresh
+    listenStudentReports(user.uid);
+    listenPendingExercises(user.uid);
   } catch (err) {
     console.error(err);
   }
@@ -111,9 +114,9 @@ async function loadProfileHeader(user) {
 }
 
 // ==========================
-// LOAD PENDING EXERCISES (TUGAS BELUM DIKERJAKAN)
+// REAL-TIME PENDING EXERCISES (TUGAS AKTIF)
 // ==========================
-async function loadPendingExercises(studentUid) {
+async function listenPendingExercises(studentUid) {
   const cardSection = document.getElementById("pendingTasksCard");
   const container = document.getElementById("pendingTasksContainer");
   if (!container || !cardSection) return;
@@ -125,76 +128,77 @@ async function loadPendingExercises(studentUid) {
     const schoolId = studentDocSnap.data().schoolId;
     if (!classId || !schoolId) return;
 
-    // Ambil daftar submission siswa dari dbSecondary
+    // Mendengarkan perubahan submission secara real-time
     const subQuery = query(
       collection(dbSecondary, "student_submissions"),
       where("studentUid", "==", studentUid)
     );
-    const subSnap = await getDocs(subQuery);
-    const submittedExerciseIds = new Set();
-    subSnap.forEach(docSnap => {
-      submittedExerciseIds.add(docSnap.data().exerciseId);
-    });
 
-    // Ambil daftar tugas yang sudah ditugaskan untuk kelas ini
-    const exGuruQuery = query(
-      collection(db, "exerciseGuru"),
-      where("classId", "==", classId),
-      where("schoolId", "==", schoolId),
-      where("isAssigned", "==", true)
-    );
-    const exGuruSnap = await getDocs(exGuruQuery);
+    onSnapshot(subQuery, async (subSnap) => {
+      const submittedExerciseIds = new Set();
+      subSnap.forEach(docSnap => {
+        submittedExerciseIds.add(docSnap.data().exerciseId);
+      });
 
-    let pendingHtml = "";
-    let pendingCount = 0;
-    const sekarang = new Date();
+      // Ambil daftar tugas kelas
+      const exGuruQuery = query(
+        collection(db, "exerciseGuru"),
+        where("classId", "==", classId),
+        where("schoolId", "==", schoolId),
+        where("isAssigned", "==", true)
+      );
+      const exGuruSnap = await getDocs(exGuruQuery);
 
-    for (const d of exGuruSnap.docs) {
-      const assign = d.data();
-      const exerciseId = assign.exerciseId;
+      let pendingHtml = "";
+      let pendingCount = 0;
+      const sekarang = new Date();
 
-      // Lewati jika sudah dikerjakan
-      if (submittedExerciseIds.has(exerciseId)) continue;
+      for (const d of exGuruSnap.docs) {
+        const assign = d.data();
+        const exerciseId = assign.exerciseId;
 
-      // Cek deadline
-      let isExpired = false;
-      let deadlineString = "Waktu fleksibel";
-      if (assign.deadlineDate && assign.deadlineTime) {
-        const deadlineTarget = new Date(`${assign.deadlineDate}T${assign.deadlineTime}:00`);
-        if (sekarang > deadlineTarget) {
-          isExpired = true;
+        // Lewati jika sudah dikerjakan
+        if (submittedExerciseIds.has(exerciseId)) continue;
+
+        // Cek deadline
+        let isExpired = false;
+        let deadlineString = "Waktu fleksibel";
+        if (assign.deadlineDate && assign.deadlineTime) {
+          const deadlineTarget = new Date(`${assign.deadlineDate}T${assign.deadlineTime}:00`);
+          if (sekarang > deadlineTarget) {
+            isExpired = true;
+          }
+          const tanggalRapi = new Date(assign.deadlineDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' });
+          deadlineString = `${tanggalRapi} - ${assign.deadlineTime} WIB`;
         }
-        const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
-        const tanggalRapi = new Date(assign.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
-        deadlineString = `${tanggalRapi} - ${assign.deadlineTime} WIB`;
-      }
 
-      if (isExpired) continue;
+        if (isExpired) continue;
 
-      let exerciseTitle = "Latihan / Tugas";
-      const exSnap = await getDoc(doc(db, "exercises", exerciseId));
-      if (exSnap.exists()) {
-        exerciseTitle = exSnap.data().title || exerciseTitle;
-      }
+        let exerciseTitle = "Latihan / Tugas";
+        const exSnap = await getDoc(doc(db, "exercises", exerciseId));
+        if (exSnap.exists()) {
+          exerciseTitle = exSnap.data().title || exerciseTitle;
+        }
 
-      pendingCount++;
-      pendingHtml += `
-        <div class="task-alert-item">
-          <div>
-            <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 2px;">📝 ${exerciseTitle}</div>
-            <div style="font-size: 12px; color: var(--text-muted);">⏱ Batas: ${deadlineString}</div>
+        pendingCount++;
+        pendingHtml += `
+          <div class="task-alert-item">
+            <div>
+              <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 2px;">📝 ${exerciseTitle}</div>
+              <div style="font-size: 12px; color: var(--text-muted);">⏱ Batas: ${deadlineString}</div>
+            </div>
+            <button class="btn-work" onclick="openExerciseFromDashboard('${exerciseId}')">Kerjakan</button>
           </div>
-          <button class="btn-work" onclick="openExerciseFromDashboard('${exerciseId}')">Kerjakan</button>
-        </div>
-      `;
-    }
+        `;
+      }
 
-    if (pendingCount > 0) {
-      cardSection.style.display = "block";
-      container.innerHTML = pendingHtml;
-    } else {
-      cardSection.style.display = "none";
-    }
+      if (pendingCount > 0) {
+        cardSection.style.display = "block";
+        container.innerHTML = pendingHtml;
+      } else {
+        cardSection.style.display = "none";
+      }
+    });
 
   } catch (err) {
     console.error("Gagal memuat tugas aktif:", err);
@@ -207,20 +211,20 @@ window.openExerciseFromDashboard = (id) => {
     alert("Pop-up diblokir browser! Izinkan pop-up untuk mengerjakan latihan.");
   }
 };
+
 // ==========================
-// LOAD STUDENT REPORTS (NILAI LATIHAN)
+// REAL-TIME STUDENT REPORTS (NILAI LATIHAN)
 // ==========================
-async function loadStudentReports(studentUid) {
+function listenStudentReports(studentUid) {
   const container = document.getElementById("reportContainer");
   if (!container) return;
 
-  try {
-    const q = query(
-      collection(dbSecondary, "student_submissions"),
-      where("studentUid", "==", studentUid)
-    );
-    const snap = await getDocs(q);
+  const q = query(
+    collection(dbSecondary, "student_submissions"),
+    where("studentUid", "==", studentUid)
+  );
 
+  onSnapshot(q, async (snap) => {
     if (snap.empty) {
       container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px;">Belum ada latihan atau tugas yang dikerjakan.</div>`;
       return;
@@ -263,10 +267,10 @@ async function loadStudentReports(studentUid) {
     }
 
     container.innerHTML = html;
-  } catch (err) {
+  }, (err) => {
     console.error("Gagal memuat report nilai:", err);
     container.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px; font-size: 13px;">Gagal memuat riwayat nilai.</div>`;
-  }
+  });
 }
 
 // ==========================
