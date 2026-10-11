@@ -202,12 +202,11 @@ async function loadPendingExercises(studentUid) {
 }
 
 window.openExerciseFromDashboard = (id) => {
-  const win = window.open(`modules/materials-siswa/exercise.html?id=${id}`, "_blank");
+  const win = window.open(`https://lmskebunilmu.github.io/LMS/modules/materials-siswa/exercise.html?id=${id}`, "_blank");
   if (!win) {
     alert("Pop-up diblokir browser! Izinkan pop-up untuk mengerjakan latihan.");
   }
 };
-
 // ==========================
 // LOAD STUDENT REPORTS (NILAI LATIHAN)
 // ==========================
