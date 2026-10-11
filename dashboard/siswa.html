@@ -309,17 +309,19 @@
       box-shadow: var(--shadow-sm);
     }
 
+    /* REPORT ITEM ULTRA MODERN */
     .report-item {
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      padding: 20px;
-      margin-top: 14px;
-      background: var(--bg-main);
+      gap: 12px;
+      padding: 16px 20px;
+      background: var(--card-bg);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-sm);
-      transition: all 0.25s ease;
+      border-radius: 16px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
     }
+    
     @media (min-width: 640px) {
       .report-item {
         flex-direction: row;
@@ -328,10 +330,11 @@
         gap: 16px;
       }
     }
+
     .report-item:hover {
-      border-color: #cbd5e1;
-      background: #ffffff;
-      box-shadow: var(--shadow-sm);
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.08), 0 8px 10px -6px rgba(79, 70, 229, 0.04);
     }
 
     /* TUGAS AKTIF ULTRA MODERN MINIMALIST LIST */
@@ -511,7 +514,7 @@
       </div>
     </div>
 
-    <!-- NOTIFIKASI TUGAS BELUM DIKERJAKAN (ULTRA MODERN MINIMALIST) -->
+    <!-- NOTIFIKASI TUGAS BELUM DIKERJAKAN -->
     <div id="pendingTasksCard" style="display: none; margin-bottom: 28px;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
         <h3 style="margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-main);">
@@ -544,11 +547,15 @@
 
     <!-- REPORT NILAI SAYA -->
     <div class="report-card">
-      <h3 style="margin-top:0; font-size:16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-        📊 Report Nilai Latihan Saya
-      </h3>
-      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">Daftar rekap nilai dari latihan dan tugas yang telah Anda kerjakan.</p>
-      <div id="reportContainer">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <h3 style="margin: 0; font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-main);">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: var(--primary-light); color: var(--primary); border-radius: 10px; font-size: 15px;">📊</span>
+          Report Nilai Latihan Saya
+        </h3>
+      </div>
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Rekap riwayat nilai dari latihan dan tugas yang telah Anda selesaikan.</p>
+      
+      <div id="reportContainer" style="display: flex; flex-direction: column; gap: 12px;">
         <div class="empty-state">Memuat riwayat nilai...</div>
       </div>
     </div>
