@@ -106,7 +106,7 @@ function renderQuestions(questions, studentUid) {
     // Render tombol navigasi atas
     navHtml += `<button class="page-btn ${index === 0 ? 'active' : ''}" id="nav_btn_${index}" onclick="switchQuestion(${index})">Soal ${index + 1}</button>`;
 
-    // Render Card Soal Satu per Satu (Mobile Optimized)
+    // Render Card Soal Satu per Satu
     html += `<div class="question-card ${index === 0 ? 'active' : ''}" id="question_card_${index}">`;
     html += `<h3>Soal ${index + 1}. ${qData.question || ""}</h3>`;
 
@@ -228,9 +228,6 @@ window.prevQuestion = function() {
 
 window.markAnswered = function(index) {
   if (dbSubmission) return;
-  const studentUid = currentStudent.uid;
-  
-  // Simpan jawaban sementara ke LocalStorage sesuai tipe soal
   const q = questionsData[index];
   let userAnswer = null;
 
@@ -278,14 +275,31 @@ function updatePaginationState() {
   const key = "exercise_" + exerciseId + "_" + studentUid;
   const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
 
-  questionsData.forEach((_, index) => {
+  questionsData.forEach((q, index) => {
     const btn = document.getElementById("nav_btn_" + index);
     if (!btn) return;
-    const ans = savedAnswers[index];
-    const isNotEmpty = ans !== undefined && ans !== "" && (Array.isArray(ans) ? ans.length > 0 : (typeof ans === 'object' ? Object.values(ans).some(v => v !== "") : true));
     
-    if (isNotEmpty && !btn.classList.contains("active")) {
+    const ans = savedAnswers[index];
+    let isAnswered = false;
+
+    if (ans !== undefined && ans !== null) {
+      if (q.type === "pg" || q.type === "isian") {
+        isAnswered = ans !== "";
+      } else if (q.type === "checkbox") {
+        isAnswered = Array.isArray(ans) && ans.length > 0;
+      } else if (q.type === "multi_isian") {
+        isAnswered = Array.isArray(ans) && ans.some(v => v && v.trim() !== "");
+      } else if (q.type === "match") {
+        isAnswered = typeof ans === "object" && Object.values(ans).some(v => v !== "");
+      } else if (q.type === "matrix") {
+        isAnswered = typeof ans === "object" && Object.values(ans).some(v => v !== null && v !== undefined);
+      }
+    }
+
+    if (isAnswered) {
       btn.classList.add("answered");
+    } else {
+      btn.classList.remove("answered");
     }
   });
 }
@@ -368,6 +382,7 @@ window.checkAnswer = function(index) {
 
   lockQuestionFields(index);
   document.getElementById("explain_" + index).style.display = "block";
+  updatePaginationState();
 };
 
 window.lockQuestionFields = function(index) {
@@ -375,7 +390,7 @@ window.lockQuestionFields = function(index) {
   if (btn) {
     btn.disabled = true;
     btn.style.background = "#cbd5e1";
-    btn.style.cursor = not-allowed;
+    btn.style.cursor = "not-allowed";
   }
   document.querySelectorAll('input[name="q' + index + '"]').forEach(el => el.disabled = true);
   const isian = document.getElementById("q" + index);
