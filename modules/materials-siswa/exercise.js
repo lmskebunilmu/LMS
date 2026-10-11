@@ -103,10 +103,8 @@ function renderQuestions(questions, studentUid) {
     const currentAttempts = dbSubmission ? 1 : (savedAttempts[index] || 0);
     const isLocked = currentAttempts >= 1;
 
-    // Render tombol navigasi atas
     navHtml += `<button class="page-btn ${index === 0 ? 'active' : ''}" id="nav_btn_${index}" onclick="switchQuestion(${index})">Soal ${index + 1}</button>`;
 
-    // Render Card Soal Satu per Satu
     html += `<div class="question-card ${index === 0 ? 'active' : ''}" id="question_card_${index}">`;
     html += `<h3>Soal ${index + 1}. ${qData.question || ""}</h3>`;
 
@@ -150,25 +148,32 @@ function renderQuestions(questions, studentUid) {
       });
       html += `</div>`;
     } else if (qData.type === "matrix" && qData.matrix) {
-      html += `<div class="matrix-mobile-list">`;
-      qData.matrix.rows.forEach((row, rIdx) => {
-        html += `
-          <div class="matrix-card-item">
-            <div class="matrix-statement">${row.statement}</div>
-            <div class="matrix-options-grid">
-        `;
-        qData.matrix.columns.forEach((col, cIdx) => {
-          const isChecked = savedAnswer?.[rIdx] == cIdx ? "checked" : "";
-          html += `
-            <label class="matrix-opt-label">
-              <input type="radio" name="matrix_${index}_${rIdx}" value="${cIdx}" ${isChecked} ${isLocked ? 'disabled' : ''} onchange="markAnswered(${index})">
-              <span>${col}</span>
-            </label>
-          `;
-        });
-        html += `</div></div>`;
-      });
-      html += `</div>`;
+      html += `
+        <div class="matrix-table-wrapper">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>Pernyataan</th>
+                ${qData.matrix.columns.map(col => `<th>${col}</th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${qData.matrix.rows.map((row, rIdx) => `
+                <tr>
+                  <td>${row.statement}</td>${qData.matrix.columns.map((_, cIdx) => {
+                    const isChecked = savedAnswer?.[rIdx] == cIdx ? "checked" : "";
+                    return `
+                      <td>
+                        <input type="radio" name="matrix_${index}_${rIdx}" value="${cIdx}" ${isChecked} ${isLocked ? 'disabled' : ''} onchange="markAnswered(${index})">
+                      </td>
+                    `;
+                  }).join("")}
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
     html += `
@@ -182,7 +187,6 @@ function renderQuestions(questions, studentUid) {
           </div>
         </div>
 
-        <!-- Navigasi Next/Prev dalam Card -->
         <div class="nav-bottom-group">
           <button class="nav-btn" onclick="prevQuestion()" ${index === 0 ? 'style="opacity:0.5; pointer-events:none;"' : ''}>⬅️ Sebelumnya</button>
           <button class="nav-btn" onclick="nextQuestion()" ${index === questions.length - 1 ? 'style="opacity:0.5; pointer-events:none;"' : ''}>Selanjutnya ➡️</button>
