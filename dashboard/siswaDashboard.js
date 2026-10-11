@@ -19,6 +19,29 @@ import { loadLayout } from "../assets/js/components.js";
 const CLOUDINARY_CLOUD_NAME = "djlvnubgn";
 const CLOUDINARY_UPLOAD_PRESET = "lms_unsigned";
 
+// Global cache untuk statistik
+let totalCompletedCount = 0;
+let totalPendingCount = 0;
+let totalScoresSum = 0;
+
+function updateStatsUI() {
+  const elCompleted = document.getElementById("statCompleted");
+  const elPending = document.getElementById("statPending");
+  const elAvgScore = document.getElementById("statAvgScore");
+
+  if (elCompleted) elCompleted.innerText = totalCompletedCount;
+  if (elPending) elPending.innerText = totalPendingCount;
+
+  if (elAvgScore) {
+    if (totalCompletedCount > 0) {
+      const avg = Math.round(totalScoresSum / totalCompletedCount);
+      elAvgScore.innerText = avg;
+    } else {
+      elAvgScore.innerText = "0";
+    }
+  }
+}
+
 // ==========================
 // AUTH STATE
 // ==========================
@@ -192,6 +215,9 @@ async function listenPendingExercises(studentUid) {
         `;
       }
 
+      totalPendingCount = pendingCount;
+      updateStatsUI();
+
       if (pendingCount > 0) {
         cardSection.style.display = "block";
         container.innerHTML = pendingHtml;
@@ -226,14 +252,24 @@ function listenStudentReports(studentUid) {
 
   onSnapshot(q, async (snap) => {
     if (snap.empty) {
-      container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 13px;">Belum ada latihan atau tugas yang dikerjakan.</div>`;
+      container.innerHTML = `<div class="empty-state">Belum ada latihan atau tugas yang dikerjakan.</div>`;
+      totalCompletedCount = 0;
+      totalScoresSum = 0;
+      updateStatsUI();
       return;
     }
 
     let html = "";
+    let completedCount = 0;
+    let scoresSum = 0;
+
     for (const docSnap of snap.docs) {
       const sub = docSnap.data();
+      completedCount++;
       
+      const score = sub.score || 0;
+      scoresSum += score;
+
       let exerciseTitle = "Latihan / Tugas";
       try {
         const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
@@ -244,7 +280,6 @@ function listenStudentReports(studentUid) {
         console.error(e);
       }
 
-      const score = sub.score || 0;
       const scoreColor = score >= 75 ? "#059669" : score >= 60 ? "#d97706" : "#dc2626";
       const scoreBg = score >= 75 ? "#ecfdf5" : score >= 60 ? "#fffbeb" : "#fef2f2";
 
@@ -265,6 +300,10 @@ function listenStudentReports(studentUid) {
         </div>
       `;
     }
+
+    totalCompletedCount = completedCount;
+    totalScoresSum = scoresSum;
+    updateStatsUI();
 
     container.innerHTML = html;
   }, (err) => {
