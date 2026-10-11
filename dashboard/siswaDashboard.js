@@ -201,7 +201,7 @@ async function listenPendingExercises(studentUid) {
         pendingCount++;
         pendingHtml += `
           <div class="task-alert-item">
-            <div style="min-width: 0; flex: 1; padding-right: 8px; overflow: hidden;">
+            <div style="min-width: 0; width: 100%; flex: 1; padding-right: 8px; overflow: hidden; box-sizing: border-box;">
               <div style="font-weight: 700; font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">📝 ${exerciseTitle}</div>
               <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
                 <span>⏱ Batas:</span> <span style="font-weight: 500; color: var(--text-main);">${deadlineString}</span>
