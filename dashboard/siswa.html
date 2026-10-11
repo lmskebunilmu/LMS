@@ -450,7 +450,7 @@
       </div>
     </div>
 
-    <!-- QUICK STATS BAR -->
+   <!-- QUICK STATS BAR -->
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon" style="background: var(--primary-light); color: var(--primary);">📚</div>
@@ -475,6 +475,17 @@
       </div>
     </div>
 
+ <!-- NOTIFIKASI TUGAS BELUM DIKERJAKAN -->
+    <div class="report-card" id="pendingTasksCard" style="display: none; border-left: 6px solid var(--primary);">
+      <h3 style="margin-top:0; font-size:16px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--primary);">
+        🔔 Tugas Aktif yang Belum Dikerjakan
+      </h3>
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">Segera selesaikan tugas berikut sebelum batas waktu berakhir.</p>
+      <div id="pendingTasksContainer">
+        <!-- Diisi otomatis oleh JavaScript -->
+      </div>
+    </div>
+    
     <!-- MENU CEPAT -->
     <div>
       <h3 class="section-title">⚡ Menu Cepat</h3>
@@ -491,16 +502,7 @@
       </div>
     </div>
 
-    <!-- NOTIFIKASI TUGAS BELUM DIKERJAKAN -->
-    <div class="report-card" id="pendingTasksCard" style="display: none; border-left: 6px solid var(--primary);">
-      <h3 style="margin-top:0; font-size:16px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--primary);">
-        🔔 Tugas Aktif yang Belum Dikerjakan
-      </h3>
-      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">Segera selesaikan tugas berikut sebelum batas waktu berakhir.</p>
-      <div id="pendingTasksContainer">
-        <!-- Diisi otomatis oleh JavaScript -->
-      </div>
-    </div>
+   
 
     <!-- REPORT NILAI SAYA -->
     <div class="report-card">
