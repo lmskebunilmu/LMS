@@ -202,10 +202,12 @@ async function listenPendingExercises(studentUid) {
         pendingHtml += `
           <div class="task-alert-item">
             <div style="min-width: 0; flex: 1; padding-right: 8px;">
-              <div style="font-weight: 600; font-size: 13px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;">📝 ${exerciseTitle}</div>
-              <div style="font-size: 11px; color: var(--text-muted);">⏱ ${deadlineString}</div>
+              <div style="font-weight: 700; font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">📝 ${exerciseTitle}</div>
+              <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                <span>⏱ Batas:</span> <span style="font-weight: 500; color: var(--text-main);">${deadlineString}</span>
+              </div>
             </div>
-            <button class="btn-work" onclick="openExerciseFromDashboard('${exerciseId}')">Kerjakan</button>
+            <button class="btn-work" onclick="openExerciseFromDashboard('${exerciseId}')">Kerjakan ➔</button>
           </div>
         `;
       }
