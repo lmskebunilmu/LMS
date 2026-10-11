@@ -46,6 +46,7 @@ onAuthStateChanged(auth, async (user) => {
     await waitForHeader();
     await loadProfileHeader(user);
     await loadStudentReports(user.uid);
+    await loadPendingExercises(user.uid); // Memuat notifikasi tugas aktif
   } catch (err) {
     console.error(err);
   }
@@ -110,6 +111,104 @@ async function loadProfileHeader(user) {
 }
 
 // ==========================
+// LOAD PENDING EXERCISES (TUGAS BELUM DIKERJAKAN)
+// ==========================
+async function loadPendingExercises(studentUid) {
+  const cardSection = document.getElementById("pendingTasksCard");
+  const container = document.getElementById("pendingTasksContainer");
+  if (!container || !cardSection) return;
+
+  try {
+    const studentDocSnap = await getDoc(doc(db, "students", studentUid));
+    if (!studentDocSnap.exists()) return;
+    const classId = studentDocSnap.data().classId;
+    const schoolId = studentDocSnap.data().schoolId;
+    if (!classId || !schoolId) return;
+
+    // Ambil daftar submission siswa dari dbSecondary
+    const subQuery = query(
+      collection(dbSecondary, "student_submissions"),
+      where("studentUid", "==", studentUid)
+    );
+    const subSnap = await getDocs(subQuery);
+    const submittedExerciseIds = new Set();
+    subSnap.forEach(docSnap => {
+      submittedExerciseIds.add(docSnap.data().exerciseId);
+    });
+
+    // Ambil daftar tugas yang sudah ditugaskan untuk kelas ini
+    const exGuruQuery = query(
+      collection(db, "exerciseGuru"),
+      where("classId", "==", classId),
+      where("schoolId", "==", schoolId),
+      where("isAssigned", "==", true)
+    );
+    const exGuruSnap = await getDocs(exGuruQuery);
+
+    let pendingHtml = "";
+    let pendingCount = 0;
+    const sekarang = new Date();
+
+    for (const d of exGuruSnap.docs) {
+      const assign = d.data();
+      const exerciseId = assign.exerciseId;
+
+      // Lewati jika sudah dikerjakan
+      if (submittedExerciseIds.has(exerciseId)) continue;
+
+      // Cek deadline
+      let isExpired = false;
+      let deadlineString = "Waktu fleksibel";
+      if (assign.deadlineDate && assign.deadlineTime) {
+        const deadlineTarget = new Date(`${assign.deadlineDate}T${assign.deadlineTime}:00`);
+        if (sekarang > deadlineTarget) {
+          isExpired = true;
+        }
+        const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
+        const tanggalRapi = new Date(assign.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
+        deadlineString = `${tanggalRapi} - ${assign.deadlineTime} WIB`;
+      }
+
+      if (isExpired) continue;
+
+      let exerciseTitle = "Latihan / Tugas";
+      const exSnap = await getDoc(doc(db, "exercises", exerciseId));
+      if (exSnap.exists()) {
+        exerciseTitle = exSnap.data().title || exerciseTitle;
+      }
+
+      pendingCount++;
+      pendingHtml += `
+        <div class="task-alert-item">
+          <div>
+            <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 2px;">📝 ${exerciseTitle}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">⏱ Batas: ${deadlineString}</div>
+          </div>
+          <button class="btn-work" onclick="openExerciseFromDashboard('${exerciseId}')">Kerjakan</button>
+        </div>
+      `;
+    }
+
+    if (pendingCount > 0) {
+      cardSection.style.display = "block";
+      container.innerHTML = pendingHtml;
+    } else {
+      cardSection.style.display = "none";
+    }
+
+  } catch (err) {
+    console.error("Gagal memuat tugas aktif:", err);
+  }
+}
+
+window.openExerciseFromDashboard = (id) => {
+  const win = window.open(`modules/materials-siswa/exercise.html?id=${id}`, "_blank");
+  if (!win) {
+    alert("Pop-up diblokir browser! Izinkan pop-up untuk mengerjakan latihan.");
+  }
+};
+
+// ==========================
 // LOAD STUDENT REPORTS (NILAI LATIHAN)
 // ==========================
 async function loadStudentReports(studentUid) {
@@ -117,7 +216,6 @@ async function loadStudentReports(studentUid) {
   if (!container) return;
 
   try {
-    // MENGAMBIL DATA SUBMISSION DARI FIREBASE KEDUA (dbSecondary)
     const q = query(
       collection(dbSecondary, "student_submissions"),
       where("studentUid", "==", studentUid)
@@ -135,7 +233,6 @@ async function loadStudentReports(studentUid) {
       
       let exerciseTitle = "Latihan / Tugas";
       try {
-        // Mengambil judul latihan tetap dari Firebase UTAMA (db) tempat soal berada
         const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
         if (exSnap.exists()) {
           exerciseTitle = exSnap.data().title || exerciseTitle;
@@ -198,7 +295,6 @@ window.saveProfile = async () => {
 
     let avatarURL = null;
 
-    // Upload ke Cloudinary jika file dipilih
     if (fileInput.files && fileInput.files[0]) {
       const file = fileInput.files[0];
       const formData = new FormData();
@@ -218,12 +314,10 @@ window.saveProfile = async () => {
       }
     }
 
-    // Update Auth Profile
     const profileUpdates = { displayName: name };
     if (avatarURL) profileUpdates.photoURL = avatarURL;
     await updateProfile(user, profileUpdates);
 
-    // Update Firestore Users
     const userDocRef = doc(db, "users", user.uid);
     const userUpdates = { name };
     if (avatarURL) userUpdates.avatarURL = avatarURL;
@@ -254,7 +348,6 @@ function lockDashboard() {
   `;
 }
 
-// Diarahkan langsung ke folder materials-siswa sesuai permintaan
 window.goMaterialsSiswa = () => window.location.href = "https://lmskebunilmu.github.io/LMS/modules/materials-siswa/materials-siswa.html";
 
 window.logout = async () => {
