@@ -279,8 +279,11 @@ function listenStudentReports(studentUid) {
         console.error(e);
       }
 
-      const scoreColor = score >= 75 ? "#059669" : score >= 60 ? "#d97706" : "#dc2626";
-      const scoreBg = score >= 75 ? "#ecfdf5" : score >= 60 ? "#fffbeb" : "#fef2f2";
+      const isExcellent = score >= 75;
+      const isGood = score >= 60 && score < 75;
+      
+      const scoreColor = isExcellent ? "#059669" : isGood ? "#d97706" : "#dc2626";
+      const scoreBg = isExcellent ? "#ecfdf5" : isGood ? "#fffbeb" : "#fef2f2";
 
       let dateStr = "-";
       if (sub.submittedAt?.toDate) {
@@ -289,12 +292,20 @@ function listenStudentReports(studentUid) {
 
       html += `
         <div class="report-item">
-          <div>
-            <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 2px;">📝 ${exerciseTitle}</div>
-            <div style="font-size: 12px; color: var(--text-muted);">Dikumpulkan: ${dateStr} • Benar: ${sub.correctAnswers || 0}/${sub.totalQuestions || 0} soal</div>
+          <div style="min-width: 0; flex: 1;">
+            <div style="font-weight: 700; font-size: 14px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+              <span>📝</span> ${exerciseTitle}
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <span>📅 ${dateStr}</span>
+              <span>•</span>
+              <span>Benar: <strong style="color: var(--text-main);">${sub.correctAnswers || 0}/${sub.totalQuestions || 0}</strong> soal</span>
+            </div>
           </div>
-          <div style="background: ${scoreBg}; color: ${scoreColor}; padding: 6px 14px; border-radius: 10px; font-weight: 700; font-size: 14px; border: 1px solid ${scoreColor}22;">
-            ${score}
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="background: ${scoreBg}; color: ${scoreColor}; padding: 6px 16px; border-radius: 12px; font-weight: 800; font-size: 15px; border: 1px solid ${scoreColor}33; display: flex; align-items: center; gap: 4px;">
+              <span>⭐</span> ${score}
+            </div>
           </div>
         </div>
       `;
