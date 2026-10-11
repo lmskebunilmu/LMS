@@ -10,8 +10,7 @@ let studentClassId = "";
 let currentSchoolId = "";
 let questionsData = [];
 let dbSubmission = null;
-let selectedLeft = null;
-window.matchAnswers = {};
+let currentQuestionIndex = 0;
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -47,7 +46,6 @@ window.openFullscreen = () => {
 
 async function loadExerciseData(exId, studentUid) {
   try {
-    // Ambil soal dari Firebase UTAMA (db)
     const exSnap = await getDoc(doc(db, "exercises", exId));
     if (!exSnap.exists()) {
       alert("Latihan tidak ditemukan");
@@ -55,7 +53,6 @@ async function loadExerciseData(exId, studentUid) {
     }
     const exData = exSnap.data();
     
-    // Cek riwayat pengerjaan dari Firebase KEDUA (dbSecondary) jika ingin tersinkron di sana
     const subSnap = await getDoc(doc(dbSecondary, "student_submissions", studentUid + "_" + exId));
     if (subSnap.exists()) dbSubmission = subSnap.data();
 
@@ -74,7 +71,6 @@ async function loadExerciseData(exId, studentUid) {
     renderQuestions(questionsData, studentUid);
     
     setTimeout(() => {
-      restoreMatchAnswers(studentUid);
       questionsData.forEach((q, index) => {
         const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
         const attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
@@ -84,6 +80,7 @@ async function loadExerciseData(exId, studentUid) {
           if (explainEl) explainEl.style.display = "block";
         }
       });
+      updatePaginationState();
     }, 300);
 
   } catch (error) {
@@ -94,108 +91,178 @@ async function loadExerciseData(exId, studentUid) {
 
 function renderQuestions(questions, studentUid) {
   const container = document.getElementById("exerciseContainer");
+  const navPagination = document.getElementById("navPagination");
   const savedData = dbSubmission?.answers || JSON.parse(localStorage.getItem(`exercise_${exerciseId}_${studentUid}`) || "{}");
   const savedAttempts = JSON.parse(localStorage.getItem(`attempts_${exerciseId}_${studentUid}`) || "{}");
   
+  let navHtml = "";
   let html = "";
+
   questions.forEach((qData, index) => {
     const savedAnswer = savedData[index];
     const currentAttempts = dbSubmission ? 1 : (savedAttempts[index] || 0);
     const isLocked = currentAttempts >= 1;
 
-    html += `<div class="question"><h3>Soal ${index + 1}. ${qData.question || ""}</h3>`;
+    // Render tombol navigasi atas
+    navHtml += `<button class="page-btn ${index === 0 ? 'active' : ''}" id="nav_btn_${index}" onclick="switchQuestion(${index})">Soal ${index + 1}</button>`;
+
+    // Render Card Soal Satu per Satu (Mobile Optimized)
+    html += `<div class="question-card ${index === 0 ? 'active' : ''}" id="question_card_${index}">`;
+    html += `<h3>Soal ${index + 1}. ${qData.question || ""}</h3>`;
 
     if (qData.type === "pg") {
       (qData.options || []).forEach((opt, i) => {
         const checked = savedAnswer == i ? "checked" : "";
-        html += `<label><input type="radio" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
+        html += `<label><input type="radio" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''} onchange="markAnswered(${index})"> <span>${opt}</span></label>`;
       });
     } else if (qData.type === "checkbox") {
       (qData.options || []).forEach((opt, i) => {
         const checked = Array.isArray(savedAnswer) && savedAnswer.includes(String(i)) ? "checked" : "";
-        html += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''}> ${opt}</label>`;
+        html += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''} onchange="markAnswered(${index})"> <span>${opt}</span></label>`;
       });
     } else if (qData.type === "isian") {
-      html += `<input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban Anda..." ${isLocked ? 'disabled' : ''}>`;
+      html += `<div style="margin-top:10px;"><input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban Anda..." ${isLocked ? 'disabled' : ''} oninput="markAnswered(${index})"></div>`;
     } else if (qData.type === "multi_isian") {
       (qData.fields || []).forEach((f, i) => {
         const val = savedAnswer?.[i] || "";
         html += `
-          <div style="margin-top:12px">
-            <label style="display:block; margin-bottom:6px; font-weight:600; background:none; padding:0; border:none;">${f.label}</label>
-            <input type="text" name="multi_${index}_${i}" value="${val}" placeholder="Jawaban..." ${isLocked ? 'disabled' : ''}>
+          <div style="margin-top:10px">
+            <span style="display:block; margin-bottom:4px; font-size:13px; font-weight:600;">${f.label}</span>
+            <input type="text" name="multi_${index}_${i}" value="${val}" placeholder="Jawaban..." ${isLocked ? 'disabled' : ''} oninput="markAnswered(${index})">
           </div>
         `;
       });
     } else if (qData.type === "match") {
-      const shuffled = [...(qData.pairs || [])].sort(() => Math.random() - 0.5);
-      html += `
-        <div class="match-wrapper" id="match_${index}" data-locked="${isLocked}">
-          <svg class="match-lines"></svg>
-          <div class="match-column">
-            ${(qData.pairs || []).map((p, i) => `<div class="match-item left-item" data-question="${index}" data-left="${i}">${p.left}</div>`).join("")}
+      const rightOptions = (qData.pairs || []).map(p => p.right);
+      html += `<div class="match-container" id="match_${index}" data-locked="${isLocked}">`;
+      (qData.pairs || []).forEach((p, i) => {
+        const currentSelected = savedAnswer?.[i] || "";
+        html += `
+          <div class="match-row-mobile">
+            <div class="match-left-text">${p.left}</div>
+            <div>➔</div>
+            <select class="match-select" data-question="${index}" data-left="${i}" ${isLocked ? 'disabled' : ''} onchange="markAnswered(${index})">
+              <option value="">Pilih jawaban...</option>
+              ${rightOptions.map(opt => `<option value="${opt}" ${currentSelected === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
           </div>
-          <div class="match-column">
-            ${shuffled.map((p, i) => `<div class="match-item right-item" data-question="${index}" data-right="${p.right}">${p.right}</div>`).join("")}
-          </div>
-        </div>
-      `;
+        `;
+      });
+      html += `</div>`;
     } else if (qData.type === "matrix" && qData.matrix) {
-      html += `
-        <div class="matrix-table-wrapper">
-          <table class="matrix-table">
-            <thead>
-              <tr>
-                <th>Pernyataan</th>
-                ${qData.matrix.columns.map(col => `<th>${col}</th>`).join("")}
-              </tr>
-            </thead>
-            <tbody>
-              ${qData.matrix.rows.map((row, rIdx) => `
-                <tr>
-                  <td>${row.statement}</td>${qData.matrix.columns.map((_, cIdx) => {
-                    const isChecked = savedAnswer?.[rIdx] == cIdx ? "checked" : "";
-                    return `
-                      <td>
-                        <input type="radio" name="matrix_${index}_${rIdx}" value="${cIdx}" ${isChecked} ${isLocked ? 'disabled' : ''}>
-                      </td>
-                    `;
-                  }).join("")}
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      `;
+      html += `<div class="matrix-mobile-list">`;
+      qData.matrix.rows.forEach((row, rIdx) => {
+        html += `
+          <div class="matrix-card-item">
+            <div class="matrix-statement">${row.statement}</div>
+            <div class="matrix-options-grid">
+        `;
+        qData.matrix.columns.forEach((col, cIdx) => {
+          const isChecked = savedAnswer?.[rIdx] == cIdx ? "checked" : "";
+          html += `
+            <label class="matrix-opt-label">
+              <input type="radio" name="matrix_${index}_${rIdx}" value="${cIdx}" ${isChecked} ${isLocked ? 'disabled' : ''} onchange="markAnswered(${index})">
+              <span>${col}</span>
+            </label>
+          `;
+        });
+        html += `</div></div>`;
+      });
+      html += `</div>`;
     }
 
     html += `
-      <div style="margin-top:16px">
-        <button id="btn_check_${index}" onclick="checkAnswer(${index})" style="background:#4f46e5; color:white; padding:10px 16px; border-radius:10px;" ${isLocked ? 'disabled style="background:#cbd5e1; cursor:not-allowed;"' : ''}>✅ Cek Jawaban</button>
+        <button class="check-btn" id="btn_check_${index}" onclick="checkAnswer(${index})" ${isLocked ? 'style="background:#cbd5e1; cursor:not-allowed;" disabled' : ''}>✅ Cek Jawaban</button>
         <span class="attempts-info" id="attempts_text_${index}">${isLocked ? '🔒 Soal Terkunci' : '⚠️ Hanya bisa dicek 1 kali'}</span>
-        <div id="result_${index}" style="margin-top:10px;font-weight:bold;font-size:14px;"></div>
-        <div id="explain_${index}" style="margin-top:12px; ${isLocked ? 'display:block;' : 'display:none;'}">
-          <button onclick="toggleExplain(${index})" style="background:#10b981; color:white; padding:10px 16px; border-radius:10px;">📘 Lihat Pembahasan</button>
-          <div id="explain_content_${index}" style="display:none; margin-top:10px; background:#f8fafc; border:1px solid #e2e8f0; padding:14px; border-radius:10px; font-size:13px; line-height:1.6;">
+        <div id="result_${index}" style="margin-top:8px;font-weight:bold;font-size:13px;"></div>
+        <div id="explain_${index}" style="margin-top:10px; ${isLocked ? 'display:block;' : 'display:none;'}">
+          <button onclick="toggleExplain(${index})" style="background:#10b981; color:white; padding:8px 12px; border-radius:8px; font-size:12px;">📘 Lihat Pembahasan</button>
+          <div id="explain_content_${index}" style="display:none; margin-top:8px; background:#f1f5f9; border:1px solid #e2e8f0; padding:12px; border-radius:8px; font-size:12px; line-height:1.5;">
             ${qData.explanation || "Belum ada pembahasan."}
           </div>
         </div>
-      </div>
-    </div>`;
+
+        <!-- Navigasi Next/Prev dalam Card -->
+        <div class="nav-bottom-group">
+          <button class="nav-btn" onclick="prevQuestion()" ${index === 0 ? 'style="opacity:0.5; pointer-events:none;"' : ''}>⬅️ Sebelumnya</button>
+          <button class="nav-btn" onclick="nextQuestion()" ${index === questions.length - 1 ? 'style="opacity:0.5; pointer-events:none;"' : ''}>Selanjutnya ➡️</button>
+        </div>
+      </div>`;
   });
 
   html += `
-      <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'disabled style="background:#cbd5e1; cursor:not-allowed;"' : ''}>
+      <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'style="background:#cbd5e1; cursor:not-allowed;" disabled' : ''}>
         ${dbSubmission ? '🔒 Jawaban Telah Disimpan' : '📤 Kirim Nilai ke Guru'}
       </button>
-    </div>
   `;
+
+  navPagination.innerHTML = navHtml;
   container.innerHTML = html;
 
   if (window.MathJax && typeof MathJax.typeset === "function") {
     MathJax.typeset();
   }
 }
+
+window.switchQuestion = function(index) {
+  document.querySelectorAll(".question-card").forEach(card => card.classList.remove("active"));
+  document.querySelectorAll(".page-btn").forEach(btn => btn.classList.remove("active"));
+
+  document.getElementById("question_card_" + index).classList.add("active");
+  document.getElementById("nav_btn_" + index).classList.add("active");
+  currentQuestionIndex = index;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.nextQuestion = function() {
+  if (currentQuestionIndex < questionsData.length - 1) {
+    switchQuestion(currentQuestionIndex + 1);
+  }
+};
+
+window.prevQuestion = function() {
+  if (currentQuestionIndex > 0) {
+    switchQuestion(currentQuestionIndex - 1);
+  }
+};
+
+window.markAnswered = function(index) {
+  if (dbSubmission) return;
+  const studentUid = currentStudent.uid;
+  
+  // Simpan jawaban sementara ke LocalStorage sesuai tipe soal
+  const q = questionsData[index];
+  let userAnswer = null;
+
+  if (q.type === "pg") {
+    const selected = document.querySelector('input[name="q' + index + '"]:checked');
+    if (selected) userAnswer = selected.value;
+  } else if (q.type === "checkbox") {
+    userAnswer = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
+  } else if (q.type === "isian") {
+    userAnswer = document.getElementById("q" + index).value.trim();
+  } else if (q.type === "multi_isian") {
+    userAnswer = [];
+    (q.fields || []).forEach((_, i) => {
+      const val = document.querySelector('[name="multi_' + index + '_' + i + '"]').value.trim();
+      userAnswer.push(val);
+    });
+  } else if (q.type === "match") {
+    userAnswer = {};
+    document.querySelectorAll(`select[data-question="${index}"]`).forEach(sel => {
+      userAnswer[sel.getAttribute("data-left")] = sel.value;
+    });
+  } else if (q.type === "matrix") {
+    userAnswer = {};
+    q.matrix.rows.forEach((_, rIdx) => {
+      const checked = document.querySelector(`input[name="matrix_${index}_${rIdx}"]:checked`);
+      userAnswer[rIdx] = checked ? parseInt(checked.value) : null;
+    });
+  }
+
+  saveAnswer(index, userAnswer);
+  updatePaginationState();
+};
 
 function saveAnswer(index, value) {
   if (dbSubmission) return;
@@ -204,6 +271,23 @@ function saveAnswer(index, value) {
   const data = JSON.parse(localStorage.getItem(key) || "{}");
   data[index] = value;
   localStorage.setItem(key, JSON.stringify(data));
+}
+
+function updatePaginationState() {
+  const studentUid = currentStudent.uid;
+  const key = "exercise_" + exerciseId + "_" + studentUid;
+  const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
+
+  questionsData.forEach((_, index) => {
+    const btn = document.getElementById("nav_btn_" + index);
+    if (!btn) return;
+    const ans = savedAnswers[index];
+    const isNotEmpty = ans !== undefined && ans !== "" && (Array.isArray(ans) ? ans.length > 0 : (typeof ans === 'object' ? Object.values(ans).some(v => v !== "") : true));
+    
+    if (isNotEmpty && !btn.classList.contains("active")) {
+      btn.classList.add("answered");
+    }
+  });
 }
 
 window.checkAnswer = function(index) {
@@ -248,11 +332,16 @@ window.checkAnswer = function(index) {
     saveAnswer(index, userAnswer);
     correct = totalCorrect === q.fields.length;
   } else if (q.type === "match") {
-    const pairs = window.matchAnswers[index] || {};
-    saveAnswer(index, pairs);
+    userAnswer = {};
     let totalCorrect = 0;
+    document.querySelectorAll(`select[data-question="${index}"]`).forEach(sel => {
+      const leftIdx = sel.getAttribute("data-left");
+      const val = sel.value;
+      userAnswer[leftIdx] = val;
+    });
+    saveAnswer(index, userAnswer);
     (q.pairs || []).forEach((p, i) => {
-      if (pairs[i] === p.right) totalCorrect++;
+      if (userAnswer[i] === p.right) totalCorrect++;
     });
     correct = totalCorrect === q.pairs.length;
   } else if (q.type === "matrix") {
@@ -286,16 +375,14 @@ window.lockQuestionFields = function(index) {
   if (btn) {
     btn.disabled = true;
     btn.style.background = "#cbd5e1";
-    btn.style.cursor = "not-allowed";
+    btn.style.cursor = not-allowed;
   }
   document.querySelectorAll('input[name="q' + index + '"]').forEach(el => el.disabled = true);
   const isian = document.getElementById("q" + index);
   if (isian) isian.disabled = true;
   document.querySelectorAll('[name^="multi_' + index + '_"]').forEach(el => el.disabled = true);
   document.querySelectorAll(`input[name^="matrix_${index}_"]`).forEach(el => el.disabled = true);
-  
-  const matchWrap = document.getElementById("match_" + index);
-  if (matchWrap) matchWrap.dataset.locked = "true";
+  document.querySelectorAll(`select[data-question="${index}"]`).forEach(el => el.disabled = true);
 };
 
 window.toggleExplain = function(index) {
@@ -368,9 +455,7 @@ window.submitToFirebase = async function() {
   };
 
   try {
-    // KIRIM KE FIREBASE KEDUA (ulangansains2025 / dbSecondary)
     await setDoc(doc(dbSecondary, "student_submissions", studentUid + "_" + exerciseId), submissionData, { merge: true });
-    
     alert("🎉 Berhasil dikirim! Skor Anda: " + score);
     window.close();
   } catch (error) {
@@ -378,78 +463,3 @@ window.submitToFirebase = async function() {
     alert("Gagal mengirim jawaban ke database: " + error.message);
   }
 };
-
-window.drawConnection = function(leftEl, rightEl) {
-  const wrapper = leftEl.closest(".match-wrapper");
-  const svg = wrapper.querySelector(".match-lines");
-  const wrapperRect = wrapper.getBoundingClientRect();
-  const leftRect = leftEl.getBoundingClientRect();
-  const rightRect = rightEl.getBoundingClientRect();
-
-  const x1 = leftRect.right - wrapperRect.left;
-  const y1 = leftRect.top + leftRect.height / 2 - wrapperRect.top;
-  const x2 = rightRect.left - wrapperRect.left;
-  const y2 = rightRect.top + rightRect.height / 2 - wrapperRect.top;
-
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-  line.setAttribute("x1", x1); line.setAttribute("y1", y1);
-  line.setAttribute("x2", x2); line.setAttribute("y2", y2);
-  line.setAttribute("stroke", "#4f46e5"); line.setAttribute("stroke-width", "2.5");
-  svg.appendChild(line);
-};
-
-function restoreMatchAnswers(studentUid) {
-  const key = "exercise_" + exerciseId + "_" + studentUid;
-  const saved = dbSubmission?.answers || JSON.parse(localStorage.getItem(key) || "{}");
-  
-  Object.keys(saved).forEach(qIndex => {
-    const pairs = saved[qIndex];
-    if (typeof pairs !== "object" || Array.isArray(pairs)) return;
-    window.matchAnswers[qIndex] = pairs;
-    Object.keys(pairs).forEach(leftIndex => {
-      const rightAnswer = pairs[leftIndex];
-      const leftEl = document.querySelector('.left-item[data-question="' + qIndex + '"][data-left="' + leftIndex + '"]');
-      const rightEl = document.querySelector('.right-item[data-question="' + qIndex + '"][data-right="' + rightAnswer + '"]');
-      if (leftEl && rightEl) {
-        leftEl.classList.add("connected");
-        rightEl.classList.add("connected");
-        window.drawConnection(leftEl, rightEl);
-      }
-    });
-  });
-}
-
-document.addEventListener("click", (e) => {
-  if (dbSubmission) return;
-  const left = e.target.closest(".left-item");
-  const right = e.target.closest(".right-item");
-
-  if (left) {
-    const wrapper = left.closest(".match-wrapper");
-    if (wrapper.dataset.locked === "true") return;
-
-    document.querySelectorAll(".left-item").forEach(x => x.classList.remove("selected"));
-    left.classList.add("selected");
-    selectedLeft = left;
-  }
-
-  if (right && selectedLeft) {
-    const wrapper = right.closest(".match-wrapper");
-    if (wrapper.dataset.locked === "true") return;
-
-    const qIndex = selectedLeft.dataset.question;
-    const leftIndex = selectedLeft.dataset.left;
-    const rightValue = right.dataset.right;
-
-    window.matchAnswers[qIndex] ??= {};
-    window.matchAnswers[qIndex][leftIndex] = rightValue;
-
-    window.drawConnection(selectedLeft, right);
-    selectedLeft.classList.remove("selected");
-    selectedLeft.classList.add("connected");
-    right.classList.add("connected");
-
-    saveAnswer(qIndex, window.matchAnswers[qIndex]);
-    selectedLeft = null;
-  }
-});
