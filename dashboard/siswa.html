@@ -309,7 +309,7 @@
       box-shadow: var(--shadow-sm);
     }
 
-    .report-item, .task-alert-item {
+    .report-item {
       display: flex;
       flex-direction: column;
       gap: 14px;
@@ -321,29 +321,44 @@
       transition: all 0.25s ease;
     }
     @media (min-width: 640px) {
-      .report-item, .task-alert-item {
+      .report-item {
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
         gap: 16px;
       }
     }
-    .report-item:hover, .task-alert-item:hover {
+    .report-item:hover {
       border-color: #cbd5e1;
       background: #ffffff;
       box-shadow: var(--shadow-sm);
     }
+
+    /* TUGAS AKTIF COMPACT & MODERN */
+    .task-alert-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg-main);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
     .task-alert-item:hover {
       border-color: var(--primary);
+      background: #ffffff;
+      box-shadow: var(--shadow-sm);
     }
 
     .btn-work {
       background: var(--primary);
       color: white;
-      padding: 11px 22px;
-      border-radius: var(--radius-sm);
+      padding: 7px 14px;
+      border-radius: 10px;
       font-weight: 600;
-      font-size: 13px;
+      font-size: 12px;
       border: none;
       cursor: pointer;
       transition: all 0.2s;
@@ -351,8 +366,8 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
     }
     .btn-work:hover {
       background: var(--primary-hover);
@@ -475,13 +490,17 @@
       </div>
     </div>
 
- <!-- NOTIFIKASI TUGAS BELUM DIKERJAKAN -->
-    <div class="report-card" id="pendingTasksCard" style="display: none; border-left: 6px solid var(--primary);">
-      <h3 style="margin-top:0; font-size:16px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--primary);">
-        🔔 Tugas Aktif yang Belum Dikerjakan
-      </h3>
-      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">Segera selesaikan tugas berikut sebelum batas waktu berakhir.</p>
-      <div id="pendingTasksContainer">
+    <!-- NOTIFIKASI TUGAS BELUM DIKERJAKAN (MODERN & COMPACT) -->
+    <div class="report-card" id="pendingTasksCard" style="display: none; border-left: 5px solid var(--primary);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--primary);">
+          🔔 Tugas Aktif Belum Dikerjakan
+        </h3>
+        <span id="pendingBadgeCount" style="background: var(--primary-light); color: var(--primary); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;">0 Tugas</span>
+      </div>
+      <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 14px;">Segera selesaikan sebelum batas waktu berakhir.</p>
+      
+      <div id="pendingTasksContainer" style="display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto; padding-right: 4px;">
         <!-- Diisi otomatis oleh JavaScript -->
       </div>
     </div>
@@ -501,8 +520,6 @@
         </div>
       </div>
     </div>
-
-   
 
     <!-- REPORT NILAI SAYA -->
     <div class="report-card">
