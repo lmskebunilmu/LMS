@@ -199,10 +199,11 @@ async function listenPendingExercises(studentUid) {
         }
 
         pendingCount++;
+        // Menggunakan word-break & overflow-wrap agar teks judul panjang wrap rapi ke bawah
         pendingHtml += `
           <div class="task-alert-item">
-            <div style="min-width: 0; width: 100%; flex: 1; padding-right: 8px; overflow: hidden; box-sizing: border-box;">
-              <div style="font-weight: 700; font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">📝 ${exerciseTitle}</div>
+            <div style="min-width: 0; flex: 1; padding-right: 8px;">
+              <div style="font-weight: 700; font-size: 14px; color: var(--text-main); word-break: break-word; overflow-wrap: break-word; margin-bottom: 4px;">📝 ${exerciseTitle}</div>
               <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
                 <span>⏱ Batas:</span> <span style="font-weight: 500; color: var(--text-main);">${deadlineString}</span>
               </div>
@@ -293,7 +294,7 @@ function listenStudentReports(studentUid) {
       html += `
         <div class="report-item">
           <div style="min-width: 0; flex: 1;">
-            <div style="font-weight: 700; font-size: 14px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+            <div style="font-weight: 700; font-size: 14px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; word-break: break-word; overflow-wrap: break-word;">
               <span>📝</span> ${exerciseTitle}
             </div>
             <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
