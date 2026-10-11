@@ -70,7 +70,6 @@ onAuthStateChanged(auth, async (user) => {
     await waitForHeader();
     await loadProfileHeader(user);
     
-    // Menggunakan real-time listener agar otomatis update tanpa refresh
     listenStudentReports(user.uid);
     listenPendingExercises(user.uid);
   } catch (err) {
@@ -132,7 +131,6 @@ async function loadProfileHeader(user) {
   if (document.getElementById("headerAvatarCard")) document.getElementById("headerAvatarCard").src = avatar;
   if (document.getElementById("headerSchoolCard")) document.getElementById("headerSchoolCard").innerText = `🏫 ${schoolName}`;
 
-  // Isi form modal edit
   if (document.getElementById("profileName")) document.getElementById("profileName").value = name;
 }
 
@@ -142,6 +140,7 @@ async function loadProfileHeader(user) {
 async function listenPendingExercises(studentUid) {
   const cardSection = document.getElementById("pendingTasksCard");
   const container = document.getElementById("pendingTasksContainer");
+  const badgeEl = document.getElementById("pendingBadgeCount");
   if (!container || !cardSection) return;
 
   try {
@@ -151,7 +150,6 @@ async function listenPendingExercises(studentUid) {
     const schoolId = studentDocSnap.data().schoolId;
     if (!classId || !schoolId) return;
 
-    // Mendengarkan perubahan submission secara real-time
     const subQuery = query(
       collection(dbSecondary, "student_submissions"),
       where("studentUid", "==", studentUid)
@@ -163,7 +161,6 @@ async function listenPendingExercises(studentUid) {
         submittedExerciseIds.add(docSnap.data().exerciseId);
       });
 
-      // Ambil daftar tugas kelas
       const exGuruQuery = query(
         collection(db, "exerciseGuru"),
         where("classId", "==", classId),
@@ -180,10 +177,8 @@ async function listenPendingExercises(studentUid) {
         const assign = d.data();
         const exerciseId = assign.exerciseId;
 
-        // Lewati jika sudah dikerjakan
         if (submittedExerciseIds.has(exerciseId)) continue;
 
-        // Cek deadline
         let isExpired = false;
         let deadlineString = "Waktu fleksibel";
         if (assign.deadlineDate && assign.deadlineTime) {
@@ -206,9 +201,9 @@ async function listenPendingExercises(studentUid) {
         pendingCount++;
         pendingHtml += `
           <div class="task-alert-item">
-            <div>
-              <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 2px;">📝 ${exerciseTitle}</div>
-              <div style="font-size: 12px; color: var(--text-muted);">⏱ Batas: ${deadlineString}</div>
+            <div style="min-width: 0; flex: 1; padding-right: 8px;">
+              <div style="font-weight: 600; font-size: 13px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;">📝 ${exerciseTitle}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">⏱ ${deadlineString}</div>
             </div>
             <button class="btn-work" onclick="openExerciseFromDashboard('${exerciseId}')">Kerjakan</button>
           </div>
@@ -217,6 +212,8 @@ async function listenPendingExercises(studentUid) {
 
       totalPendingCount = pendingCount;
       updateStatsUI();
+
+      if (badgeEl) badgeEl.innerText = `${pendingCount} Tugas`;
 
       if (pendingCount > 0) {
         cardSection.style.display = "block";
