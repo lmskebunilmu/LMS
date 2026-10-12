@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
 
-  <!-- STYLE TAMBAHAN KHUSUS PROFILE CARD, LAPORAN & MODERN MOBILE UI -->
   <style>
     body {
       background-color: #f8fafc;
@@ -23,7 +22,7 @@
       margin-bottom: 20px;
     }
 
-    /* Profile Card Latar Belakang Putih & Proporsional */
+    /* Profile Card Latar Belakang Putih & Unik ID Selector */
     .profile-card {
       background: #ffffff;
       color: #1e293b;
@@ -68,8 +67,9 @@
       border: 2px solid #e2e8f0;
       flex-shrink: 0;
     }
-    /* Tombol Edit Profil Dirampingkan & Proporsional */
-    .profile-card .btn-edit {
+
+    /* Tombol Edit Profil dengan ID Unik #btnEditProfile */
+    #btnEditProfile {
       background: #f1f5f9;
       border: 1px solid #cbd5e1;
       color: #334155;
@@ -82,7 +82,7 @@
       flex-shrink: 0;
       width: auto;
     }
-    .profile-card .btn-edit:hover {
+    #btnEditProfile:hover {
       background: #e2e8f0;
       color: #0f172a;
     }
@@ -111,7 +111,7 @@
       background: #fff;
     }
 
-    /* Status Tabs Model Chip / Pill */
+    /* Status Tabs */
     .status-tabs {
       display: flex;
       gap: 8px;
@@ -142,7 +142,7 @@
       box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
     }
 
-    /* Tabel Desktop */
+    /* Tabel Desktop & Mobile Card */
     .table-responsive {
       width: 100%;
       overflow-x: auto;
@@ -165,7 +165,6 @@
       font-weight: 600;
     }
 
-    /* Mobile Card Style untuk Data Laporan */
     .mobile-report-card {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
@@ -197,7 +196,6 @@
       border-top: 1px dashed #cbd5e1;
     }
 
-    /* Responsive Media Queries */
     @media (max-width: 768px) {
       .wrapper {
         flex-direction: column;
@@ -215,7 +213,7 @@
         flex-direction: row;
         align-items: center;
       }
-      .profile-card .btn-edit {
+      #btnEditProfile {
         width: 100%;
         margin-top: 4px;
         text-align: center;
@@ -248,7 +246,8 @@
             <p id="headerSchoolCard">Nama Sekolah</p>
           </div>
         </div>
-        <button class="btn-edit" onclick="openProfileModal()">
+        <!-- Tombol dengan ID Unik -->
+        <button id="btnEditProfile" onclick="openProfileModal()">
           ✏️ Edit Profile
         </button>
       </div>
