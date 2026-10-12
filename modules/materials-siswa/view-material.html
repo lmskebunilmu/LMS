@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detail Materi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['[', ']']]
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; padding: 40px 20px; max-width: 850px; margin: auto; line-height: 1.8; color: #0f172a; background: #f8fafc; }
+    h2 { color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 20px; }
+    iframe, embed { width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin: 20px 0; background: #fff; }
+    .content-box { background: #fff; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
+    .back-btn { display: inline-block; margin-bottom: 20px; color: #4f46e5; text-decoration: none; font-weight: 600; }
+    .back-btn:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="content-box">
+    <a href="javascript:window.close()" class="back-btn">← Tutup Halaman</a>
+    <h2 id="materialTitle">Memuat Materi...</h2>
+    <div id="materialContent">Sedang mengambil data materi dari server...</div>
+  </div>
+
+  <script type="module">
+    import { db } from "../../firebase/firebase-config.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // Ambil ID dari parameter URL (contoh: view-material.html?id=XYZ123)
+    const urlParams = new URLSearchParams(window.location.search);
+    const materialId = urlParams.get("id");
+
+    async function loadMaterialDetail() {
+      if (!materialId) {
+        document.getElementById("materialTitle").innerText = "ID Materi Tidak Ditemukan";
+        document.getElementById("materialContent").innerText = "Parameter ID pada URL tidak valid.";
+        return;
+      }
+
+      try {
+        const snap = await getDoc(doc(db, "materials", materialId));
+        if (!snap.exists()) {
+          document.getElementById("materialTitle").innerText = "Materi Tidak Ditemukan";
+          document.getElementById("materialContent").innerText = "Data materi mungkin telah dihapus.";
+          return;
+        }
+
+        const data = snap.data();
+        document.title = data.title || "Detail Materi";
+        document.getElementById("materialTitle").innerText = data.title;
+        document.getElementById("materialContent").innerHTML = generateContent(data.content || "");
+
+        // Render ulang MathJax jika ada rumus matematika
+        if (window.MathJax && window.MathJax.typesetPromise) {
+          window.MathJax.typesetPromise();
+        }
+      } catch (err) {
+        console.error("Gagal memuat materi:", err);
+        document.getElementById("materialContent").innerText = "Terjadi kesalahan saat memuat materi.";
+      }
+    }
+
+    function generateContent(input) {
+      let output = input;
+      // Konversi link YouTube otomatis
+      output = output.replace(
+        /(https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s<]+)/gi,
+        (url) => {
+          let videoId = "";
+          if (url.includes("watch?v=")) {
+            videoId = url.split("watch?v=")[1].split("&")[0];
+          } else if (url.includes("youtu.be/")) {
+            videoId = url.split("youtu.be/")[1].split("?")[0];
+          }
+          return `<iframe width="100%" height="380" src="https://www.youtube.com/embed/${videoId}" allowfullscreen style="border:none;"></iframe>`;
+        }
+      );
+
+      // Konversi Google Drive & PDF
+      output = output.replace(
+        /https?:\/\/drive\.google\.com\/file\/d\/([^\/]+)\/view[^\s<]*/gi,
+        (match, fileId) => `<iframe src="https://drive.google.com/file/d/${fileId}/preview" width="100%" height="500" style="border:none;"></iframe>`
+      );
+
+      output = output.replace(
+        /(https?:\/\/[^\s<]+\.pdf(\?[^\s<]+)?)/gi,
+        (url) => `<embed src="${url}" type="application/pdf" width="100%" height="600px">`
+      );
+
+      output = output.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
+      return output;
+    }
+
+    loadMaterialDetail();
+  </script>
+</body>
+</html>
