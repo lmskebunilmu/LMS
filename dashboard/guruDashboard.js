@@ -1,5 +1,5 @@
 import { auth, db, dbSecondary } from "/LMS/firebase/firebase-config.js";
-import { onAuthStateChanged, updateProfile, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { onAuthStateChanged, updateProfile, updateEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { loadLayout } from "/LMS/assets/js/components.js";
@@ -280,7 +280,7 @@ function renderReportTable(dataList) {
       let statusBadge = `<span style="background: #f59e0b; color: white; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">⏳ Belum</span>`;
       let scoreText = "-";
       let timeText = "-";
-      let actionBtn = "";
+      let actionBtn = `<span style="color: #94a3b8; font-size: 12px;">-</span>`;
 
       if (item.isSubmitted) {
         let scoreColor = "#059669";
@@ -312,7 +312,7 @@ function renderReportTable(dataList) {
             <div>📊 Hasil: ${scoreText}</div>
             <div style="font-size: 12px; color: #64748b;">🕒 Kumpul: ${timeText}</div>
           </div>
-          ${item.isSubmitted ? `<div class="mobile-report-footer"><span style="font-size: 12px; color: #64748b;">Kelola Data</span>${actionBtn}</div>` : ''}
+          <div class="mobile-report-footer"><span style="font-size: 12px; color: #64748b;">Aksi</span>${actionBtn}</div>
         </div>
       `;
     });
