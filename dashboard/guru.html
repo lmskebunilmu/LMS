@@ -10,9 +10,6 @@
 
   <!-- STYLE TAMBAHAN KHUSUS PROFILE CARD, LAPORAN & MODERN MOBILE UI -->
   <style>
-    /* ==========================================
-       MODERN MOBILE & RESPONSIVE UPGRADES
-       ========================================== */
     body {
       background-color: #f8fafc;
     }
@@ -26,54 +23,68 @@
       margin-bottom: 20px;
     }
 
-    /* Profile Card Lebih Elegan & Modern */
+    /* Profile Card Latar Belakang Putih & Proporsional */
     .profile-card {
-      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-      color: #fff;
+      background: #ffffff;
+      color: #1e293b;
+      border: 1px solid #e2e8f0;
       border-radius: 16px;
       padding: 24px;
-      box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 15px;
+      gap: 20px;
       margin-bottom: 20px;
     }
-    .profile-details {
+    .profile-card-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
       flex: 1;
-      min-width: 200px;
+      min-width: 240px;
     }
-    .profile-card p, .profile-card span {
-      color: #e0e7ff !important;
+    .profile-details {
+      display: flex;
+      flex-direction: column;
     }
     .profile-card h2 {
-      color: #ffffff;
-      font-size: 1.25rem;
+      color: #0f172a;
+      font-size: 1.15rem;
       font-weight: 700;
-      margin-bottom: 4px;
+      margin: 0 0 4px 0;
+    }
+    .profile-card p {
+      color: #64748b !important;
+      font-size: 13px;
+      margin: 0 0 2px 0;
     }
     .profile-card .profile-avatar {
       width: 64px;
       height: 64px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid rgba(255, 255, 255, 0.6);
-    }
-    .profile-card .btn-edit {
-      background: rgba(255, 255, 255, 0.2);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      color: #fff;
-      border-radius: 12px;
-      font-weight: 600;
-      padding: 10px 16px;
-      cursor: pointer;
-      transition: background 0.2s;
+      border: 2px solid #e2e8f0;
       flex-shrink: 0;
     }
+    /* Tombol Edit Profil Dirampingkan & Proporsional */
+    .profile-card .btn-edit {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      width: auto;
+    }
     .profile-card .btn-edit:hover {
-      background: rgba(255, 255, 255, 0.3);
+      background: #e2e8f0;
+      color: #0f172a;
     }
 
     /* Filter Grid */
@@ -196,15 +207,18 @@
       }
       .profile-card {
         flex-direction: column;
-        text-align: center;
-        padding: 20px 16px;
+        align-items: stretch;
+        text-align: left;
+        padding: 18px;
       }
-      .profile-card .profile-avatar {
-        margin: 0 auto;
+      .profile-card-left {
+        flex-direction: row;
+        align-items: center;
       }
       .profile-card .btn-edit {
         width: 100%;
-        margin-top: 10px;
+        margin-top: 4px;
+        text-align: center;
       }
       .report-filter-grid {
         grid-template-columns: 1fr;
@@ -226,11 +240,13 @@
 
       <!-- PROFILE GURU -->
       <div class="profile-card" id="profileCard">
-        <img id="headerAvatarCard" class="profile-avatar" src="../assets/images/default-avatar.png" alt="Avatar">
-        <div class="profile-details">
-          <h2 id="headerNameCard">Nama Guru</h2>
-          <p id="headerEmailCard">email@guru.com</p>
-          <p id="headerSchoolCard">Nama Sekolah</p>
+        <div class="profile-card-left">
+          <img id="headerAvatarCard" class="profile-avatar" src="../assets/images/default-avatar.png" alt="Avatar">
+          <div class="profile-details">
+            <h2 id="headerNameCard">Nama Guru</h2>
+            <p id="headerEmailCard">email@guru.com</p>
+            <p id="headerSchoolCard">Nama Sekolah</p>
+          </div>
         </div>
         <button class="btn-edit" onclick="openProfileModal()">
           ✏️ Edit Profile
