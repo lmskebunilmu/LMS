@@ -54,7 +54,13 @@ async function loadExerciseData(exId, studentUid) {
     const exData = exSnap.data();
     
     const subSnap = await getDoc(doc(dbSecondary, "student_submissions", studentUid + "_" + exId));
-    if (subSnap.exists()) dbSubmission = subSnap.data();
+    if (subSnap.exists()) {
+      dbSubmission = subSnap.data();
+      // Sinkronkan data jawaban dari Firebase cloud ke localStorage agar konsisten saat dirender
+      if (dbSubmission.answers) {
+        localStorage.setItem("exercise_" + exId + "_" + studentUid, JSON.stringify(dbSubmission.answers));
+      }
+    }
 
     document.getElementById("exerciseTitle").innerText = exData.title + (dbSubmission ? " (Selesai Dikumpulkan)" : "");
 
@@ -261,17 +267,35 @@ window.markAnswered = function(index) {
     });
   }
 
-  saveAnswer(index, userAnswer);
+  saveAnswerToCloud(index, userAnswer);
   updatePaginationState();
 };
 
-function saveAnswer(index, value) {
-  if (dbSubmission) return;
+// Fungsi diperbarui: Menyimpan jawaban otomatis langsung ke Firebase Firestore secara real-time
+async function saveAnswerToCloud(index, value) {
+  if (dbSubmission || !currentStudent) return;
   const studentUid = currentStudent.uid;
   const key = "exercise_" + exerciseId + "_" + studentUid;
-  const data = JSON.parse(localStorage.getItem(key) || "{}");
-  data[index] = value;
-  localStorage.setItem(key, JSON.stringify(data));
+  
+  // Update data lokal browser terlebih dahulu
+  const localData = JSON.parse(localStorage.getItem(key) || "{}");
+  localData[index] = value;
+  localStorage.setItem(key, JSON.stringify(localData));
+
+  try {
+    // Sinkronisasi otomatis ke cloud Firestore di background
+    const docRef = doc(dbSecondary, "student_submissions", studentUid + "_" + exerciseId);
+    await setDoc(docRef, {
+      studentUid: String(studentUid),
+      exerciseId: String(exerciseId),
+      classId: String(studentClassId),
+      schoolId: String(currentSchoolId),
+      answers: localData,
+      updatedAt: new Date()
+    }, { merge: true });
+  } catch (err) {
+    console.error("Gagal auto-sync jawaban ke cloud:", err);
+  }
 }
 
 function updatePaginationState() {
@@ -327,17 +351,17 @@ window.checkAnswer = function(index) {
     const selected = document.querySelector('input[name="q' + index + '"]:checked');
     if (!selected) return alert("Pilih opsi jawaban terlebih dahulu!");
     userAnswer = selected.value;
-    saveAnswer(index, userAnswer);
+    saveAnswerToCloud(index, userAnswer);
     correct = userAnswer == q.answer;
   } else if (q.type === "checkbox") {
     const checked = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
     userAnswer = checked;
-    saveAnswer(index, userAnswer);
+    saveAnswerToCloud(index, userAnswer);
     correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
   } else if (q.type === "isian") {
     const input = document.getElementById("q" + index);
     userAnswer = input.value.trim();
-    saveAnswer(index, userAnswer);
+    saveAnswerToCloud(index, userAnswer);
     correct = userAnswer.toLowerCase() === String(q.answer).toLowerCase();
   } else if (q.type === "multi_isian") {
     userAnswer = [];
@@ -347,7 +371,7 @@ window.checkAnswer = function(index) {
       userAnswer.push(val);
       if (val.toLowerCase() === String(f.answer).toLowerCase()) totalCorrect++;
     });
-    saveAnswer(index, userAnswer);
+    saveAnswerToCloud(index, userAnswer);
     correct = totalCorrect === q.fields.length;
   } else if (q.type === "match") {
     userAnswer = {};
@@ -357,7 +381,7 @@ window.checkAnswer = function(index) {
       const val = sel.value;
       userAnswer[leftIdx] = val;
     });
-    saveAnswer(index, userAnswer);
+    saveAnswerToCloud(index, userAnswer);
     (q.pairs || []).forEach((p, i) => {
       if (userAnswer[i] === p.right) totalCorrect++;
     });
@@ -371,7 +395,7 @@ window.checkAnswer = function(index) {
       userAnswer[rIdx] = val;
       if (val === row.answerKey) totalCorrect++;
     });
-    saveAnswer(index, userAnswer);
+    saveAnswerToCloud(index, userAnswer);
     correct = totalCorrect === q.matrix.rows.length;
   }
 
