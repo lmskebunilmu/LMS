@@ -277,10 +277,10 @@ function renderReportTable(dataList) {
       const className = globalClassesMap[item.classId] || "-";
       const exerciseTitle = globalExercisesMap[item.exerciseId] || "Latihan";
 
-      let statusBadge = `<span style="background: #f59e0b; color: white; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">⏳ Belum</span>`;
+      let statusBadge = `<span style="background: #f59e0b; color: white; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">⏳ Belum Mengerjakan</span>`;
       let scoreText = "-";
       let timeText = "-";
-      let actionBtn = `<span style="color: #94a3b8; font-size: 12px;">-</span>`;
+      let actionBtn = `<span style="color: #94a3b8; font-size: 12px;">Menunggu siswa</span>`;
 
       if (item.isSubmitted) {
         let scoreColor = "#059669";
