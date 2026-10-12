@@ -1,394 +1,216 @@
- import { auth, db } from "../../firebase/firebase-config.js";
-
+import { auth, db } from "../../firebase/firebase-config.js";
 import {
-
   collection,
-
   getDocs,
-
   getDoc,
-
   doc,
-
-  addDoc,
-
   query,
-
-  deleteDoc,
-
   where,
-
-  updateDoc,
- writeBatch
-
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
 import { loadLayout } from "../../assets/js/components.js";
 
-
 // ==========================
-
 // STATE MANAGEMENT
-
 // ==========================
-
 let materialsGuru = [];
-
 let filteredMaterials = [];
-
 let schoolData = null;
-
 let exercisesData = [];
-
 let assignedMaterials = [];
-
 let assignedExercises = [];
-
 let assignedExercisesDetail = [];
-
+let activeModalChapterName = "";
 
 function getSelectedClassId() {
-
   return document.getElementById("classSelect").value;
-
 }
 
-
 // ==========================
-
 // AUTH INITIALIZATION
-
 // ==========================
-
 onAuthStateChanged(auth, async (user) => {
-
   if (!user) return window.location = "../../login.html";
 
-
-  console.log("AUTH UID:", user.uid);
-
-
   const userRef = doc(db, "users", user.uid);
-
   const userSnap = await getDoc(userRef);
 
-
   if (!userSnap.exists()) {
-
     alert("Data user tidak ditemukan!");
-
     return window.location = "../../login.html";
-
   }
-
 
   const userData = userSnap.data();
-
-
   if (userData.role !== "guru") {
-
     alert("Akses hanya guru!");
-
     return window.location = "../../login.html";
-
   }
-
-
-  // 🔒 CEK STATUS GURU
 
   const teacherSnap = await getDoc(doc(db, "teachers", user.uid));
-
   if (teacherSnap.exists()) {
-
     const teacherData = teacherSnap.data();
-
     if (teacherData.status === "nonaktif") {
-
       showToast("Akun kamu dinonaktifkan!", "error");
-
       document.querySelector(".main").innerHTML = `
-
         <div style="text-align:center;margin-top:100px;">
-
           <h1 style="color:red;">🚫 Akun Dinonaktifkan</h1>
-
           <p>Hubungi admin sekolah</p>
-
           <button onclick="window.location='../../login.html'">Logout</button>
-
         </div>
-
       `;
-
       return;
-
     }
-
   }
 
-
   await loadLayout("guru");
-
   await waitForHeader();
-
   await loadProfileHeader(user);
 
-
   await loadClasses(user);
-
   await loadSchoolData(userData.schoolId);
-
   await loadExercises();
 
-
   const classSelect = document.getElementById("classSelect");
-
   classSelect.addEventListener("change", async () => {
-
     document.getElementById("subjectFilter").value = "";
-
     await loadMaterialsData();
-
   });
-
 
   await loadMaterialsData();
-
 });
 
-
 // ==========================
-
 // LOAD DATA FROM FIRESTORE
-
 // ==========================
-
 async function loadClasses(user) {
-
   const userSnap = await getDoc(doc(db, "users", user.uid));
-
   const userData = userSnap.data();
 
-
   const q = query(
-
     collection(db, "classes"),
-
     where("teacherIds", "array-contains", user.uid),
-
     where("schoolId", "==", userData.schoolId)
-
   );
 
-
   const snap = await getDocs(q);
-
   const select = document.getElementById("classSelect");
-
   select.innerHTML = "";
 
-
-  // 1. Tampung data kelas ke dalam array untuk diurutkan
-
   let classesArray = [];
-
   snap.forEach(docSnap => {
-
     classesArray.push({
-
       id: docSnap.id,
-
       name: docSnap.data().name || "Kelas Tanpa Nama"
-
     });
-
   });
-
-
-  // 2. Urutkan nama kelas secara alfabetis (A-Z) dengan dukungan numerik (misal: Kelas 7 sebelum Kelas 10)
 
   classesArray.sort((a, b) => a.name.localeCompare(b.name, 'id', { numeric: true }));
 
-
-  // 3. Masukkan ke dalam elemen <select>
-
-  classesArray.forEach(cls => {
-
-    const opt = document.createElement("option");
-
-    opt.value = cls.id;
-
-    opt.textContent = cls.name;  
-
-    select.appendChild(opt);
-
-  });
-
-}
-
-
-async function loadSchoolData(schoolId) {
-
-  const snap = await getDoc(doc(db, "schools", schoolId));
-
-  if (!snap.exists()) return;
-
-  schoolData = snap.data();
-
-}
-
-
-async function loadExercises() {
-
-  const snap = await getDocs(collection(db, "exercises"));
-
-  exercisesData = [];
-
-  snap.forEach(doc => {
-
-    exercisesData.push({ id: doc.id, ...doc.data() });
-
-  });
-
-}
-
-
-async function loadMaterialsData() {
-
-  const classId = getSelectedClassId();
-
-  if (!classId) return;
-
-
-  const classSnap = await getDoc(doc(db, "classes", classId));
-
-  if (!classSnap.exists()) return;
-
-
-  const classData = classSnap.data();
-
-  const teacherSubjects = classData.teachers?.[auth.currentUser.uid] || [];
-
-  loadSubjectFilter(teacherSubjects);
-
-
-  const approved = schoolData.approvedSubjects || [];
-
-  let q;
-
-
-  if (teacherSubjects.length > 0) {
-
-    q = query(
-
-      collection(db, "materials"),
-
-      where("level", "==", schoolData.level),
-
-      where("curriculum", "==", schoolData.curriculum),
-
-      where("subject", "in", teacherSubjects)
-
-    );
-
-  } else {
-
-    q = query(
-
-      collection(db, "materials"),
-
-      where("level", "==", schoolData.level),
-
-      where("curriculum", "==", schoolData.curriculum)
-
-    );
-
+  if (classesArray.length === 0) {
+    select.innerHTML = `<option value="">-- Belum ada kelas --</option>`;
+    return;
   }
 
+  classesArray.forEach(cls => {
+    const opt = document.createElement("option");
+    opt.value = cls.id;
+    opt.textContent = cls.name;  
+    select.appendChild(opt);
+  });
+}
+
+async function loadSchoolData(schoolId) {
+  const snap = await getDoc(doc(db, "schools", schoolId));
+  if (!snap.exists()) return;
+  schoolData = snap.data();
+}
+
+async function loadExercises() {
+  const snap = await getDocs(collection(db, "exercises"));
+  exercisesData = [];
+  snap.forEach(doc => {
+    exercisesData.push({ id: doc.id, ...doc.data() });
+  });
+}
+
+async function loadMaterialsData() {
+  const classId = getSelectedClassId();
+  if (!classId) return;
+
+  const classSnap = await getDoc(doc(db, "classes", classId));
+  if (!classSnap.exists()) return;
+
+  const classData = classSnap.data();
+  const teacherSubjects = classData.teachers?.[auth.currentUser.uid] || [];
+  loadSubjectFilter(teacherSubjects);
+
+  const approved = schoolData.approvedSubjects || [];
+  let q;
+
+  if (teacherSubjects.length > 0) {
+    q = query(
+      collection(db, "materials"),
+      where("level", "==", schoolData.level),
+      where("curriculum", "==", schoolData.curriculum),
+      where("subject", "in", teacherSubjects)
+    );
+  } else {
+    q = query(
+      collection(db, "materials"),
+      where("level", "==", schoolData.level),
+      where("curriculum", "==", schoolData.curriculum)
+    );
+  }
 
   const snap = await getDocs(q);
-
   materialsGuru = [];
 
-
   snap.forEach(doc => {
-
     const m = { id: doc.id, ...doc.data() };
-
     if (!approved.includes(m.subject)) return;
-
     if (teacherSubjects.length && !teacherSubjects.includes(m.subject)) return;
-
     materialsGuru.push(m);
-
   });
-
 
   filteredMaterials = materialsGuru;
-
   await loadAssignments();
-
   renderAssignmentPanel(filteredMaterials);
-
 }
-
 
 async function loadAssignments() {
-
   const classId = getSelectedClassId();
-
   const user = auth.currentUser;
-
   if (!classId || !user) return;
 
-
   const mq = query(collection(db, "materialGuru"), where("classId", "==", classId), where("teacherId", "==", user.uid));
-
   const msnap = await getDocs(mq);
-
   assignedMaterials = msnap.docs.map(d => d.data().materialId);
 
-
   const eq = query(collection(db, "exerciseGuru"), where("classId", "==", classId), where("teacherId", "==", user.uid));
-
   const esnap = await getDocs(eq);
-
   
-
   assignedExercises = [];
-
   assignedExercisesDetail = [];
-
   
-
   esnap.forEach(d => {
-
     const data = d.data();
-
     assignedExercisesDetail.push({ docId: d.id, ...data });
-
     if (data.isAssigned) {
-
       assignedExercises.push(data.exerciseId);
-
     }
-
   });
-
 }
 
-
 // ==========================
-// RENDER PANEL LOGIC
+// RENDER PANEL TOMBOL BAB (MODERN)
 // ==========================
 function renderAssignmentPanel(data) {
   const container = document.getElementById("assignmentGuruList");
   container.innerHTML = "";
 
   if (data.length === 0) {
-    container.innerHTML = `<p>Tidak ada materi atau kuis latihan ditemukan.</p>`;
+    container.innerHTML = `<p style="text-align: center; color: #64748b;">Tidak ada materi atau kuis latihan ditemukan.</p>`;
     return;
   }
 
@@ -399,204 +221,125 @@ function renderAssignmentPanel(data) {
     grouped[bab].push(m);
   });
 
-  // 1. URUTKAN NAMA BAB SECARA ALFABETIS (A-Z)
   const sortedChapters = Object.keys(grouped).sort((a, b) => 
     a.localeCompare(b, 'id', { numeric: true, sensitivity: 'accent' })
   );
 
   sortedChapters.forEach(bab => {
-    const babDiv = document.createElement("div");
-    babDiv.className = "bab-box";
+    const totalSubMateri = grouped[bab].length;
+    const babBtn = document.createElement("button");
+    
+    babBtn.className = "bab-trigger-btn";
+    babBtn.style.cssText = "width: 100%; padding: 14px 18px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 14px; font-weight: 600; color: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;";
+    
+    babBtn.innerHTML = `
+      <span style="text-align: left;">📘 ${bab} <span style="display: block; font-size: 12px; font-weight: normal; color: #64748b; margin-top: 2px;">${totalSubMateri} Sub-Bab Tersedia</span></span>
+      <span style="color: #4f46e5; font-weight: bold;">Atur Penugasan &rarr;</span>
+    `;
 
-    // 2. URUTKAN SUB-BAB DI DALAM BAB INI SECARA ALFABETIS (A-Z)
-    let subChapters = grouped[bab];
-    subChapters.sort((a, b) => {
-      const titleA = (a.subChapter || a.title || "").toLowerCase();
-      const titleB = (b.subChapter || b.title || "").toLowerCase();
-      return titleA.localeCompare(titleB, 'id', { numeric: true, sensitivity: 'accent' });
-    });
+    babBtn.onclick = () => openAssignmentModal(bab, grouped[bab]);
+    container.appendChild(babBtn);
+  });
+}
 
-    babDiv.innerHTML = `
-      <h3 class="bab-title">
-        <span>📘 ${bab}</span>
-        <button class="toggle-btn">Lihat Materi & Latihan</button>
-      </h3>
+// ==========================
+// MODAL LOGIC
+// ==========================
+window.openAssignmentModal = (babName, subChaptersList) => {
+  activeModalChapterName = babName;
+  document.getElementById("modalAssignmentTitle").innerText = `📘 Pengaturan Bab: ${babName}`;
+  const bodyContainer = document.getElementById("modalAssignmentBody");
+  bodyContainer.innerHTML = "";
 
-      <div class="subbab-list">
-        ${subChapters.map(m => {
-          let materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
-          
-          // 3. URUTKAN LATIHAN DI DALAM SUB-BAB SECARA ALFABETIS (A-Z)
-          materialExercises.sort((a, b) => {
-            const titleA = (a.title || "").toLowerCase();
-            const titleB = (b.title || "").toLowerCase();
-            return titleA.localeCompare(titleB, 'id', { numeric: true, sensitivity: 'accent' });
-          });
+  subChaptersList.sort((a, b) => {
+    const titleA = (a.subChapter || a.title || "").toLowerCase();
+    const titleB = (b.subChapter || b.title || "").toLowerCase();
+    return titleA.localeCompare(titleB, 'id', { numeric: true, sensitivity: 'accent' });
+  });
 
-          const isMaterialChecked = assignedMaterials.includes(m.id) ? "checked" : "";
+  subChaptersList.forEach(m => {
+    let materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
+    materialExercises.sort((a, b) => (a.title || "").localeCompare(b.title || "", 'id', { numeric: true, sensitivity: 'accent' }));
+
+    const itemDiv = document.createElement("div");
+    itemDiv.style.cssText = "margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;";
+
+    itemDiv.innerHTML = `
+      <div style="font-weight: bold; font-size: 14px; color: #1e293b; margin-bottom: 8px;">
+        📄 Sub-Bab: ${m.subChapter || m.title}
+      </div>
+
+      <div style="background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+        ${materialExercises.length > 0 ? materialExercises.map(ex => {
+          const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
+          const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
+          const savedDeadlineDate = dbAssign ? dbAssign.deadlineDate || "" : "";
+          const savedDeadlineTime = dbAssign ? dbAssign.deadlineTime || "" : "";
 
           return `
-            <div class="subbab-item">
-              <label style="font-weight: bold;">
-                <input type="checkbox" class="subbab-check" value="${m.id}" ${isMaterialChecked} disabled>
-                📄 Sub-Bab: ${m.subChapter || m.title}
+            <div style="display: flex; flex-direction: column; gap: 6px; margin: 10px 0; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #cbd5e1;">
+              <label style="margin: 0; cursor: pointer; font-weight: 500; font-size: 13px; color: #334155;">
+                <input
+                  type="checkbox"
+                  class="exercise-check-modal"
+                  data-material="${m.id}"
+                  value="${ex.id}"
+                  ${isChecked}
+                >
+                📝 Latihan: ${ex.title}
               </label>
-
-              <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 10px; border-radius: 4px; max-height: 250px; overflow-y: auto; border: 1px solid #e0e0e0;">
-                ${materialExercises.map(ex => {
-                  const dbAssign = assignedExercisesDetail.find(e => e.exerciseId === ex.id);
-                  const isChecked = dbAssign && dbAssign.isAssigned ? "checked" : "";
-                  
-                  const savedDeadlineDate = dbAssign ? dbAssign.deadlineDate || "" : "";
-                  const savedDeadlineTime = dbAssign ? dbAssign.deadlineTime || "" : "";
-
-                  return `
-                    <div class="exercise-row" style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0; background: #fff; padding: 10px; border-radius:4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 10px;">
-                      <label class="exercise-item" style="margin: 0; cursor:pointer; font-weight: 500;">
-                        <input
-                          type="checkbox"
-                          class="exercise-check"
-                          data-material="${m.id}"
-                          value="${ex.id}"
-                          ${isChecked} 
-                        >
-                        📝 Latihan: ${ex.title}
-                      </label>
-                      
-                      <div style="display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
-                        <span style="font-size:12px; color:gray;">Batas Pengumpulan:</span>
-                        <input 
-                          type="date" 
-                          class="exercise-date" 
-                          data-id="${ex.id}" 
-                          value="${savedDeadlineDate}" 
-                          style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
-                        >
-                        <input 
-                          type="time" 
-                          class="exercise-time" 
-                          data-id="${ex.id}" 
-                          value="${savedDeadlineTime}" 
-                          style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;"
-                        >
-                      </div>
-                    </div>
-                  `;
-                }).join("")}
-                ${materialExercises.length === 0 ? '<p style="font-size:12px; color:gray; margin:0;">Tidak ada latihan di sub-bab ini</p>' : ''}
+              
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+                <span style="font-size: 11px; color: #64748b;">Batas Waktu:</span>
+                <input 
+                  type="date" 
+                  class="exercise-date-modal" 
+                  data-id="${ex.id}" 
+                  value="${savedDeadlineDate}" 
+                  style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;"
+                >
+                <input 
+                  type="time" 
+                  class="exercise-time-modal" 
+                  data-id="${ex.id}" 
+                  value="${savedDeadlineTime}" 
+                  style="padding: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;"
+                >
               </div>
             </div>
           `;
-        }).join("")}
+        }).join("") : '<span style="font-size:12px; color:#94a3b8;">Tidak ada latihan di sub-bab ini</span>'}
       </div>
-
-      <button onclick="saveAssignmentStructure('${bab}')">
-        💾 Tugaskan & Aktifkan Latihan Durasi
-      </button>
     `;
-
-    const btn = babDiv.querySelector(".toggle-btn");
-    btn.onclick = () => {
-      document.querySelectorAll(".bab-box").forEach(b => {
-        if (b !== babDiv) b.classList.remove("active");
-      });
-      babDiv.classList.toggle("active");
-      btn.textContent = babDiv.classList.contains("active") ? "Tutup" : "Lihat Materi & Latihan";
-    };
-
-    container.appendChild(babDiv);
-  });
-}
-
-// ==========================
-
-// FILTER LOGIC
-
-// ==========================
-
-window.filterAssignmentsGuru = () => {
-
-  const search = document.getElementById("searchAssignmentGuru").value.toLowerCase();
-
-  const selectedSubject = document.getElementById("subjectFilter").value;
-
-
-  filteredMaterials = materialsGuru.filter(m => {
-
-    const matchSearch = m.title.toLowerCase().includes(search) || m.subject.toLowerCase().includes(search);
-
-    const matchSubject = !selectedSubject || m.subject === selectedSubject;
-
-    return matchSearch && matchSubject;
-
+    bodyContainer.appendChild(itemDiv);
   });
 
-
-  renderAssignmentPanel(filteredMaterials);
-
+  document.getElementById("assignmentModal").style.display = "flex";
 };
 
-
-function loadSubjectFilter(teacherSubjects) {
-
-  const select = document.getElementById("subjectFilter");
-
-  select.innerHTML = `<option value="">Semua Mapel</option>`;
-
-
-  // Urutkan daftar mapel secara alfabetis (A-Z)
-
-  const sortedSubjects = [...teacherSubjects].sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'accent' }));
-
-
-  sortedSubjects.forEach(sub => {
-
-    const opt = document.createElement("option");
-
-    opt.value = sub;
-
-    opt.textContent = sub;
-
-    select.appendChild(opt);
-
-  });
-
-}
-
-
-window.filterBySubject = () => {
-
-  window.filterAssignmentsGuru();
-
+window.closeAssignmentModal = () => {
+  document.getElementById("assignmentModal").style.display = "none";
 };
 
-
 // ==========================
-
-// SAVE LOGIC
-
+// SAVE MODAL DATA (BATCH)
 // ==========================
-
-// ==========================
-// SAVE LOGIC (OPTIMIZED & BULK)
-// ==========================
-window.saveAssignmentStructure = async (bab) => {
-  const classId = document.getElementById("classSelect").value;
+window.saveAssignmentModalData = async () => {
+  const classId = getSelectedClassId();
   if (!classId) return showToast("Pilih kelas dulu", "error");
 
-  // Ambil semua elemen checkbox latihan yang ada di halaman / dalam bab tersebut
-  const exerciseRows = document.querySelectorAll(".exercise-check");
+  const exerciseRows = document.querySelectorAll(".exercise-check-modal");
   
   try {
-    const batch = writeBatch(db); // Gunakan Firestore Batch untuk efisiensi
+    const batch = writeBatch(db);
     let updateCount = 0;
 
     for (const el of exerciseRows) {
       const exerciseId = el.value;
       const isChecked = el.checked;
       
-      const dateInput = document.querySelector(`.exercise-date[data-id="${exerciseId}"]`);
-      const timeInput = document.querySelector(`.exercise-time[data-id="${exerciseId}"]`);
+      const dateInput = document.querySelector(`.exercise-date-modal[data-id="${exerciseId}"]`);
+      const timeInput = document.querySelector(`.exercise-time-modal[data-id="${exerciseId}"]`);
       
       const deadlineDate = dateInput ? dateInput.value : "";
       const deadlineTime = timeInput ? timeInput.value : "";
@@ -615,10 +358,11 @@ window.saveAssignmentStructure = async (bab) => {
     }
 
     if (updateCount > 0) {
-      await batch.commit(); // Jalankan semua perubahan sekaligus
+      await batch.commit();
     }
 
-    showToast("Pengaturan tanggal & penugasan berhasil disimpan untuk semua data!");
+    showToast(`Penugasan ${activeModalChapterName} berhasil disimpan!`);
+    closeAssignmentModal();
     await loadMaterialsData(); 
   } catch (error) {
     console.error(error);
@@ -626,104 +370,90 @@ window.saveAssignmentStructure = async (bab) => {
   }
 };
 
-
 // ==========================
-
-// TOAST & PROFILE HEADER SYSTEM
-
+// FILTER LOGIC
 // ==========================
+window.filterAssignmentsGuru = () => {
+  const search = document.getElementById("searchAssignmentGuru").value.toLowerCase();
+  const selectedSubject = document.getElementById("subjectFilter").value;
 
-function showToast(msg, type = "success") {
-
-  const t = document.getElementById("toast");
-
-  t.innerText = msg;
-
-  t.className = type === "error" ? "toast error active" : "toast active";
-
-  setTimeout(() => { t.classList.remove("active"); }, 3000);
-
-}
-
-
-function waitForHeader() {
-
-  return new Promise(resolve => {
-
-    const interval = setInterval(() => {
-
-      const el = document.getElementById("headerAvatarHeader");
-
-      if (el) {
-
-        clearInterval(interval);
-
-        resolve();
-
-      }
-
-    }, 50);
-
+  filteredMaterials = materialsGuru.filter(m => {
+    const matchSearch = m.title.toLowerCase().includes(search) || m.subject.toLowerCase().includes(search);
+    const matchSubject = !selectedSubject || m.subject === selectedSubject;
+    return matchSearch && matchSubject;
   });
 
+  renderAssignmentPanel(filteredMaterials);
+};
+
+function loadSubjectFilter(teacherSubjects) {
+  const select = document.getElementById("subjectFilter");
+  if (!select) return;
+  select.innerHTML = `<option value="">Semua Mapel</option>`;
+
+  const sortedSubjects = [...teacherSubjects].sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'accent' }));
+  sortedSubjects.forEach(sub => {
+    const opt = document.createElement("option");
+    opt.value = sub;
+    opt.textContent = sub;
+    select.appendChild(opt);
+  });
 }
 
+window.filterBySubject = () => {
+  window.filterAssignmentsGuru();
+};
+
+// ==========================
+// TOAST & PROFILE HEADER SYSTEM
+// ==========================
+function showToast(msg, type = "success") {
+  const t = document.getElementById("toast");
+  if (!t) return;
+  t.innerText = msg;
+  t.className = type === "error" ? "toast error active" : "toast active";
+  setTimeout(() => { t.classList.remove("active"); }, 3000);
+}
+
+function waitForHeader() {
+  return new Promise(resolve => {
+    const interval = setInterval(() => {
+      const el = document.getElementById("headerAvatarHeader");
+      if (el) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 50);
+  });
+}
 
 async function loadProfileHeader(user) {
-
   const userSnap = await getDoc(doc(db, "users", user.uid));
-
   if (!userSnap.exists()) return;
 
-
   const data = userSnap.data();
-
   const name = data.name || user.displayName || "Guru";
-
   const avatar = data.avatarURL || user.photoURL || "../assets/images/default-avatar.png";
-
   const schoolId = data.schoolId;
 
-
   let schoolName = "-";
-
   let schoolLogo = "../assets/images/default-logo.png";
 
-
   if (schoolId) {
-
     const schoolSnap = await getDoc(doc(db, "schools", schoolId));
-
     if (schoolSnap.exists()) {
-
       const schoolData = schoolSnap.data();
-
-      
-
       if (schoolData.status !== "aktif") {
-
         showToast("Sekolah kamu nonaktif!", "error");
-
         return;
-
       }
-
-
       schoolName = schoolData.name;
-
       schoolLogo = schoolData.logoURL || schoolLogo;
-
     }
-
   }
 
-
-  document.getElementById("headerNameHeader").innerText = name;
-
-  document.getElementById("headerAvatarHeader").src = avatar;
-
-  document.getElementById("headerSchoolName").innerText = schoolName; 
-
-  document.getElementById("headerSchoolLogo").src = schoolLogo;        
-
-} 
+  if(document.getElementById("headerNameHeader")) document.getElementById("headerNameHeader").innerText = name;
+  if(document.getElementById("headerAvatarHeader")) document.getElementById("headerAvatarHeader").src = avatar;
+  if(document.getElementById("headerSchoolName")) document.getElementById("headerSchoolName").innerText = schoolName; 
+  if(document.getElementById("headerSchoolLogo")) document.getElementById("headerSchoolLogo").src = schoolLogo;        
+}
