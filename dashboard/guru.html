@@ -67,22 +67,30 @@
       flex-shrink: 0;
     }
 
+    /* Tombol Edit Profil - Modern Minimalist Style */
     #btnEditProfile {
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      color: #334155;
-      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      color: #4f46e5;
+      border-radius: 10px;
       font-weight: 600;
       font-size: 13px;
-      padding: 8px 16px;
+      padding: 9px 18px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.25s ease;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       flex-shrink: 0;
       width: auto;
     }
     #btnEditProfile:hover {
-      background: #e2e8f0;
-      color: #0f172a;
+      background: #4f46e5;
+      color: #ffffff;
+      border-color: #4f46e5;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+      transform: translateY(-1px);
     }
 
     .report-filter-grid {
@@ -212,6 +220,7 @@
         width: 100%;
         margin-top: 4px;
         text-align: center;
+        justify-content: center;
       }
       .report-filter-grid {
         grid-template-columns: 1fr;
