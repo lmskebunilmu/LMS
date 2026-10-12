@@ -56,7 +56,6 @@ async function loadExerciseData(exId, studentUid) {
     const subSnap = await getDoc(doc(dbSecondary, "student_submissions", studentUid + "_" + exId));
     if (subSnap.exists()) {
       dbSubmission = subSnap.data();
-      // Sinkronkan data jawaban dari Firebase cloud ke localStorage agar konsisten saat dirender
       if (dbSubmission.answers) {
         localStorage.setItem("exercise_" + exId + "_" + studentUid, JSON.stringify(dbSubmission.answers));
       }
@@ -87,6 +86,7 @@ async function loadExerciseData(exId, studentUid) {
         }
       });
       updatePaginationState();
+      checkAllQuestionsAnswered(); // Cek status tombol kirim saat pertama kali dimuat
     }, 300);
 
   } catch (error) {
@@ -200,9 +200,10 @@ function renderQuestions(questions, studentUid) {
       </div>`;
   });
 
+  // Tombol Kirim awalnya disabled sampai semua soal terjawab
   html += `
-      <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'style="background:#cbd5e1; cursor:not-allowed;" disabled' : ''}>
-        ${dbSubmission ? '🔒 Jawaban Telah Disimpan' : '📤 Kirim Nilai ke Guru'}
+      <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'style="background:#cbd5e1; cursor:not-allowed;" disabled' : 'style="background:#cbd5e1; cursor:not-allowed; opacity:0.6;" disabled'}>
+        ${dbSubmission ? '🔒 Jawaban Telah Disimpan' : '📤 Kirim Nilai ke Guru (Selesaikan Semua Soal)'}
       </button>
   `;
 
@@ -269,21 +270,19 @@ window.markAnswered = function(index) {
 
   saveAnswerToCloud(index, userAnswer);
   updatePaginationState();
+  checkAllQuestionsAnswered(); // Cek apakah tombol kirim sudah bisa dibuka
 };
 
-// Fungsi diperbarui: Menyimpan jawaban otomatis langsung ke Firebase Firestore secara real-time
 async function saveAnswerToCloud(index, value) {
   if (dbSubmission || !currentStudent) return;
   const studentUid = currentStudent.uid;
   const key = "exercise_" + exerciseId + "_" + studentUid;
   
-  // Update data lokal browser terlebih dahulu
   const localData = JSON.parse(localStorage.getItem(key) || "{}");
   localData[index] = value;
   localStorage.setItem(key, JSON.stringify(localData));
 
   try {
-    // Sinkronisasi otomatis ke cloud Firestore di background
     const docRef = doc(dbSecondary, "student_submissions", studentUid + "_" + exerciseId);
     await setDoc(docRef, {
       studentUid: String(studentUid),
@@ -308,21 +307,7 @@ function updatePaginationState() {
     if (!btn) return;
     
     const ans = savedAnswers[index];
-    let isAnswered = false;
-
-    if (ans !== undefined && ans !== null) {
-      if (q.type === "pg" || q.type === "isian") {
-        isAnswered = ans !== "";
-      } else if (q.type === "checkbox") {
-        isAnswered = Array.isArray(ans) && ans.length > 0;
-      } else if (q.type === "multi_isian") {
-        isAnswered = Array.isArray(ans) && ans.some(v => v && v.trim() !== "");
-      } else if (q.type === "match") {
-        isAnswered = typeof ans === "object" && Object.values(ans).some(v => v !== "");
-      } else if (q.type === "matrix") {
-        isAnswered = typeof ans === "object" && Object.values(ans).some(v => v !== null && v !== undefined);
-      }
-    }
+    let isAnswered = isAnswerValid(q, ans);
 
     if (isAnswered) {
       btn.classList.add("answered");
@@ -330,6 +315,56 @@ function updatePaginationState() {
       btn.classList.remove("answered");
     }
   });
+}
+
+// Fungsi bantu untuk memeriksa apakah suatu soal sudah dijawab dengan valid
+function isAnswerValid(q, ans) {
+  if (ans === undefined || ans === null) return false;
+  if (q.type === "pg" || q.type === "isian") {
+    return ans !== "";
+  } else if (q.type === "checkbox") {
+    return Array.isArray(ans) && ans.length > 0;
+  } else if (q.type === "multi_isian") {
+    return Array.isArray(ans) && ans.every(v => v && v.trim() !== "");
+  } else if (q.type === "match") {
+    return typeof ans === "object" && Object.keys(ans).length === (q.pairs || []).length && Object.values(ans).every(v => v !== "");
+  } else if (q.type === "matrix") {
+    return typeof ans === "object" && Object.keys(ans).length === (q.matrix?.rows || []).length && Object.values(ans).every(v => v !== null && v !== undefined);
+  }
+  return false;
+}
+
+// Fungsi baru untuk memvalidasi apakah SEMUA soal telah terjawab
+function checkAllQuestionsAnswered() {
+  if (dbSubmission) return;
+  const studentUid = currentStudent.uid;
+  const key = "exercise_" + exerciseId + "_" + studentUid;
+  const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
+
+  let allAnswered = true;
+  questionsData.forEach((q, index) => {
+    const ans = savedAnswers[index];
+    if (!isAnswerValid(q, ans)) {
+      allAnswered = false;
+    }
+  });
+
+  const submitBtn = document.getElementById("final_submit_btn");
+  if (!submitBtn) return;
+
+  if (allAnswered && questionsData.length > 0) {
+    submitBtn.disabled = false;
+    submitBtn.style.background = "#10b981";
+    submitBtn.style.cursor = "pointer";
+    submitBtn.style.opacity = "1";
+    submitBtn.innerText = "📤 Kirim Nilai ke Guru";
+  } else {
+    submitBtn.disabled = true;
+    submitBtn.style.background = "#cbd5e1";
+    submitBtn.style.cursor = "not-allowed";
+    submitBtn.style.opacity = "0.6";
+    submitBtn.innerText = "📤 Kirim Nilai ke Guru (Selesaikan Semua Soal)";
+  }
 }
 
 window.checkAnswer = function(index) {
@@ -411,6 +446,7 @@ window.checkAnswer = function(index) {
   lockQuestionFields(index);
   document.getElementById("explain_" + index).style.display = "block";
   updatePaginationState();
+  checkAllQuestionsAnswered();
 };
 
 window.lockQuestionFields = function(index) {
