@@ -10,15 +10,11 @@ let currentSchoolRef = null;
 let currentSchoolName = "-";
 let currentSchoolLogo = "/LMS/assets/images/default-logo.png";
 
-// Variabel Global Data Laporan
 let globalMasterData = [];
 let globalClassesMap = {};
 let globalExercisesMap = {};
 let currentStatusFilter = 'all';
 
-// ==========================
-// AUTH + INITIALIZATION
-// ==========================
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location = "/LMS/login.html";
@@ -68,9 +64,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// ==========================
-// LOAD PROFILE HEADER & CARD
-// ==========================
 async function loadProfileHeader(userData) {
   const name = userData.name || "Guru";
   const email = userData.email || "";
@@ -123,9 +116,6 @@ async function loadProfileHeader(userData) {
   if (profileEmail) profileEmail.value = email;
 }
 
-// ========================================================
-// LOAD EXERCISE REPORTS (HANYA EXERCISE YANG DITUGASKAN GURU)
-// ========================================================
 async function loadExerciseReports(user) {
   try {
     if (!currentSchoolId) return;
@@ -282,7 +272,6 @@ function renderReportTable(dataList) {
   const isMobile = window.innerWidth <= 768;
 
   if (isMobile) {
-    // TAMPILAN CARD MODERN KHUSUS HP
     let mobileHtml = "";
     dataList.forEach((item, index) => {
       const className = globalClassesMap[item.classId] || "-";
@@ -331,7 +320,6 @@ function renderReportTable(dataList) {
     return;
   }
 
-  // TAMPILAN TABEL BIASA UNTUK DESKTOP
   let desktopHtml = `
     <table class="report-table">
       <thead>
@@ -392,9 +380,6 @@ function renderReportTable(dataList) {
   wrapper.innerHTML = desktopHtml;
 }
 
-// ==========================
-// HAPUS SUBMISSION SISWA
-// ==========================
 window.deleteSubmission = async (subId) => {
   if (!confirm("Apakah Anda yakin ingin menghapus riwayat pengerjaan ini? Siswa dapat mengerjakan ulang latihan ini jika dihapus.")) {
     return;
@@ -413,9 +398,6 @@ window.deleteSubmission = async (subId) => {
   }
 };
 
-// ===================================================
-// LOAD DAFTAR KELAS & BREAKDOWN ANGGOTA SISWA REAL-TIME
-// ===================================================
 async function loadClassWithStudents(user) {
   try {
     if (!currentSchoolId) return;
@@ -513,9 +495,6 @@ async function loadClassWithStudents(user) {
   }
 }
 
-// ==========================
-// EXPORT DATA (CSV & PDF)
-// ==========================
 window.exportCSV = (students, className) => {
   let csv = "Nama,Email\n";
   students.forEach(s => {
@@ -579,9 +558,6 @@ window.exportPDF = async (students, className) => {
   doc.save(`Laporan_Siswa_Kelas_${className.replace(/\s+/g, '_')}.pdf`);
 };
 
-// ==========================
-// FORM MANAGEMENT PROFILE MODAL
-// ==========================
 window.openProfileModal = () => document.getElementById("profileModal").classList.add("active");
 window.closeProfileModal = () => document.getElementById("profileModal").classList.remove("active");
 
@@ -639,9 +615,6 @@ window.saveProfile = async () => {
   }
 };
 
-// ==========================
-// LOCK DASHBOARD & TOAST CONTROL
-// ==========================
 function lockDashboard() {
   const main = document.querySelector(".main");
   if (!main) return;
