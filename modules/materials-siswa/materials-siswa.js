@@ -364,46 +364,13 @@ window.toggleAccordion = (el) => {
 };
 
 // ==========================
-// OPEN MATERIAL VIEWER
+// OPEN MATERIAL VIEWER (DIARAHKAN KE view-material.html)
 // ==========================
-window.openMaterial = async (id) => {
-  const snap = await getDoc(doc(db, "materials", id));
-  if (!snap.exists()) return;
-
-  const data = snap.data();
-  const win = window.open("", "_blank");
-
-  win.document.write(`
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${data.title}</title>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-      <script>
-        window.MathJax = {
-          tex: {
-            inlineMath: [['\\\\(', '\\\\)']],
-            displayMath: [['\\\\[', '\\\\]']]
-          }
-        };
-      </script>
-      <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-      <style>
-        body{font-family:'Inter',sans-serif;padding:30px 20px;max-width:800px;margin:auto;line-height:1.8;color:#0f172a;background:#f8fafc;}
-        h2{color:#4f46e5;border-bottom:2px solid #e2e8f0;padding-bottom:12px;margin-bottom:20px;}
-        iframe, embed{width:100%;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);margin:20px 0;background:#fff;}
-        .content-box{background:#fff;padding:25px;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);}
-      </style>
-    </head>
-    <body>
-      <div class="content-box">
-        <h2>${data.title}</h2>
-        <div>${generateContent(data.content)}</div>
-      </div>
-    </body>
-    </html>
-  `);
-  win.document.close();
+window.openMaterial = (id) => {
+  const win = window.open(`view-material.html?id=${id}`, "_blank");
+  if (!win) {
+    alert("Pop-up diblokir browser! Izinkan pop-up untuk membuka materi.");
+  }
 };
 
 function lockPage(){
@@ -416,37 +383,8 @@ function lockPage(){
   `;
 }
 
-function generateContent(input) {
-  let output = input;
-  output = output.replace(
-    /(https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s<]+)/gi,
-    (url) => {
-      let videoId = "";
-      if (url.includes("watch?v=")) {
-        videoId = url.split("watch?v=")[1].split("&")[0];
-      } else if (url.includes("youtu.be/")) {
-        videoId = url.split("youtu.be/")[1].split("?")[0];
-      }
-      return `<iframe width="100%" height="380" src="https://www.youtube.com/embed/${videoId}" allowfullscreen style="border:none;"></iframe>`;
-    }
-  );
-
-  output = output.replace(
-    /https?:\/\/drive\.google\.com\/file\/d\/([^\/]+)\/view[^\s<]*/gi,
-    (match, fileId) => `<iframe src="https://drive.google.com/file/d/${fileId}/preview" width="100%" height="500" style="border:none;"></iframe>`
-  );
-
-  output = output.replace(
-    /(https?:\/\/[^\s<]+\.pdf(\?[^\s<]+)?)/gi,
-    (url) => `<embed src="${url}" type="application/pdf" width="100%" height="600px">`
-  );
-
-  output = output.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
-  return output;
-}
-
 // ==========================
-// OPEN EXERCISE (MENGGUNAKAN HALAMAN TERPISAH EXERCISE.HTML)
+// OPEN EXERCISE (MENGGUNAKAN HALAMAN TERPISAH exercise.html)
 // ==========================
 window.openExercise = (id) => {
   const win = window.open(`exercise.html?id=${id}`, "_blank");
