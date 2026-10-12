@@ -8,51 +8,119 @@
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
 
-  <!-- STYLE TAMBAHAN KHUSUS PROFILE CARD & LAPORAN (RESPONSIF TANPA UBAH responsive.css) -->
+  <!-- STYLE TAMBAHAN KHUSUS PROFILE CARD, LAPORAN & MODERN MOBILE UI -->
   <style>
+    /* ==========================================
+       MODERN MOBILE & RESPONSIVE UPGRADES
+       ========================================== */
+    body {
+      background-color: #f8fafc;
+    }
+
+    .card {
+      border-radius: 16px;
+      border: 1px solid #f1f5f9;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+      background: #ffffff;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    /* Profile Card Lebih Elegan & Modern */
     .profile-card {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      color: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.2);
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 15px;
+      margin-bottom: 20px;
     }
     .profile-details {
       flex: 1;
       min-width: 200px;
     }
+    .profile-card p, .profile-card span {
+      color: #e0e7ff !important;
+    }
+    .profile-card h2 {
+      color: #ffffff;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .profile-card .profile-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+    }
     .profile-card .btn-edit {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #fff;
+      border-radius: 12px;
+      font-weight: 600;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
       flex-shrink: 0;
     }
+    .profile-card .btn-edit:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Filter Grid */
     .report-filter-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 15px;
     }
     .report-filter-grid select, .report-filter-grid input {
       width: 100%;
-      padding: 10px;
+      padding: 10px 12px;
       border: 1px solid #cbd5e1;
-      border-radius: 6px;
+      border-radius: 10px;
       font-size: 13px;
       box-sizing: border-box;
+      background: #f8fafc;
+      color: #1e293b;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .report-filter-grid select:focus, .report-filter-grid input:focus {
+      border-color: #4f46e5;
       background: #fff;
     }
+
+    /* Status Tabs Model Chip / Pill */
     .status-tabs {
       display: flex;
       gap: 8px;
       margin-bottom: 15px;
-      flex-wrap: wrap;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .status-tabs::-webkit-scrollbar {
+      display: none;
     }
     .tab-btn {
-      padding: 6px 14px;
-      font-size: 12px;
-      font-weight: 600;
-      border: 1px solid #cbd5e1;
+      flex-shrink: 0;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid #e2e8f0;
       background: #f8fafc;
-      color: #475569;
-      border-radius: 20px;
+      color: #64748b;
+      border-radius: 9999px;
       cursor: pointer;
       transition: all 0.2s;
     }
@@ -60,7 +128,10 @@
       background: #4f46e5;
       color: #fff;
       border-color: #4f46e5;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
     }
+
+    /* Tabel Desktop */
     .table-responsive {
       width: 100%;
       overflow-x: auto;
@@ -73,7 +144,7 @@
       font-size: 13px;
     }
     table.report-table th, table.report-table td {
-      padding: 10px 12px;
+      padding: 12px;
       border-bottom: 1px solid #e2e8f0;
       text-align: left;
     }
@@ -82,10 +153,51 @@
       color: #1e293b;
       font-weight: 600;
     }
+
+    /* Mobile Card Style untuk Data Laporan */
+    .mobile-report-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .mobile-report-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 8px;
+    }
+    .mobile-report-body {
+      font-size: 13px;
+      color: #475569;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .mobile-report-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed #cbd5e1;
+    }
+
+    /* Responsive Media Queries */
     @media (max-width: 768px) {
+      .wrapper {
+        flex-direction: column;
+      }
+      .main {
+        padding: 12px !important;
+      }
       .profile-card {
         flex-direction: column;
         text-align: center;
+        padding: 20px 16px;
       }
       .profile-card .profile-avatar {
         margin: 0 auto;
@@ -93,6 +205,9 @@
       .profile-card .btn-edit {
         width: 100%;
         margin-top: 10px;
+      }
+      .report-filter-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -118,7 +233,7 @@
           <p id="headerSchoolCard">Nama Sekolah</p>
         </div>
         <button class="btn-edit" onclick="openProfileModal()">
-          Edit Profile
+          ✏️ Edit Profile
         </button>
       </div>
 
@@ -156,9 +271,9 @@
           <button class="tab-btn" onclick="switchStatusTab('belum', this)">⏳ Belum Mengerjakan</button>
         </div>
 
-        <!-- Tabel Hasil Laporan -->
-        <div class="table-responsive">
-          <table class="report-table">
+        <!-- Tabel / Container Hasil Laporan -->
+        <div class="table-responsive" id="reportContainerWrapper">
+          <table class="report-table" id="desktopReportTable">
             <thead>
               <tr>
                 <th>No</th>
@@ -182,7 +297,7 @@
 
       <!-- DAFTAR KELAS & SISWA -->
       <div class="card">
-        <h3>Daftar Kelas & Siswa</h3>
+        <h3>📚 Daftar Kelas & Siswa</h3>
         <div id="classListContainer">
           <!-- akan diisi dari JS -->
         </div>
@@ -195,12 +310,10 @@
     <div class="modal-content">
       <h3>Edit Profile Guru</h3>
       <input type="text" id="profileName" placeholder="Nama Guru">
-     
+      <input type="text" id="profileEmail" placeholder="Email Guru">
       <input type="file" id="profileAvatarFile" accept="image/*">
-      
-      
-
-      <div class="modal-actions">
+     
+      <div class="modal-actions" style="margin-top: 15px;">
         <button class="primary" onclick="saveProfile()">Simpan</button>
         <button class="danger" onclick="closeProfileModal()">Batal</button>
       </div>
