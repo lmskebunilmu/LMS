@@ -2,13 +2,19 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Preview Materi</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <script>
   window.MathJax = {
     tex: {
       inlineMath: [['\\(', '\\)']],
-      displayMath: [['\\[', '\\]']]
+      displayMath: [['$$', '$$'], ['[', ']']]
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
     }
   };
 </script>
@@ -16,20 +22,80 @@
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
 <style>
-    /* =========================
-   MODERN UI
-========================= */
-body {
-  font-family: "Segoe UI", sans-serif;
-  background: #f5f7fb;
+* {
+  box-sizing: border-box;
 }
 
-/* content */
+body {
+  font-family: 'Inter', "Segoe UI", sans-serif;
+  background: #f5f7fb;
+  color: #0f172a;
+  margin: 0;
+  padding: clamp(12px, 3vw, 40px) clamp(8px, 2vw, 20px);
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+}
+
+#viewerWrapper {
+  position: relative;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Content Box */
 #contentWrapper {
   background: white;
-  padding: 30px;
+  padding: clamp(16px, 4vw, 36px);
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  border: 1px solid #e2e8f0;
+  overflow-x: auto;
+}
+
+#title {
+  color: #4f46e5;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 12px;
+  margin-top: 0;
+  font-size: clamp(20px, 4vw, 26px);
+}
+
+/* Responsif Video & Embed */
+.video-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  height: 0;
+  margin: 20px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  background: #000;
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+iframe.embed-doc, embed {
+  width: 100%;
+  height: 500px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  margin: 20px 0;
+  background: #fff;
+}
+
+#content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
 }
 
 /* =========================
@@ -62,7 +128,7 @@ body {
 /* dropdown tools */
 #tools {
   margin-top: 10px;
-  background: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.95);
   backdrop-filter: blur(12px);
   padding: 12px;
   border-radius: 16px;
@@ -71,14 +137,13 @@ body {
   gap: 10px;
   width: 140px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  border: 1px solid #e2e8f0;
 }
 
-/* hidden */
 #tools.hidden {
   display: none;
 }
 
-/* buttons */
 #tools button {
   background: #f1f5f9;
   border: none;
@@ -86,24 +151,24 @@ body {
   border-radius: 10px;
   cursor: pointer;
   transition: 0.2s;
+  font-weight: 500;
 }
 
 #tools button:hover {
   background: #e2e8f0;
 }
 
-/* active tool */
 #tools button.active {
   background: #4f46e5;
   color: white;
 }
 
-/* input */
-#tools input,
 #tools select {
   border-radius: 8px;
-  border: 1px solid #ddd;
-  padding: 5px;
+  border: 1px solid #cbd5e1;
+  padding: 6px;
+  font-family: inherit;
+  outline: none;
 }
 
 #colorPalette {
@@ -127,10 +192,6 @@ body {
   box-shadow: 0 0 0 2px #2563eb;
 }
 
-#viewerWrapper {
-  position: relative;
-}
-
 #drawCanvas {
   position: absolute;
   top: 0;
@@ -148,39 +209,41 @@ body {
   z-index: 99999;
   transform: translate(-30%, -70%);
   display: none;
-  
 }
 
-
+@media (max-width: 640px) {
+  #toolbar {
+    top: 10px;
+    left: 10px;
+  }
+  iframe.embed-doc, embed {
+    height: 350px;
+  }
+}
 </style>
 </head>
 
 <body>
 
 <div id="viewerWrapper">
-
   <div id="contentWrapper">
-    <h2 id="title"></h2>
-    <div id="content"></div>
+    <h2 id="title">Memuat Materi...</h2>
+    <div id="content">Sedang mengambil data materi...</div>
   </div>
-
   <canvas id="drawCanvas"></canvas>
-
 </div>
 
 <!-- TOOLBAR -->
 <div id="toolbar">
-
-  <button id="toggleAnnotate">✏️</button>
-
+  <button id="toggleAnnotate" title="Aktifkan Coret-coret">✏️</button>
   <div id="tools" class="hidden">
     <div id="colorPalette">
-  <div class="color" data-color="#ef4444" style="background:#ef4444"></div>
-  <div class="color" data-color="#3b82f6" style="background:#3b82f6"></div>
-  <div class="color" data-color="#10b981" style="background:#10b981"></div>
-  <div class="color" data-color="#f59e0b" style="background:#f59e0b"></div>
-  <div class="color" data-color="#000000" style="background:#000000"></div>
-</div>
+      <div class="color" data-color="#ef4444" style="background:#ef4444"></div>
+      <div class="color" data-color="#3b82f6" style="background:#3b82f6"></div>
+      <div class="color" data-color="#10b981" style="background:#10b981"></div>
+      <div class="color" data-color="#f59e0b" style="background:#f59e0b"></div>
+      <div class="color" data-color="#000000" style="background:#000000"></div>
+    </div>
 
     <select id="sizePicker">
       <option value="2">Tipis</option>
@@ -188,75 +251,67 @@ body {
       <option value="10">Tebal</option>
     </select>
 
-    <button id="penBtn">✏️</button>
-    <button id="lineBtn">📏</button>
-    <button id="eraserBtn">🧽</button>
-    <button id="clearBtn">🗑</button>
+    <button id="penBtn" class="active">✏️ Pena</button>
+    <button id="lineBtn">📏 Garis</button>
+    <button id="eraserBtn">🧽 Hapus</button>
+    <button id="clearBtn">🗑 Bersihkan</button>
   </div>
-
 </div>
+
 <div id="fakeCursor">✏️</div>
+
 <script type="module">
 import { db } from "../../firebase/firebase-config.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// ==========================
-// LOAD DATA
-// ==========================
 const params = new URLSearchParams(window.location.search);
 const id = params.get("id");
 
-if (!id) document.body.innerHTML = "<p>Materi tidak ditemukan</p>";
+if (!id) {
+  document.body.innerHTML = "<p style='text-align:center;padding:50px;'>Materi tidak ditemukan</p>";
+} else {
+  const snap = await getDoc(doc(db, "materials", id));
+  if (!snap.exists()) {
+    document.body.innerHTML = "<p style='text-align:center;padding:50px;'>Materi tidak ditemukan</p>";
+  } else {
+    const m = snap.data();
+    document.title = m.title || "Preview Materi";
+    document.querySelector('.color[data-color="#ef4444"]').classList.add("active");
+    document.getElementById("title").innerText = m.title;
+    document.getElementById("content").innerHTML = generateContent(m.content || "");
 
-const snap = await getDoc(doc(db, "materials", id));
-
-if (!snap.exists()) document.body.innerHTML = "<p>Materi tidak ditemukan</p>";
-
-const m = snap.data();
-document.querySelector('.color[data-color="#ef4444"]').classList.add("active");
-document.getElementById("title").innerText = m.title;
-document.getElementById("content").innerHTML = generateContent(m.content);
-
-// ==========================
-// MATHJAX + RESIZE
-// ==========================
-setTimeout(async () => {
-  if (window.MathJax) {
-    await MathJax.typesetPromise();
+    setTimeout(async () => {
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        await MathJax.typesetPromise().catch(err => console.log('MathJax error:', err));
+      }
+      resizeCanvas();
+    }, 300);
+    setTimeout(resizeCanvas, 600);
+    setTimeout(resizeCanvas, 1200);
   }
-  resizeCanvas();
-}, 200);
-// 🔥 TAMBAH DI SINI
-setTimeout(resizeCanvas, 500);
-setTimeout(resizeCanvas, 1000);
+}
 
 // ==========================
 // CANVAS SETUP
 // ==========================
 const canvas = document.getElementById("drawCanvas");
 const ctx = canvas.getContext("2d");
-const fakeCursor = document.getElementById("fakeCursor"); 
+const fakeCursor = document.getElementById("fakeCursor");  
 
 let drawing = false;
-let erasing = false;
 let annotateMode = false;
-
 let lastX = 0;
 let lastY = 0;
-
 let mode = "pen"; // pen | line | erase
 let startX = 0;
 let startY = 0;
-
+let currentColor = "#ef4444";
 
 const sizePicker = document.getElementById("sizePicker");
 const tools = document.getElementById("tools");
 
-// resize ikut konten
 function resizeCanvas() {
   const wrapper = document.getElementById("viewerWrapper");
-
-  // 🔥 ambil tinggi real konten (bukan viewport)
   const fullHeight = Math.max(
     wrapper.scrollHeight,
     wrapper.offsetHeight,
@@ -267,16 +322,20 @@ function resizeCanvas() {
   canvas.height = fullHeight;
 }
 window.addEventListener("resize", resizeCanvas);
+
 // ==========================
-// MODE
+// MODE TOGGLE
 // ==========================
 document.getElementById("toggleAnnotate").onclick = () => {
   annotateMode = !annotateMode;
-
   canvas.style.pointerEvents = annotateMode ? "auto" : "none";
   tools.classList.toggle("hidden");
-
-  document.body.style.cursor = annotateMode ? "none" : "default";
+  
+  // Sembunyikan cursor kustom jika di HP (touch device)
+  const isTouch = window.matchMedia("(pointer: coarse)").matches;
+  if (!isTouch) {
+    document.body.style.cursor = annotateMode ? "none" : "default";
+  }
 };
 
 document.getElementById("penBtn").onclick = () => {
@@ -297,68 +356,42 @@ document.getElementById("eraserBtn").onclick = () => {
   fakeCursor.innerHTML = "🧽";
 };
 
-document.getElementById("eraserBtn").onclick = () => {
-  mode = "erase";
-  setActive("eraserBtn");
-  document.body.style.cursor = "pointer";
-};
-document.getElementById("clearBtn").onclick = () =>
+document.getElementById("clearBtn").onclick = () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+};
 
 // ==========================
-// POSISI MOUSE (FIX SCROLL)
+// MOUSE & TOUCH POSITIONS
 // ==========================
 function getPos(e) {
   const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
   return {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top
+    x: clientX - rect.left,
+    y: clientY - rect.top
   };
 }
 
 // ==========================
-// DRAW
+// DRAW EVENTS (MOUSE & TOUCH)
 // ==========================
-canvas.addEventListener("mousedown", (e) => {
+function startDraw(e) {
   if (!annotateMode) return;
-
   const pos = getPos(e);
-
   drawing = true;
-
   startX = pos.x;
   startY = pos.y;
-
   lastX = pos.x;
   lastY = pos.y;
-});
+  if (e.type === 'touchstart') e.preventDefault();
+}
 
-canvas.addEventListener("mouseup", (e) => {
+function moveDraw(e) {
   if (!drawing || !annotateMode) return;
-
   const pos = getPos(e);
 
-  // 🔥 LINE MODE
-  if (mode === "line") {
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(pos.x, pos.y);
-
-    ctx.lineWidth = sizePicker.value;
-    ctx.strokeStyle = currentColor;
-    ctx.stroke();
-  }
-
-  drawing = false;
-});
-
-canvas.addEventListener("mousemove", (e) => {
-  if (!drawing || !annotateMode) return;
-
-  const pos = getPos(e);
-
-  // ✏️ PEN
   if (mode === "pen") {
     ctx.lineWidth = sizePicker.value;
     ctx.lineCap = "round";
@@ -371,25 +404,45 @@ canvas.addEventListener("mousemove", (e) => {
 
     lastX = pos.x;
     lastY = pos.y;
-  }
-
-  // 🧽 ERASER
-  if (mode === "erase") {
+  } else if (mode === "erase") {
     ctx.globalCompositeOperation = "destination-out";
-
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, sizePicker.value * 2, 0, Math.PI * 2);
     ctx.fill();
-
     ctx.globalCompositeOperation = "source-over";
   }
-});
+  if (e.type === 'touchmove') e.preventDefault();
+}
+
+function endDraw(e) {
+  if (!drawing || !annotateMode) return;
+  const pos = getPos(e.changedTouches ? { clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY } : e);
+
+  if (mode === "line") {
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.lineWidth = sizePicker.value;
+    ctx.strokeStyle = currentColor;
+    ctx.stroke();
+  }
+
+  drawing = false;
+}
+
+canvas.addEventListener("mousedown", startDraw);
+canvas.addEventListener("mousemove", moveDraw);
+canvas.addEventListener("mouseup", endDraw);
+
+canvas.addEventListener("touchstart", startDraw, { passive: false });
+canvas.addEventListener("touchmove", moveDraw, { passive: false });
+canvas.addEventListener("touchend", endDraw);
 
 // ==========================
 // FAKE CURSOR MOVE
 // ==========================
 window.addEventListener("mousemove", (e) => {
-  if (!annotateMode) {
+  if (!annotateMode || window.matchMedia("(pointer: coarse)").matches) {
     fakeCursor.style.display = "none";
     return;
   }
@@ -398,120 +451,70 @@ window.addEventListener("mousemove", (e) => {
   fakeCursor.style.left = e.clientX + "px";
   fakeCursor.style.top = e.clientY + "px";
 });
+
 // ==========================
-// HELPER
+// CONTENT PARSER
 // ==========================
 function generateContent(input) {
   let output = input;
 
-  // =========================
   // YOUTUBE
-  // =========================
   output = output.replace(
     /(https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/[^\s<]+)/g,
     (url) => {
-
       let videoId = "";
-
       if (url.includes("watch?v=")) {
         videoId = url.split("watch?v=")[1].split("&")[0];
-      }
-      else if (url.includes("youtu.be/")) {
+      } else if (url.includes("youtu.be/")) {
         videoId = url.split("youtu.be/")[1].split("?")[0];
       }
-
       return `
-        <iframe
-          width="100%"
-          height="315"
-          src="https://www.youtube.com/embed/${videoId}"
-          frameborder="0"
-          allowfullscreen>
-        </iframe>
+        <div class="video-container">
+          <iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>
+        </div>
       `;
     }
   );
 
-  // =========================
   // GOOGLE DRIVE
-  // =========================
   output = output.replace(
     /https?:\/\/drive\.google\.com\/file\/d\/([^\/]+)\/view[^\s<]*/g,
-    (match, fileId) => {
-
-      return `
-        <iframe
-          src="https://drive.google.com/file/d/${fileId}/preview"
-          width="100%"
-          height="600"
-          style="border:none;">
-        </iframe>
-      `;
-    }
-  );
-
-  // =========================
-  // PDF
-  // =========================
-  output = output.replace(
-    /(https?:\/\/[^\s<]+\.pdf)/gi,
-    (url) => `
-      <iframe
-        src="${url}"
-        width="100%"
-        height="600"
-        style="border:none;">
-      </iframe>
+    (match, fileId) => `
+      <iframe class="embed-doc" src="https://drive.google.com/file/d/${fileId}/preview"></iframe>
     `
   );
 
-  // =========================
-  // ODF / DOC / PPT / XLS
-  // =========================
+  // PDF
+  output = output.replace(
+    /(https?:\/\/[^\s<]+\.pdf)/gi,
+    (url) => `<embed src="${url}" type="application/pdf">`
+  );
+
+  // DOCX / PPTX / XLS
   output = output.replace(
     /(https?:\/\/[^\s<]+\.(odf|odt|ods|odp|doc|docx|ppt|pptx|xls|xlsx))/gi,
     (url) => `
-      <iframe
-        src="https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}"
-        width="100%"
-        height="600"
-        style="border:none;">
-      </iframe>
+      <iframe class="embed-doc" src="https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}"></iframe>
     `
   );
 
-  // =========================
   // REMOVE SCRIPT
-  // =========================
-  output = output.replace(
-    /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
-    ""
-  );
+  output = output.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
 
   return output;
 }
+
 function setActive(btnId) {
   document.querySelectorAll("#tools button").forEach(b => {
-    b.classList.remove("active");
+    if(b.id !== 'clearBtn') b.classList.remove("active");
   });
-
   document.getElementById(btnId).classList.add("active");
 }
 
-let currentColor = "#ef4444";
-
 document.querySelectorAll(".color").forEach(el => {
   el.onclick = () => {
-
-    // hapus active
-    document.querySelectorAll(".color").forEach(c => {
-      c.classList.remove("active");
-    });
-
-    // set aktif
+    document.querySelectorAll(".color").forEach(c => c.classList.remove("active"));
     el.classList.add("active");
-
-    // ambil warna
     currentColor = el.dataset.color;
   };
 });
