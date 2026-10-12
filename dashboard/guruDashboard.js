@@ -130,7 +130,6 @@ async function loadExerciseReports(user) {
   try {
     if (!currentSchoolId) return;
 
-    // 1. Ambil daftar kelas yang diampu guru ini
     const qClasses = query(
       collection(db, "classes"),
       where("teacherIds", "array-contains", user.uid),
@@ -154,7 +153,6 @@ async function loadExerciseReports(user) {
       return;
     }
 
-    // 2. Ambil HANYA exercise yang benar-benar ditugaskan (isAssigned == true) oleh guru ini dari koleksi `exerciseGuru`
     const qAssignedEx = query(
       collection(db, "exerciseGuru"),
       where("teacherId", "==", user.uid),
@@ -181,7 +179,6 @@ async function loadExerciseReports(user) {
       return;
     }
 
-    // Ambil detail judul exercise dari koleksi `exercises`
     globalExercisesMap = {};
     const filterExSelect = document.getElementById("filterExercise");
     filterExSelect.innerHTML = `<option value="">-- Semua Latihan --</option>`;
@@ -195,7 +192,6 @@ async function loadExerciseReports(user) {
       }
     }
 
-    // 3. Ambil data siswa di kelas yang diampu
     const studentsSnap = await getDocs(query(collection(db, "students"), where("schoolId", "==", currentSchoolId)));
     const studentsList = [];
     studentsSnap.forEach(sDoc => {
@@ -205,7 +201,6 @@ async function loadExerciseReports(user) {
       }
     });
 
-    // 4. Ambil semua submissions siswa DARI FIREBASE KEDUA (dbSecondary)
     const subSnap = await getDocs(query(collection(dbSecondary, "student_submissions"), where("schoolId", "==", currentSchoolId)));
     const submissionsMap = {};
     subSnap.forEach(subDoc => {
@@ -216,7 +211,6 @@ async function loadExerciseReports(user) {
       };
     });
 
-    // 5. Gabungkan menjadi master matrix HANYA untuk exercise yang ditugaskan ke kelas masing-masing siswa
     globalMasterData = [];
     studentsList.forEach(student => {
       const classAssignedExs = assignedExerciseMapByClass[student.classId] || [];
@@ -276,17 +270,85 @@ window.filterReports = () => {
 };
 
 function renderReportTable(dataList) {
-  const tbody = document.getElementById("reportTableBody");
-  if (!tbody) return;
+  const wrapper = document.getElementById("reportContainerWrapper");
+  if (!wrapper) return;
 
   if (dataList.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">📭 Tidak ada data pengerjaan yang sesuai dengan filter.</td></tr>`;
+    wrapper.innerHTML = `<div style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data pengerjaan yang sesuai dengan filter.</div>`;
     return;
   }
 
   dataList.sort((a, b) => a.studentName.localeCompare(b.studentName));
+  const isMobile = window.innerWidth <= 768;
 
-  let html = "";
+  if (isMobile) {
+    // TAMPILAN CARD MODERN KHUSUS HP
+    let mobileHtml = "";
+    dataList.forEach((item, index) => {
+      const className = globalClassesMap[item.classId] || "-";
+      const exerciseTitle = globalExercisesMap[item.exerciseId] || "Latihan";
+
+      let statusBadge = `<span style="background: #f59e0b; color: white; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">⏳ Belum</span>`;
+      let scoreText = "-";
+      let timeText = "-";
+      let actionBtn = "";
+
+      if (item.isSubmitted) {
+        let scoreColor = "#059669";
+        if (item.score < 60) scoreColor = "#dc2626";
+        else if (item.score < 75) scoreColor = "#d97706";
+
+        statusBadge = `<span style="background: #10b981; color: white; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">✅ Selesai</span>`;
+        scoreText = `<span style="background: ${scoreColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">Skor: ${item.score}</span> (${item.correctAnswers}/${item.totalQuestions})`;
+
+        if (item.submittedAt) {
+          const dateObj = item.submittedAt.toDate ? item.submittedAt.toDate() : new Date(item.submittedAt);
+          timeText = dateObj.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+
+        actionBtn = `<button onclick="deleteSubmission('${item.submissionId}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">🗑️ Hapus</button>`;
+      }
+
+      mobileHtml += `
+        <div class="mobile-report-card">
+          <div class="mobile-report-header">
+            <div>
+              <span style="font-size: 11px; color: #64748b;">#${index + 1} • ${className}</span>
+              <div style="font-weight: 700; color: #1e293b; font-size: 14px; margin-top: 2px;">👤 ${item.studentName}</div>
+            </div>
+            <div>${statusBadge}</div>
+          </div>
+          <div class="mobile-report-body">
+            <div>📖 Latihan: <b style="color: #4f46e5;">${exerciseTitle}</b></div>
+            <div>📊 Hasil: ${scoreText}</div>
+            <div style="font-size: 12px; color: #64748b;">🕒 Kumpul: ${timeText}</div>
+          </div>
+          ${item.isSubmitted ? `<div class="mobile-report-footer"><span style="font-size: 12px; color: #64748b;">Kelola Data</span>${actionBtn}</div>` : ''}
+        </div>
+      `;
+    });
+    wrapper.innerHTML = mobileHtml;
+    return;
+  }
+
+  // TAMPILAN TABEL BIASA UNTUK DESKTOP
+  let desktopHtml = `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Nama Siswa</th>
+          <th>Kelas</th>
+          <th>Judul Latihan</th>
+          <th>Status</th>
+          <th>Skor (Benar/Total)</th>
+          <th>Waktu Kumpul</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="reportTableBody">
+  `;
+
   dataList.forEach((item, index) => {
     const className = globalClassesMap[item.classId] || "-";
     const exerciseTitle = globalExercisesMap[item.exerciseId] || "Latihan";
@@ -312,7 +374,7 @@ function renderReportTable(dataList) {
       actionBtn = `<button onclick="deleteSubmission('${item.submissionId}')" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">🗑️ Hapus</button>`;
     }
 
-    html += `
+    desktopHtml += `
       <tr>
         <td>${index + 1}</td>
         <td><b>👤 ${item.studentName}</b></td>
@@ -326,11 +388,12 @@ function renderReportTable(dataList) {
     `;
   });
 
-  tbody.innerHTML = html;
+  desktopHtml += `</tbody></table>`;
+  wrapper.innerHTML = desktopHtml;
 }
 
 // ==========================
-// HAPUS SUBMISSION SISWA (DARI dbSecondary)
+// HAPUS SUBMISSION SISWA
 // ==========================
 window.deleteSubmission = async (subId) => {
   if (!confirm("Apakah Anda yakin ingin menghapus riwayat pengerjaan ini? Siswa dapat mengerjakan ulang latihan ini jika dihapus.")) {
@@ -404,12 +467,12 @@ async function loadClassWithStudents(user) {
       div.style.marginBottom = "15px";
 
       div.innerHTML = `
-        <button class="class-toggle" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center; padding:12px; cursor:pointer;">
+        <button class="class-toggle" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center; padding:12px; cursor:pointer; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
           <span>📋 <b>${classData.name}</b> ${waliKelasBadge}</span>
           <span style="font-size:12px; color:#4f46e5; font-weight:600;">📖 ${mySubjects.length} Mapel</span>
         </button>
 
-        <div class="class-detail" style="display:none; padding:15px; border:1px solid #e2e8f0; border-top:none; border-radius:0 0 6px 6px; background:#fff;">
+        <div class="class-detail" style="display:none; padding:15px; border:1px solid #e2e8f0; border-top:none; border-radius:0 0 8px 8px; background:#fff;">
           <div style="margin-bottom:10px; font-size:13px; color:#475569; line-height:1.6;">
             <div>• Jabatan Anda: <b>${isWaliKelas ? "Wali Kelas" : "Guru Pengampu"}</b></div>
             <div>• Mengajar Mapel: <span style="color:#4f46e5; font-weight:600;">${subjectsText}</span></div>
@@ -417,8 +480,8 @@ async function loadClassWithStudents(user) {
           </div>
 
           <div class="export-buttons" style="margin-bottom:15px;">
-            <button class="btn-export btn-csv" style="padding: 6px 12px; background:#10b981; color:white; border:none; border-radius:4px; cursor:pointer;">Export CSV</button>
-            <button class="btn-export btn-pdf" style="padding: 6px 12px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; margin-left:5px;">Download PDF</button>
+            <button class="btn-export btn-csv" style="padding: 6px 12px; background:#10b981; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px;">Export CSV</button>
+            <button class="btn-export btn-pdf" style="padding: 6px 12px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; margin-left:5px; font-size:12px;">Download PDF</button>
           </div>
 
           <strong style="font-size:13px; display:block; margin-bottom:5px; color:#1e293b;">Daftar Murid Kelas:</strong>
@@ -494,7 +557,7 @@ window.exportPDF = async (students, className) => {
   doc.setFontSize(14);
   doc.text(currentSchoolName, 36, 15);
   doc.setFontSize(10);
-  doc.text("Laporan Anggota Akademik Anggota Siswa", 36, 22);
+  doc.text("Laporan Anggota Akademik Siswa", 36, 22);
 
   doc.setFontSize(12);
   doc.text(`Kelas: ${className}`, 14, 38);
@@ -561,23 +624,6 @@ window.saveProfile = async () => {
     await updateProfile(user, { displayName: name, photoURL: avatarURL });
     if (email !== user.email) {
       await updateEmail(user, email);
-    }
-
-    const password = document.getElementById("profilePassword")?.value.trim();
-    const confirmPassword = document.getElementById("profilePasswordConfirm")?.value.trim();
-
-    if (password) {
-      if (password.length < 6) {
-        showToast("Password minimal 6 karakter!", "error");
-        return;
-      }
-      if (password !== confirmPassword) {
-        showToast("Konfirmasi sandi tidak sesuai!", "error");
-        return;
-      }
-      await updatePassword(user, password);
-      document.getElementById("profilePassword").value = "";
-      document.getElementById("profilePasswordConfirm").value = "";
     }
 
     await updateDoc(doc(db, "users", user.uid), { name, email, avatarURL });
