@@ -1,23 +1,53 @@
-import { auth, db, dbSecondary } from "/LMS/firebase/firebase-config.js";
-import { onAuthStateChanged, updateProfile, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { auth, db, dbSecondary } from "../firebase/firebase-config.js";
+import {
+  onAuthStateChanged,
+  updateProfile,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getDoc,
+  doc,
+  updateDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { loadLayout } from "../assets/js/components.js";
 
-import { loadLayout } from "/LMS/assets/js/components.js";
-window.loadLayout = loadLayout;
+const CLOUDINARY_CLOUD_NAME = "djlvnubgn";
+const CLOUDINARY_UPLOAD_PRESET = "lms_unsigned";
 
-let currentSchoolId = null;
-let currentSchoolRef = null;
-let currentSchoolName = "-";
-let currentSchoolLogo = "/LMS/assets/images/default-logo.png";
+// Global cache untuk statistik
+let totalCompletedCount = 0;
+let totalPendingCount = 0;
+let totalScoresSum = 0;
 
-let globalMasterData = [];
-let globalClassesMap = {};
-let globalExercisesMap = {};
-let currentStatusFilter = 'all';
+function updateStatsUI() {
+  const elCompleted = document.getElementById("statCompleted");
+  const elPending = document.getElementById("statPending");
+  const elAvgScore = document.getElementById("statAvgScore");
 
+  if (elCompleted) elCompleted.innerText = totalCompletedCount;
+  if (elPending) elPending.innerText = totalPendingCount;
+
+  if (elAvgScore) {
+    if (totalCompletedCount > 0) {
+      const avg = Math.round(totalScoresSum / totalCompletedCount);
+      elAvgScore.innerText = avg;
+    } else {
+      elAvgScore.innerText = "0";
+    }
+  }
+}
+
+// ==========================
+// AUTH STATE
+// ==========================
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    window.location = "/LMS/login.html";
+    window.location = "../login.html";
     return;
   }
 
@@ -25,593 +55,337 @@ onAuthStateChanged(auth, async (user) => {
     const userSnap = await getDoc(doc(db, "users", user.uid));
     if (!userSnap.exists()) {
       alert("User tidak ditemukan");
-      window.location = "/LMS/login.html";
+      window.location = "../login.html";
       return;
     }
 
     const userData = userSnap.data();
-    if (userData.role !== "guru") {
-      alert("Akses ditolak! Halaman ini khusus peran Guru.");
-      window.location = "/LMS/login.html";
+    if (userData.role !== "siswa") {
+      alert("Akses hanya untuk siswa");
+      window.location = "../login.html";
       return;
     }
 
-    const teacherSnap = await getDoc(doc(db, "teachers", user.uid));
-    if (teacherSnap.exists() && teacherSnap.data().status === "nonaktif") {
-      document.querySelector(".main").innerHTML = `
-        <div style="text-align:center; margin-top:100px;">
-          <h1 style="color:red;">🚫 Akun Dinonaktifkan</h1>
-          <p>Hubungi admin sekolah untuk mengaktifkan kembali akun Anda.</p>
-          <button onclick="window.location='/LMS/login.html'" class="btn-edit" style="margin-top:15px;">Kembali ke Login</button>
-        </div>
-      `;
-      return;
-    }
-
-    currentSchoolId = userData.schoolId || null;
-    window.role = userData.role;
-
-    if (window.loadLayout) {
-      await window.loadLayout(window.role);
-    }
-
-    await loadProfileHeader(userData);
-    await loadExerciseReports(user);
-    await loadClassWithStudents(user);
-
+    await loadLayout("siswa");
+    await waitForHeader();
+    await loadProfileHeader(user);
+    
+    listenStudentReports(user.uid);
+    listenPendingExercises(user.uid);
   } catch (err) {
-    console.error("Gagal melakukan inisialisasi dashboard guru:", err);
+    console.error(err);
   }
 });
 
-async function loadProfileHeader(userData) {
-  const name = userData.name || "Guru";
-  const email = userData.email || "";
-  const avatar = userData.avatarURL || "/LMS/assets/images/default-avatar.png";
+function waitForHeader() {
+  return new Promise(resolve => {
+    const interval = setInterval(() => {
+      const el = document.getElementById("headerAvatarHeader");
+      if (el) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 50);
+  });
+}
 
-  const nameEl = document.getElementById("headerNameHeader");
-  if (nameEl) nameEl.innerText = name;
+// ==========================
+// LOAD PROFILE + SEKOLAH
+// ==========================
+async function loadProfileHeader(user) {
+  const userSnap = await getDoc(doc(db, "users", user.uid));
+  if (!userSnap.exists()) return;
 
-  const avatarEl = document.getElementById("headerAvatarHeader");
-  if (avatarEl) avatarEl.src = avatar;
+  const data = userSnap.data();
+  const name = data.name || user.displayName || "Siswa";
+  const email = data.email || user.email;
+  const avatar = data.avatarURL || user.photoURL || "../assets/images/default-avatar.png";
+  const schoolId = data.schoolId || null;
 
-  if (currentSchoolId) {
-    const schoolSnap = await getDoc(doc(db, "schools", currentSchoolId));
+  let schoolName = "-";
+  let schoolLogo = "../assets/images/default-logo.png";
+
+  if (schoolId) {
+    const schoolSnap = await getDoc(doc(db, "schools", schoolId));
     if (schoolSnap.exists()) {
       const schoolData = schoolSnap.data();
-      
       if (schoolData.status !== "aktif") {
+        alert("Sekolah nonaktif");
         lockDashboard();
         return;
       }
-
-      currentSchoolRef = schoolSnap.ref;
-      currentSchoolName = schoolData.name || "-";
-      currentSchoolLogo = schoolData.logoURL || "/LMS/assets/images/default-logo.png";
+      schoolName = schoolData.name || "-";
+      schoolLogo = schoolData.logoURL || schoolLogo;
     }
   }
 
-  const schoolNameEl = document.getElementById("headerSchoolName");
-  if (schoolNameEl) schoolNameEl.innerText = currentSchoolName;
+  // Header Layout
+  if (document.getElementById("headerNameHeader")) document.getElementById("headerNameHeader").innerText = name;
+  if (document.getElementById("headerAvatarHeader")) document.getElementById("headerAvatarHeader").src = avatar;
+  if (document.getElementById("headerSchoolName")) document.getElementById("headerSchoolName").innerText = schoolName;
+  if (document.getElementById("headerSchoolLogo")) document.getElementById("headerSchoolLogo").src = schoolLogo;
 
-  const schoolLogoEl = document.getElementById("headerSchoolLogo");
-  if (schoolLogoEl) schoolLogoEl.src = currentSchoolLogo;
+  // Profile Card
+  if (document.getElementById("headerNameCard")) document.getElementById("headerNameCard").innerText = name;
+  if (document.getElementById("headerEmailCard")) document.getElementById("headerEmailCard").innerText = email;
+  if (document.getElementById("headerAvatarCard")) document.getElementById("headerAvatarCard").src = avatar;
+  if (document.getElementById("headerSchoolCard")) document.getElementById("headerSchoolCard").innerText = `🏫 ${schoolName}`;
 
-  const nameCard = document.getElementById("headerNameCard");
-  if (nameCard) nameCard.innerText = name;
-
-  const emailCard = document.getElementById("headerEmailCard");
-  if (emailCard) emailCard.innerText = email;
-
-  const avatarCard = document.getElementById("headerAvatarCard");
-  if (avatarCard) avatarCard.src = avatar;
-
-  const schoolCard = document.getElementById("headerSchoolCard");
-  if (schoolCard) schoolCard.innerText = currentSchoolName;
-
-  const profileName = document.getElementById("profileName");
-  if (profileName) profileName.value = name;
-
-  const profileEmail = document.getElementById("profileEmail");
-  if (profileEmail) profileEmail.value = email;
+  if (document.getElementById("profileName")) document.getElementById("profileName").value = name;
 }
 
-async function loadExerciseReports(user) {
+// ==========================
+// REAL-TIME PENDING EXERCISES (TUGAS AKTIF)
+// ==========================
+async function listenPendingExercises(studentUid) {
+  const cardSection = document.getElementById("pendingTasksCard");
+  const container = document.getElementById("pendingTasksContainer");
+  const badgeEl = document.getElementById("pendingBadgeCount");
+  if (!container || !cardSection) return;
+
   try {
-    if (!currentSchoolId) return;
+    const studentDocSnap = await getDoc(doc(db, "students", studentUid));
+    if (!studentDocSnap.exists()) return;
+    const classId = studentDocSnap.data().classId;
+    const schoolId = studentDocSnap.data().schoolId;
+    if (!classId || !schoolId) return;
 
-    const qClasses = query(
-      collection(db, "classes"),
-      where("teacherIds", "array-contains", user.uid),
-      where("schoolId", "==", currentSchoolId)
+    const subQuery = query(
+      collection(dbSecondary, "student_submissions"),
+      where("studentUid", "==", studentUid)
     );
-    const snapClasses = await getDocs(qClasses);
-    const teacherClassIds = [];
-    
-    const filterClassSelect = document.getElementById("filterClass");
-    filterClassSelect.innerHTML = `<option value="">-- Semua Kelas yang Diampu --</option>`;
 
-    snapClasses.forEach(cDoc => {
-      const cData = cDoc.data();
-      teacherClassIds.push(cDoc.id);
-      globalClassesMap[cDoc.id] = cData.name || "Kelas";
-      filterClassSelect.innerHTML += `<option value="${cDoc.id}">${cData.name}</option>`;
-    });
-
-    if (teacherClassIds.length === 0) {
-      document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">Belum ada kelas yang diampu.</td></tr>`;
-      return;
-    }
-
-    const qAssignedEx = query(
-      collection(db, "exerciseGuru"),
-      where("teacherId", "==", user.uid),
-      where("isAssigned", "==", true)
-    );
-    const assignedExSnap = await getDocs(qAssignedEx);
-
-    const assignedExerciseMapByClass = {}; 
-    const uniqueExerciseIds = new Set();
-
-    assignedExSnap.forEach(d => {
-      const data = d.data();
-      if (data.classId && data.exerciseId) {
-        uniqueExerciseIds.add(data.exerciseId);
-        if (!assignedExerciseMapByClass[data.classId]) {
-          assignedExerciseMapByClass[data.classId] = [];
-        }
-        assignedExerciseMapByClass[data.classId].push(data.exerciseId);
-      }
-    });
-
-    if (uniqueExerciseIds.size === 0) {
-      document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">📭 Belum ada latihan (exercise) yang Anda tugaskan ke kelas.</td></tr>`;
-      return;
-    }
-
-    globalExercisesMap = {};
-    const filterExSelect = document.getElementById("filterExercise");
-    filterExSelect.innerHTML = `<option value="">-- Semua Latihan --</option>`;
-
-    for (const exId of uniqueExerciseIds) {
-      const exDoc = await getDoc(doc(db, "exercises", exId));
-      if (exDoc.exists()) {
-        const exTitle = exDoc.data().title || "Latihan";
-        globalExercisesMap[exId] = exTitle;
-        filterExSelect.innerHTML += `<option value="${exId}">${exTitle}</option>`;
-      }
-    }
-
-    const studentsSnap = await getDocs(query(collection(db, "students"), where("schoolId", "==", currentSchoolId)));
-    const studentsList = [];
-    studentsSnap.forEach(sDoc => {
-      const sData = sDoc.data();
-      if (teacherClassIds.includes(sData.classId)) {
-        studentsList.push({ uid: sDoc.id, name: sData.name || "Siswa", classId: sData.classId });
-      }
-    });
-
-    const subSnap = await getDocs(query(collection(dbSecondary, "student_submissions"), where("schoolId", "==", currentSchoolId)));
-    const submissionsMap = {};
-    subSnap.forEach(subDoc => {
-      const subData = subDoc.data();
-      submissionsMap[`${subData.studentUid}_${subData.exerciseId}`] = {
-        subId: subDoc.id,
-        ...subData
-      };
-    });
-
-    globalMasterData = [];
-    studentsList.forEach(student => {
-      const classAssignedExs = assignedExerciseMapByClass[student.classId] || [];
-      
-      classAssignedExs.forEach(exId => {
-        const key = `${student.uid}_${exId}`;
-        const submission = submissionsMap[key];
-
-        globalMasterData.push({
-          studentUid: student.uid,
-          studentName: student.name,
-          classId: student.classId,
-          exerciseId: exId,
-          isSubmitted: !!submission,
-          submissionId: submission ? submission.subId : null,
-          score: submission ? submission.score : null,
-          correctAnswers: submission ? submission.correctAnswers : null,
-          totalQuestions: submission ? submission.totalQuestions : null,
-          submittedAt: submission ? submission.submittedAt : null
-        });
+    onSnapshot(subQuery, async (subSnap) => {
+      const submittedExerciseIds = new Set();
+      subSnap.forEach(docSnap => {
+        submittedExerciseIds.add(docSnap.data().exerciseId);
       });
-    });
 
-    filterReports();
+      const exGuruQuery = query(
+        collection(db, "exerciseGuru"),
+        where("classId", "==", classId),
+        where("schoolId", "==", schoolId),
+        where("isAssigned", "==", true)
+      );
+      const exGuruSnap = await getDocs(exGuruQuery);
 
-  } catch (err) {
-    console.error("Gagal memuat laporan pengerjaan:", err);
-    document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Gagal memuat laporan.</td></tr>`;
-  }
-}
+      let pendingHtml = "";
+      let pendingCount = 0;
+      const sekarang = new Date();
 
-window.switchStatusTab = (status, btnEl) => {
-  currentStatusFilter = status;
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  btnEl.classList.add('active');
-  filterReports();
-};
+      for (const d of exGuruSnap.docs) {
+        const assign = d.data();
+        const exerciseId = assign.exerciseId;
 
-window.filterReports = () => {
-  const selectedClass = document.getElementById("filterClass").value;
-  const selectedEx = document.getElementById("filterExercise").value;
-  const keyword = document.getElementById("searchStudent").value.toLowerCase();
+        if (submittedExerciseIds.has(exerciseId)) continue;
 
-  const filtered = globalMasterData.filter(item => {
-    const matchClass = selectedClass ? item.classId === selectedClass : true;
-    const matchEx = selectedEx ? item.exerciseId === selectedEx : true;
-    const matchName = item.studentName.toLowerCase().includes(keyword);
-    
-    let matchStatus = true;
-    if (currentStatusFilter === 'sudah') matchStatus = item.isSubmitted;
-    if (currentStatusFilter === 'belum') matchStatus = !item.isSubmitted;
-
-    return matchClass && matchEx && matchName && matchStatus;
-  });
-
-  renderReportTable(filtered);
-};
-
-function renderReportTable(dataList) {
-  const wrapper = document.getElementById("reportContainerWrapper");
-  if (!wrapper) return;
-
-  if (dataList.length === 0) {
-    wrapper.innerHTML = `<div style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data pengerjaan yang sesuai dengan filter.</div>`;
-    return;
-  }
-
-  dataList.sort((a, b) => a.studentName.localeCompare(b.studentName));
-  const isMobile = window.innerWidth <= 768;
-
-  if (isMobile) {
-    let mobileHtml = "";
-    dataList.forEach((item, index) => {
-      const className = globalClassesMap[item.classId] || "-";
-      const exerciseTitle = globalExercisesMap[item.exerciseId] || "Latihan";
-
-      let statusBadge = `<span style="background: #f59e0b; color: white; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">⏳ Belum</span>`;
-      let scoreText = "-";
-      let timeText = "-";
-      let actionBtn = "";
-
-      if (item.isSubmitted) {
-        let scoreColor = "#059669";
-        if (item.score < 60) scoreColor = "#dc2626";
-        else if (item.score < 75) scoreColor = "#d97706";
-
-        statusBadge = `<span style="background: #10b981; color: white; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">✅ Selesai</span>`;
-        scoreText = `<span style="background: ${scoreColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">Skor: ${item.score}</span> (${item.correctAnswers}/${item.totalQuestions})`;
-
-        if (item.submittedAt) {
-          const dateObj = item.submittedAt.toDate ? item.submittedAt.toDate() : new Date(item.submittedAt);
-          timeText = dateObj.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        let isExpired = false;
+        let deadlineString = "Waktu fleksibel";
+        if (assign.deadlineDate && assign.deadlineTime) {
+          const deadlineTarget = new Date(`${assign.deadlineDate}T${assign.deadlineTime}:00`);
+          if (sekarang > deadlineTarget) {
+            isExpired = true;
+          }
+          const tanggalRapi = new Date(assign.deadlineDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' });
+          deadlineString = `${tanggalRapi} - ${assign.deadlineTime} WIB`;
         }
 
-        actionBtn = `<button onclick="deleteSubmission('${item.submissionId}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">🗑️ Hapus</button>`;
-      }
+        if (isExpired) continue;
 
-      mobileHtml += `
-        <div class="mobile-report-card">
-          <div class="mobile-report-header">
-            <div>
-              <span style="font-size: 11px; color: #64748b;">#${index + 1} • ${className}</span>
-              <div style="font-weight: 700; color: #1e293b; font-size: 14px; margin-top: 2px;">👤 ${item.studentName}</div>
+        let exerciseTitle = "Latihan / Tugas";
+        const exSnap = await getDoc(doc(db, "exercises", exerciseId));
+        if (exSnap.exists()) {
+          exerciseTitle = exSnap.data().title || exerciseTitle;
+        }
+
+        pendingCount++;
+        // Menggunakan word-break & overflow-wrap agar teks judul panjang wrap rapi ke bawah
+        pendingHtml += `
+          <div class="task-alert-item">
+            <div style="min-width: 0; flex: 1; padding-right: 8px;">
+              <div style="font-weight: 700; font-size: 14px; color: var(--text-main); word-break: break-word; overflow-wrap: break-word; margin-bottom: 4px;">📝 ${exerciseTitle}</div>
+              <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                <span>⏱ Batas:</span> <span style="font-weight: 500; color: var(--text-main);">${deadlineString}</span>
+              </div>
             </div>
-            <div>${statusBadge}</div>
+            <button class="btn-work" onclick="openExerciseFromDashboard('${exerciseId}')">Kerjakan ➔</button>
           </div>
-          <div class="mobile-report-body">
-            <div>📖 Latihan: <b style="color: #4f46e5;">${exerciseTitle}</b></div>
-            <div>📊 Hasil: ${scoreText}</div>
-            <div style="font-size: 12px; color: #64748b;">🕒 Kumpul: ${timeText}</div>
-          </div>
-          ${item.isSubmitted ? `<div class="mobile-report-footer"><span style="font-size: 12px; color: #64748b;">Kelola Data</span>${actionBtn}</div>` : ''}
-        </div>
-      `;
-    });
-    wrapper.innerHTML = mobileHtml;
-    return;
-  }
-
-  let desktopHtml = `
-    <table class="report-table">
-      <thead>
-        <tr>
-          <th>No</th>
-          <th>Nama Siswa</th>
-          <th>Kelas</th>
-          <th>Judul Latihan</th>
-          <th>Status</th>
-          <th>Skor (Benar/Total)</th>
-          <th>Waktu Kumpul</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="reportTableBody">
-  `;
-
-  dataList.forEach((item, index) => {
-    const className = globalClassesMap[item.classId] || "-";
-    const exerciseTitle = globalExercisesMap[item.exerciseId] || "Latihan";
-
-    let statusBadge = `<span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">⏳ Belum</span>`;
-    let scoreText = "-";
-    let timeText = "-";
-    let actionBtn = `<span style="color: #94a3b8; font-size: 12px;">-</span>`;
-
-    if (item.isSubmitted) {
-      let scoreColor = "#059669";
-      if (item.score < 60) scoreColor = "#dc2626";
-      else if (item.score < 75) scoreColor = "#d97706";
-
-      statusBadge = `<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">✅ Selesai</span>`;
-      scoreText = `<span style="background: ${scoreColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">${item.score}</span> (${item.correctAnswers}/${item.totalQuestions})`;
-
-      if (item.submittedAt) {
-        const dateObj = item.submittedAt.toDate ? item.submittedAt.toDate() : new Date(item.submittedAt);
-        timeText = dateObj.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        `;
       }
 
-      actionBtn = `<button onclick="deleteSubmission('${item.submissionId}')" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">🗑️ Hapus</button>`;
-    }
+      totalPendingCount = pendingCount;
+      updateStatsUI();
 
-    desktopHtml += `
-      <tr>
-        <td>${index + 1}</td>
-        <td><b>👤 ${item.studentName}</b></td>
-        <td>${className}</td>
-        <td><span style="color: #4f46e5; font-weight: 500;">📖 ${exerciseTitle}</span></td>
-        <td>${statusBadge}</td>
-        <td>${scoreText}</td>
-        <td style="font-size: 12px; color: #64748b;">${timeText}</td>
-        <td>${actionBtn}</td>
-      </tr>
-    `;
-  });
+      if (badgeEl) badgeEl.innerText = `${pendingCount} Tugas`;
 
-  desktopHtml += `</tbody></table>`;
-  wrapper.innerHTML = desktopHtml;
-}
-
-window.deleteSubmission = async (subId) => {
-  if (!confirm("Apakah Anda yakin ingin menghapus riwayat pengerjaan ini? Siswa dapat mengerjakan ulang latihan ini jika dihapus.")) {
-    return;
-  }
-
-  try {
-    await deleteDoc(doc(dbSecondary, "student_submissions", subId));
-    showToast("Riwayat pengerjaan berhasil dihapus");
-    
-    const user = auth.currentUser;
-    if (user) await loadExerciseReports(user);
+      if (pendingCount > 0) {
+        cardSection.style.display = "block";
+        container.innerHTML = pendingHtml;
+      } else {
+        cardSection.style.display = "none";
+      }
+    });
 
   } catch (err) {
-    console.error("Gagal menghapus submission:", err);
-    showToast("Gagal menghapus riwayat", "error");
+    console.error("Gagal memuat tugas aktif:", err);
+  }
+}
+
+window.openExerciseFromDashboard = (id) => {
+  const win = window.open(`https://lmskebunilmu.github.io/LMS/modules/materials-siswa/exercise.html?id=${id}`, "_blank");
+  if (!win) {
+    alert("Pop-up diblokir browser! Izinkan pop-up untuk mengerjakan latihan.");
   }
 };
 
-async function loadClassWithStudents(user) {
-  try {
-    if (!currentSchoolId) return;
+// ==========================
+// REAL-TIME STUDENT REPORTS (NILAI LATIHAN)
+// ==========================
+function listenStudentReports(studentUid) {
+  const container = document.getElementById("reportContainer");
+  if (!container) return;
 
-    const container = document.getElementById("classListContainer");
-    if (!container) return;
-    container.innerHTML = "⏳ Memuat data kelas dan daftar siswa...";
+  const q = query(
+    collection(dbSecondary, "student_submissions"),
+    where("studentUid", "==", studentUid)
+  );
 
-    const qClasses = query(
-      collection(db, "classes"),
-      where("teacherIds", "array-contains", user.uid),
-      where("schoolId", "==", currentSchoolId)
-    );
-
-    const snapClasses = await getDocs(qClasses);
-
-    if (snapClasses.empty) {
-      container.innerHTML = "<p>📭 Anda belum diplot mengampu kelas mana pun oleh admin.</p>";
+  onSnapshot(q, async (snap) => {
+    if (snap.empty) {
+      container.innerHTML = `<div class="empty-state">Belum ada latihan atau tugas yang dikerjakan.</div>`;
+      totalCompletedCount = 0;
+      totalScoresSum = 0;
+      updateStatsUI();
       return;
     }
 
-    container.innerHTML = "";
+    let html = "";
+    let completedCount = 0;
+    let scoresSum = 0;
 
-    for (const classDoc of snapClasses.docs) {
-      const classData = classDoc.data();
-      const classId = classDoc.id;
+    for (const docSnap of snap.docs) {
+      const sub = docSnap.data();
+      completedCount++;
+      
+      const score = sub.score || 0;
+      scoresSum += score;
 
-      const isWaliKelas = classData.homeroomTeacherId === user.uid;
-      const waliKelasBadge = isWaliKelas 
-        ? `<span style="background-color: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px;">👑 Wali Kelas</span>` 
-        : "";
+      let exerciseTitle = "Latihan / Tugas";
+      try {
+        const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
+        if (exSnap.exists()) {
+          exerciseTitle = exSnap.data().title || exerciseTitle;
+        }
+      } catch (e) {
+        console.error(e);
+      }
 
-      const classTeachersMapping = classData.teachers || {};
-      const mySubjects = classTeachersMapping[user.uid] || [];
-      const subjectsText = mySubjects.length > 0 ? mySubjects.join(", ") : "- Tidak ada mapel terpilih";
+      const isExcellent = score >= 75;
+      const isGood = score >= 60 && score < 75;
+      
+      const scoreColor = isExcellent ? "#059669" : isGood ? "#d97706" : "#dc2626";
+      const scoreBg = isExcellent ? "#ecfdf5" : isGood ? "#fffbeb" : "#fef2f2";
 
-      const qStudents = query(collection(db, "students"), where("classId", "==", classId));
-      const snapStudents = await getDocs(qStudents);
+      let dateStr = "-";
+      if (sub.submittedAt?.toDate) {
+        dateStr = sub.submittedAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
 
-      const cleanStudents = [];
-      snapStudents.forEach(sDoc => {
-        cleanStudents.push(sDoc.data());
-      });
-
-      cleanStudents.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
-      const div = document.createElement("div");
-      div.className = "class-box";
-      div.style.marginBottom = "15px";
-
-      div.innerHTML = `
-        <button class="class-toggle" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center; padding:12px; cursor:pointer; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
-          <span>📋 <b>${classData.name}</b> ${waliKelasBadge}</span>
-          <span style="font-size:12px; color:#4f46e5; font-weight:600;">📖 ${mySubjects.length} Mapel</span>
-        </button>
-
-        <div class="class-detail" style="display:none; padding:15px; border:1px solid #e2e8f0; border-top:none; border-radius:0 0 8px 8px; background:#fff;">
-          <div style="margin-bottom:10px; font-size:13px; color:#475569; line-height:1.6;">
-            <div>• Jabatan Anda: <b>${isWaliKelas ? "Wali Kelas" : "Guru Pengampu"}</b></div>
-            <div>• Mengajar Mapel: <span style="color:#4f46e5; font-weight:600;">${subjectsText}</span></div>
-            <div>• Total Siswa Terdaftar: <b>${cleanStudents.length} Murid</b></div>
+      html += `
+        <div class="report-item">
+          <div style="min-width: 0; flex: 1;">
+            <div style="font-weight: 700; font-size: 14px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; word-break: break-word; overflow-wrap: break-word;">
+              <span>📝</span> ${exerciseTitle}
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <span>📅 ${dateStr}</span>
+              <span>•</span>
+              <span>Benar: <strong style="color: var(--text-main);">${sub.correctAnswers || 0}/${sub.totalQuestions || 0}</strong> soal</span>
+            </div>
           </div>
-
-          <div class="export-buttons" style="margin-bottom:15px;">
-            <button class="btn-export btn-csv" style="padding: 6px 12px; background:#10b981; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px;">Export CSV</button>
-            <button class="btn-export btn-pdf" style="padding: 6px 12px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; margin-left:5px; font-size:12px;">Download PDF</button>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="background: ${scoreBg}; color: ${scoreColor}; padding: 6px 16px; border-radius: 12px; font-weight: 800; font-size: 15px; border: 1px solid ${scoreColor}33; display: flex; align-items: center; gap: 4px;">
+              <span>⭐</span> ${score}
+            </div>
           </div>
-
-          <strong style="font-size:13px; display:block; margin-bottom:5px; color:#1e293b;">Daftar Murid Kelas:</strong>
-          <ul style="list-style:none; padding:0; margin:0; max-height:200px; overflow-y:auto;">
-            ${
-              cleanStudents.length > 0
-              ? cleanStudents.map((s, index) => `<li style="padding:6px 0; border-bottom:1px dashed #f1f5f9; font-size:13px;">${index + 1}. 👤 ${s.name} (${s.email || "-"})</li>`).join("")
-              : "<li style='color:#94a3b8; font-size:13px;'>📭 Belum ada siswa terdaftar di kelas ini</li>"
-            }
-          </ul>
         </div>
       `;
-
-      div.querySelector(".class-toggle").onclick = () => {
-        const detail = div.querySelector(".class-detail");
-        detail.style.display = detail.style.display === "none" ? "block" : "none";
-      };
-
-      div.querySelector(".btn-csv").onclick = () => exportCSV(cleanStudents, classData.name);
-      div.querySelector(".btn-pdf").onclick = () => exportPDF(cleanStudents, classData.name);
-
-      container.appendChild(div);
     }
 
-  } catch (err) {
-    console.error("Gagal merelasikan data siswa dan kelas guru:", err);
-    const container = document.getElementById("classListContainer");
-    if (container) container.innerHTML = "<p style='color:red;'>❌ Gagal memuat detail data siswa</p>";
-  }
+    totalCompletedCount = completedCount;
+    totalScoresSum = scoresSum;
+    updateStatsUI();
+
+    container.innerHTML = html;
+  }, (err) => {
+    console.error("Gagal memuat report nilai:", err);
+    container.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px; font-size: 13px;">Gagal memuat riwayat nilai.</div>`;
+  });
 }
 
-window.exportCSV = (students, className) => {
-  let csv = "Nama,Email\n";
-  students.forEach(s => {
-    csv += `"${s.name}","${s.email || "-"}"\n`;
-  });
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Data_Siswa_Kelas_${className.replace(/\s+/g, '_')}.csv`;
-  a.click();
-  window.URL.revokeObjectURL(url);
-};
-
-window.exportPDF = async (students, className) => {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  const getBase64FromURL = async (url) => {
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(blob);
-      });
-    } catch {
-      return null;
-    }
-  };
-
-  let logoBase64 = await getBase64FromURL(currentSchoolLogo);
-  if (logoBase64) {
-    doc.addImage(logoBase64, "PNG", 14, 10, 18, 18);
-  }
-
-  doc.setFontSize(14);
-  doc.text(currentSchoolName, 36, 15);
-  doc.setFontSize(10);
-  doc.text("Laporan Anggota Akademik Siswa", 36, 22);
-
-  doc.setFontSize(12);
-  doc.text(`Kelas: ${className}`, 14, 38);
-  const today = new Date().toLocaleDateString("id-ID", { year: 'numeric', month: 'long', day: 'numeric' });
-  doc.text(`Tanggal Cetak: ${today}`, 14, 44);
-
-  const tableData = students.map((s, i) => [i + 1, s.name || "-", s.email || "-"]);
-
-  doc.autoTable({
-    startY: 50,
-    head: [["No", "Nama Siswa", "Email"]],
-    body: tableData,
-    styles: { fontSize: 10, cellPadding: 3 },
-    headStyles: { fillColor: [79, 70, 229], textColor: 255 },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
-  });
-
-  doc.text(`Total terdata: ${students.length} Siswa`, 14, doc.lastAutoTable.finalY + 10);
-  doc.save(`Laporan_Siswa_Kelas_${className.replace(/\s+/g, '_')}.pdf`);
-};
-
-window.openProfileModal = () => document.getElementById("profileModal").classList.add("active");
-window.closeProfileModal = () => document.getElementById("profileModal").classList.remove("active");
+// ==========================
+// MODAL PROFIL
+// ==========================
+window.openProfileModal = () => document.getElementById("profileModal")?.classList.add("active");
+window.closeProfileModal = () => document.getElementById("profileModal")?.classList.remove("active");
 
 window.saveProfile = async () => {
   const user = auth.currentUser;
   if (!user) return;
 
   const name = document.getElementById("profileName").value.trim();
-  const email = document.getElementById("profileEmail").value.trim();
-  const file = document.getElementById("profileAvatarFile").files[0];
+  const fileInput = document.getElementById("profileImageFile");
+  const saveBtn = document.getElementById("btnSaveProfile");
 
-  if (!name || !email) {
-    showToast("Isi semua data profil wajib!", "error");
+  if (!name) {
+    alert("Nama tidak boleh kosong!");
     return;
   }
 
   try {
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    const userData = userSnap.data();
-    let avatarURL = userData?.avatarURL ?? "/LMS/assets/images/default-avatar.png";
+    saveBtn.innerText = "Menyimpan...";
+    saveBtn.disabled = true;
 
-    if (file) {
+    let avatarURL = null;
+
+    if (fileInput.files && fileInput.files[0]) {
+      const file = fileInput.files[0];
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("upload_preset", "avatar_upload");
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
-      const res = await fetch(`https://api.cloudinary.com/v1_1/djlvnubgn/image/upload`, {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
         method: "POST",
         body: formData
       });
-      const data = await res.json();
 
-      if (data && data.secure_url) {
+      const data = await response.json();
+      if (data.secure_url) {
         avatarURL = data.secure_url;
       } else {
-        throw new Error("Respon Cloudinary tidak valid");
+        throw new Error("Gagal mengunggah foto ke Cloudinary.");
       }
     }
 
-    await updateProfile(user, { displayName: name, photoURL: avatarURL });
-    if (email !== user.email) {
-      await updateEmail(user, email);
-    }
+    const profileUpdates = { displayName: name };
+    if (avatarURL) profileUpdates.photoURL = avatarURL;
+    await updateProfile(user, profileUpdates);
 
-    await updateDoc(doc(db, "users", user.uid), { name, email, avatarURL });
-    showToast("Profil guru berhasil diperbarui");
+    const userDocRef = doc(db, "users", user.uid);
+    const userUpdates = { name };
+    if (avatarURL) userUpdates.avatarURL = avatarURL;
+    await updateDoc(userDocRef, userUpdates);
+
+    alert("Profil berhasil diupdate!");
     closeProfileModal();
-
-    const updatedUserSnap = await getDoc(doc(db, "users", user.uid));
-    await loadProfileHeader(updatedUserSnap.data());
-
+    fileInput.value = "";
+    await loadProfileHeader(user);
   } catch (err) {
     console.error(err);
-    showToast("Gagal memperbarui data profil", "error");
+    alert("Gagal update profil: " + err.message);
+  } finally {
+    saveBtn.innerText = "Simpan Perubahan";
+    saveBtn.disabled = false;
   }
 };
 
@@ -619,21 +393,17 @@ function lockDashboard() {
   const main = document.querySelector(".main");
   if (!main) return;
   main.innerHTML = `
-    <div style="display:flex; justify-content:center; align-items:center; height:80vh; flex-direction:column; text-align:center;">
-      <h1 style="color:red;">🚫 Akses Ditolak</h1>
-      <p>Sekolah kamu sedang dalam status <b>nonaktif</b></p>
-      <button onclick="window.location='/LMS/login.html'" class="btn-edit" style="margin-top:15px;">Kembali</button>
+    <div style="text-align:center; padding:50px;">
+      <h2>🚫 Akses Ditolak</h2>
+      <p>Sekolah kamu nonaktif</p>
+      <button onclick="window.location='../login.html'" style="padding:10px 20px; background:#ef4444; color:white; border:none; border-radius:10px; cursor:pointer; font-weight:600;">Logout</button>
     </div>
   `;
 }
 
-function showToast(message, type = "success") {
-  const toast = document.getElementById("toast");
-  const msg = document.getElementById("toastMessage");
-  if (toast && msg) {
-    msg.innerText = message;
-    toast.className = "toast active";
-    if (type === "error") toast.classList.add("error");
-    setTimeout(() => toast.classList.remove("active"), 3000);
-  }
-}
+window.goMaterialsSiswa = () => window.location.href = "https://lmskebunilmu.github.io/LMS/modules/materials-siswa/materials-siswa.html";
+
+window.logout = async () => {
+  await signOut(auth);
+  window.location.href = "../login.html";
+};
