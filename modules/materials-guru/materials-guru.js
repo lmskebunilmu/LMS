@@ -23,7 +23,6 @@ let exercisesData = [];
 let assignedMaterials = [];
 let assignedExercises = [];
 
-
 function getSelectedClassId() {
   return document.getElementById("classSelect").value;
 }
@@ -32,7 +31,6 @@ function getSelectedClassId() {
 // AUTH
 // ==========================
 onAuthStateChanged(auth, async (user) => {
-
   if (!user) return window.location = "../../login.html";
 
   const userRef = doc(db, "users", user.uid);
@@ -50,15 +48,11 @@ onAuthStateChanged(auth, async (user) => {
     return window.location = "../../login.html";
   }
 
-  // 🔒 CEK STATUS GURU
   const teacherSnap = await getDoc(doc(db, "teachers", user.uid));
-
   if (teacherSnap.exists()) {
     const teacherData = teacherSnap.data();
-
     if (teacherData.status === "nonaktif") {
       showToast("Akun kamu dinonaktifkan!", "error");
-
       document.querySelector(".main").innerHTML = `
         <div style="text-align:center;margin-top:100px;">
           <h1 style="color:red;">🚫 Akun Dinonaktifkan</h1>
@@ -66,13 +60,11 @@ onAuthStateChanged(auth, async (user) => {
           <button onclick="window.location='../../login.html'">Logout</button>
         </div>
       `;
-
       return;
     }
   }
 
   await loadLayout("guru");
-
   await waitForHeader();
   await loadProfileHeader(user);
 
@@ -81,19 +73,16 @@ onAuthStateChanged(auth, async (user) => {
   await loadExercises();
 
   const classSelect = document.getElementById("classSelect");
-
   classSelect.addEventListener("change", async () => {
-    // 🔥 RESET FILTER MAPEL
     document.getElementById("subjectFilter").value = "";
     await loadMaterials();
   });
 
-  // load pertama
   await loadMaterials();
 });
 
 // ==========================
-// LOAD KELAS (URUT ABJAD A-Z)
+// LOAD KELAS
 // ==========================
 async function loadClasses(user) {
   const userSnap = await getDoc(doc(db, "users", user.uid));
@@ -117,7 +106,6 @@ async function loadClasses(user) {
     });
   });
 
-  // Urutkan kelas berdasarkan abjad (A-Z) dengan dukungan numerik
   classesList.sort((a, b) => a.name.localeCompare(b.name, 'id', { numeric: true, sensitivity: 'base' }));
 
   if (classesList.length === 0) {
@@ -138,17 +126,14 @@ async function loadClasses(user) {
 // ==========================
 async function loadSchoolData(schoolId) {
   const snap = await getDoc(doc(db,"schools",schoolId));
-
   if(!snap.exists()) return;
 
   const data = snap.data();
-
   if(data.status !== "aktif"){
     showToast("Sekolah tidak aktif", "error");
     lockPage();
     return;
   }
-
   schoolData = data;
 }
 
@@ -163,12 +148,10 @@ async function loadMaterials() {
   if (!classSnap.exists()) return;
 
   const classData = classSnap.data();
-
   const teacherSubjects = classData.teachers?.[auth.currentUser.uid] || [];
   loadSubjectFilter(teacherSubjects);
 
   const approved = schoolData.approvedSubjects || [];
-
   let q;
 
   if (teacherSubjects.length > 0) {
@@ -187,19 +170,15 @@ async function loadMaterials() {
   }
 
   const snap = await getDocs(q);
-
   materialsGuru = [];
 
   snap.forEach(doc => {
     const m = { id: doc.id, ...doc.data() };
-
     if (!approved.includes(m.subject)) return;
     if (teacherSubjects.length && !teacherSubjects.includes(m.subject)) return;
-
     materialsGuru.push(m);
   });
 
-  // Urutkan materi secara global berdasarkan Judul/Sub-Bab secara alfabetis
   materialsGuru.sort((a, b) => {
     const titleA = (a.subChapter || a.title || "").toLowerCase();
     const titleB = (b.subChapter || b.title || "").toLowerCase();
@@ -212,32 +191,23 @@ async function loadMaterials() {
 }
 
 async function loadExercises(){
-  const snap = await getDocs(
-    collection(db,"exercises")
-  );
-
+  const snap = await getDocs(collection(db,"exercises"));
   exercisesData = [];
-
   snap.forEach(doc => {
-    exercisesData.push({
-      id: doc.id,
-      ...doc.data()
-    });
+    exercisesData.push({ id: doc.id, ...doc.data() });
   });
-
-  // Urutkan latihan berdasarkan judul (A-Z)
   exercisesData.sort((a, b) => (a.title || "").localeCompare(b.title || "", 'id', { numeric: true }));
 }
 
 // ==========================
-// RENDER (DENGAN OTOMATIS PILIH LATIHAN)
+// RENDER TOMBOL BAB (MODERN DI HP)
 // ==========================
 function renderMaterials(data){
   const container = document.getElementById("materialGuruList");
   container.innerHTML = "";
 
   if(data.length === 0){
-    container.innerHTML = `<p>Tidak ada materi</p>`;
+    container.innerHTML = `<p style="text-align: center; color: #64748b;">Tidak ada materi</p>`;
     return;
   }
 
@@ -248,97 +218,177 @@ function renderMaterials(data){
     grouped[bab].push(m);
   });
 
-  // Urutkan kunci Bab secara alfabetis (A-Z)
   const sortedChapters = Object.keys(grouped).sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
 
   sortedChapters.forEach(bab => {
-    const babDiv = document.createElement("div");
-    babDiv.className = "bab-box";
-
-    // Urutkan materi di dalam bab ini secara alfabetis
-    grouped[bab].sort((a, b) => {
-      const subA = (a.subChapter || a.title || "").toLowerCase();
-      const subB = (b.subChapter || b.title || "").toLowerCase();
-      return subA.localeCompare(subB, 'id', { numeric: true });
-    });
-
-    babDiv.innerHTML = `
-      <h3 class="bab-title">
-        <span>📘 ${bab}</span>
-        <button class="toggle-btn">Lihat Materi</button>
-      </h3>
-
-      <div class="subbab-list">
-        ${grouped[bab].map(m => {
-          const materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
-          const isMaterialChecked = assignedMaterials.includes(m.id) ? "checked" : "";
-
-          return `
-            <div class="subbab-item">
-              <label>
-                <input
-                  type="checkbox"
-                  class="subbab-check"
-                  value="${m.id}"
-                  onchange="toggleMaterialExercises(this)"
-                  ${isMaterialChecked} >
-                <b>${m.subChapter || m.title}</b>
-              </label>
-
-              <button onclick="previewMaterial('${m.id}')">👁</button>
-
-              <div class="exercise-list" style="margin-left: 20px; background: #fafafa; padding: 6px; border-left: 2px solid #e2e8f0; margin-top: 6px; border-radius: 4px;">
-                <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">📝 Latihan otomatis yang ikut terpilih:</div>
-                ${materialExercises.length > 0 ? materialExercises.map(ex => {
-                  const isExerciseChecked = (assignedMaterials.includes(m.id) || assignedExercises.includes(ex.id)) ? "checked" : "";
-                  return `
-                    <label class="exercise-item" style="display:block; margin: 3px 0; font-size: 13px; color: #334155;">
-                      <input
-                        type="checkbox"
-                        class="exercise-check"
-                        data-material="${m.id}"
-                        value="${ex.id}"
-                        ${isExerciseChecked}
-                        disabled >
-                      📝 ${ex.title}
-                    </label>
-                  `;
-                }).join("") : '<span style="font-size:12px; color:#94a3b8;">Tidak ada latihan di materi ini</span>'}
-              </div>
-            </div>
-          `;
-        }).join("")}
-      </div>
-
-      <button onclick="assignSelected('${bab}')" style="margin-top: 15px; background: #4f46e5; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;">
-        ➕ Pakai Materi & Latihan Ini Otomatis
-      </button>
+    const totalMateri = grouped[bab].length;
+    const babBtn = document.createElement("button");
+    
+    babBtn.className = "bab-trigger-btn";
+    babBtn.style.cssText = "width: 100%; padding: 14px 18px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 14px; font-weight: 600; color: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;";
+    
+    babBtn.innerHTML = `
+      <span style="text-align: left;">📘 ${bab} <span style="display: block; font-size: 12px; font-weight: normal; color: #64748b; margin-top: 2px;">${totalMateri} Sub-Bab Tersedia</span></span>
+      <span style="color: #4f46e5; font-weight: bold;">Buka &rarr;</span>
     `;
 
-    const btn = babDiv.querySelector(".toggle-btn");
-    btn.onclick = () => {
-      document.querySelectorAll(".bab-box").forEach(b => {
-        if (b !== babDiv) b.classList.remove("active");
-      });
-      babDiv.classList.toggle("active");
-      btn.textContent = babDiv.classList.contains("active") ? "Tutup" : "Lihat Materi";
-    };
-
-    container.appendChild(babDiv);
+    babBtn.onclick = () => openChapterModal(bab, grouped[bab]);
+    container.appendChild(babBtn);
   });
 }
 
 // ==========================
-// PENDUKUNG: CENTANG OTOMATIS LATIHAN KETIKA MATERI DICENTANG
+// KONTROL MODAL BAB
 // ==========================
-window.toggleMaterialExercises = (materialCheckbox) => {
-  const materialId = materialCheckbox.value;
-  const isChecked = materialCheckbox.checked;
+window.openChapterModal = (babName, materialsList) => {
+  document.getElementById("modalChapterTitle").innerText = `📘 ${babName}`;
+  const bodyContainer = document.getElementById("modalChapterBody");
+  bodyContainer.innerHTML = "";
 
-  const exerciseCheckboxes = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]`);
+  materialsList.forEach(m => {
+    const materialExercises = exercisesData.filter(ex => ex.materialId === m.id);
+    const isMaterialChecked = assignedMaterials.includes(m.id) ? "checked" : "";
+
+    const itemDiv = document.createElement("div");
+    itemDiv.style.cssText = "margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9;";
+    
+    itemDiv.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; font-size: 14px; font-weight: 600; color: #334155;">
+          <input
+            type="checkbox"
+            class="subbab-check-modal"
+            value="${m.id}"
+            onchange="autoSaveMaterialFirebase(this)"
+            ${isMaterialChecked}
+            style="width: 18px; height: 18px; cursor: pointer;" >
+          <span>${m.subChapter || m.title}</span>
+        </label>
+        <button onclick="previewMaterial('${m.id}')" style="background: #e2e8f0; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">👁 Lihat</button>
+      </div>
+
+      <div style="margin-left: 26px; margin-top: 6px; background: #f8fafc; padding: 8px; border-left: 2px solid #cbd5e1; border-radius: 4px;">
+        <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">📝 Latihan Terkait:</div>
+        ${materialExercises.length > 0 ? materialExercises.map(ex => {
+          const isExerciseChecked = (assignedMaterials.includes(m.id) || assignedExercises.includes(ex.id)) ? "checked" : "";
+          return `
+            <label style="display:block; margin: 3px 0; font-size: 12px; color: #475569;">
+              <input
+                type="checkbox"
+                class="exercise-check-modal"
+                data-material="${m.id}"
+                value="${ex.id}"
+                ${isExerciseChecked}
+                disabled >
+              📝 ${ex.title}
+            </label>
+          `;
+        }).join("") : '<span style="font-size:11px; color:#94a3b8;">Tidak ada latihan</span>'}
+      </div>
+    `;
+    bodyContainer.appendChild(itemDiv);
+  });
+
+  document.getElementById("chapterModal").style.display = "flex";
+};
+
+window.closeChapterModal = () => {
+  document.getElementById("chapterModal").style.display = "none";
+};
+
+// ==========================
+// OTOMATIS SIMPAN KE FIREBASE SAAT DICENTANG
+// ==========================
+window.autoSaveMaterialFirebase = async (checkbox) => {
+  const materialId = checkbox.value;
+  const isChecked = checkbox.checked;
+  const classId = getSelectedClassId();
+
+  if(!classId) {
+    showToast("Pilih kelas terlebih dahulu!", "error");
+    checkbox.checked = !isChecked;
+    return;
+  }
+
+  const user = auth.currentUser;
+  const userSnap = await getDoc(doc(db, "users", user.uid));
+  const userData = userSnap.data();
+  const selectedMaterial = materialsGuru.find(m => m.id === materialId);
+
+  const exerciseCheckboxes = document.querySelectorAll(`.exercise-check-modal[data-material="${materialId}"]`);
   exerciseCheckboxes.forEach(exCb => {
     exCb.checked = isChecked;
   });
+
+  try {
+    if (isChecked) {
+      await addDoc(collection(db, "materialGuru"), {
+        materialId, 
+        classId, 
+        teacherId: user.uid, 
+        schoolId: userData.schoolId,
+        title: selectedMaterial.title, 
+        subject: selectedMaterial.subject, 
+        createdAt: new Date()
+      });
+
+      if (!assignedMaterials.includes(materialId)) {
+        assignedMaterials.push(materialId);
+      }
+
+      const materialExercises = exercisesData.filter(ex => ex.materialId === materialId);
+      for (const ex of materialExercises) {
+        await addDoc(collection(db, "exerciseGuru"), {
+          exerciseId: ex.id,
+          materialId: materialId,
+          classId,
+          teacherId: user.uid,
+          schoolId: userData.schoolId,
+          title: ex.title,
+          subject: ex.subject || "",
+          isAssigned: false,
+          duration: 0,
+          createdAt: new Date()
+        });
+        if (!assignedExercises.includes(ex.id)) {
+          assignedExercises.push(ex.id);
+        }
+      }
+
+      showToast("Materi & Latihan berhasil disimpan ke Firebase!");
+    } else {
+      const mq = query(
+        collection(db, "materialGuru"), 
+        where("classId", "==", classId), 
+        where("teacherId", "==", user.uid),
+        where("materialId", "==", materialId)
+      );
+      const mSnap = await getDocs(mq);
+      for (const d of mSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      assignedMaterials = assignedMaterials.filter(id => id !== materialId);
+
+      const eq = query(
+        collection(db, "exerciseGuru"), 
+        where("classId", "==", classId), 
+        where("teacherId", "==", user.uid),
+        where("materialId", "==", materialId)
+      );
+      const eSnap = await getDocs(eq);
+      for (const d of eSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      assignedExercises = assignedExercises.filter(id => !exercisesData.some(e => e.id === id && e.materialId === materialId));
+
+      showToast("Materi & Latihan dihapus dari Firebase", "error");
+    }
+  } catch (error) {
+    console.error("Gagal sinkronisasi Firebase:", error);
+    showToast("Gagal menyimpan ke Firebase", "error");
+  }
 };
 
 // ==========================
@@ -353,76 +403,11 @@ window.filterMaterialsGuru = () => {
       m.title.toLowerCase().includes(search) ||
       m.subject.toLowerCase().includes(search);
 
-    const matchSubject =
-      !selectedSubject || m.subject === selectedSubject;
-
+    const matchSubject = !selectedSubject || m.subject === selectedSubject;
     return matchSearch && matchSubject;
   });
 
   renderMaterials(filteredMaterials);
-};
-
-// ==========================
-// ASSIGN
-// ==========================
-window.assignSelected = async (bab) => {
-  const classId = document.getElementById("classSelect").value;
-  if(!classId){
-    showToast("Pilih kelas dulu", "error");
-    return;
-  }
-
-  const checkedMaterials = document.querySelectorAll(".subbab-check:checked");
-  if(checkedMaterials.length === 0){
-    showToast("Pilih minimal 1 subbab", "error");
-    return;
-  }
-
-  const user = auth.currentUser;
-  const userSnap = await getDoc(doc(db,"users",user.uid));
-  const userData = userSnap.data();
-
-  const q = query(collection(db,"materialGuru"), where("classId","==",classId), where("teacherId","==",user.uid));
-  const oldSnap = await getDocs(q);
-  for(const d of oldSnap.docs) await deleteDoc(d.ref);
-
-  const eq = query(collection(db,"exerciseGuru"), where("classId","==",classId), where("teacherId","==",user.uid));
-  const exSnap = await getDocs(eq);
-  for(const d of exSnap.docs) await deleteDoc(d.ref);
-
-  for (const cb of checkedMaterials) {
-    const materialId = cb.value;
-    const selectedMaterial = materialsGuru.find(m => m.id === materialId);
-    if (!selectedMaterial) continue;
-
-    await addDoc(collection(db, "materialGuru"), {
-      materialId, classId, teacherId: user.uid, schoolId: userData.schoolId,
-      title: selectedMaterial.title, subject: selectedMaterial.subject, createdAt: new Date()
-    });
-
-    const checkedExercises = document.querySelectorAll(`.exercise-check[data-material="${materialId}"]:checked`);
-    for (const exCb of checkedExercises) {
-      const exerciseId = exCb.value;
-      const ex = exercisesData.find(e => e.id === exerciseId);
-      if (!ex) continue;
-
-      await addDoc(collection(db, "exerciseGuru"), {
-        exerciseId: ex.id,
-        materialId: materialId,
-        classId,
-        teacherId: user.uid,
-        schoolId: userData.schoolId,
-        title: ex.title,
-        subject: ex.subject || "",
-        isAssigned: false, 
-        duration: 0,        
-        createdAt: new Date()
-      });
-    }
-  }
-
-  showToast("Materi & latihan berhasil ditugaskan otomatis!");
-  await loadMaterials();
 };
 
 window.previewMaterial = (id) => {
@@ -456,7 +441,6 @@ async function loadProfileHeader(user){
   if(!userSnap.exists()) return;
 
   const data = userSnap.data();
-
   const name = data.name || user.displayName || "Guru";
   const avatar = data.avatarURL || user.photoURL || "../assets/images/default-avatar.png";
   const schoolId = data.schoolId;
@@ -468,13 +452,11 @@ async function loadProfileHeader(user){
     const schoolSnap = await getDoc(doc(db,"schools",schoolId));
     if(schoolSnap.exists()){
       const schoolData = schoolSnap.data();
-
       if(schoolData.status !== "aktif"){
         showToast("Sekolah kamu nonaktif!", "error");
         lockPage();
         return;
       }
-
       schoolName = schoolData.name;
       schoolLogo = schoolData.logoURL || schoolLogo;
     }
@@ -489,7 +471,6 @@ async function loadProfileHeader(user){
 function lockPage(){
   const main = document.querySelector(".main");
   if(!main) return;
-
   main.innerHTML = `
     <div style="display:flex; justify-content:center; align-items:center; height:80vh; flex-direction:column; text-align:center;">
       <h1 style="color:red;">🚫 Akses Ditolak</h1>
@@ -504,8 +485,6 @@ function loadSubjectFilter(teacherSubjects) {
   if(!select) return;
 
   select.innerHTML = `<option value="">Semua Mapel</option>`;
-
-  // Urutkan daftar mapel secara alfabetis (A-Z)
   const sortedSubjects = [...teacherSubjects].sort((a, b) => a.localeCompare(b, 'id', { sensitivity: 'base' }));
 
   sortedSubjects.forEach(sub => {
@@ -530,7 +509,6 @@ async function loadAssignments() {
     where("classId","==",classId),
     where("teacherId","==",user.uid)
   );
-
   const msnap = await getDocs(mq);
   assignedMaterials = msnap.docs.map(d => d.data().materialId);
 
@@ -539,7 +517,6 @@ async function loadAssignments() {
     where("classId","==",classId),
     where("teacherId","==",user.uid)
   );
-
   const esnap = await getDocs(eq);
   assignedExercises = esnap.docs.map(d => d.data().exerciseId);
 }
@@ -608,7 +585,6 @@ window.updateExerciseChapters = () => {
   const materialSelect = document.getElementById("newExerciseMaterialId");
 
   if(!chapterSelect || !materialSelect) return;
-
   chapterSelect.innerHTML = '<option value="">-- Pilih Bab --</option>';
   materialSelect.innerHTML = '<option value="">-- Pilih Sub-Bab / Materi --</option>';
   materialSelect.disabled = true;
@@ -621,22 +597,17 @@ window.updateExerciseChapters = () => {
   const chapters = [];
   materialsGuru.forEach(m => {
     if (m.subject === subject && m.chapter) {
-      if (!chapters.includes(m.chapter)) {
-        chapters.push(m.chapter);
-      }
+      if (!chapters.includes(m.chapter)) chapters.push(m.chapter);
     }
   });
 
-  // Urutkan bab secara alfabetis (A-Z)
   chapters.sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
-
   chapters.forEach(bab => {
     const opt = document.createElement("option");
     opt.value = bab;
     opt.textContent = bab;
     chapterSelect.appendChild(opt);
   });
-
   chapterSelect.disabled = false;
 };
 
@@ -654,8 +625,6 @@ window.updateExerciseMaterials = () => {
   }
 
   const filtered = materialsGuru.filter(m => m.subject === subject && m.chapter === chapter);
-
-  // Urutkan materi secara alfabetis (A-Z)
   filtered.sort((a, b) => (a.subChapter || a.title || "").localeCompare(b.subChapter || b.title || "", 'id', { numeric: true }));
 
   filtered.forEach(m => {
@@ -664,7 +633,6 @@ window.updateExerciseMaterials = () => {
     opt.textContent = m.subChapter || m.title;
     materialSelect.appendChild(opt);
   });
-
   materialSelect.disabled = false;
 };
 
@@ -684,7 +652,6 @@ window.saveNewMaterial = async () => {
   
   try {
     const user = auth.currentUser;
-    
     await addDoc(collection(db, "materials"), {
       title: title,
       subChapter: title, 
@@ -693,13 +660,12 @@ window.saveNewMaterial = async () => {
       content: content,
       level: schoolData.level,         
       curriculum: schoolData.curriculum, 
-      createdBy: user.uid,                 
+      createdBy: user.uid,                     
       isCustomTeacher: true,
       createdAt: new Date()
     });
     
     showToast("Materi baru berhasil dibuat!");
-    
     document.getElementById("newMaterialTitle").value = "";
     document.getElementById("newMaterialChapterInput").value = "";
     document.getElementById("newMaterialChapterInput").disabled = false;
@@ -721,13 +687,12 @@ window.saveNewExercise = async () => {
   const title = document.getElementById("newExerciseTitle").value;
   
   if (!subject || !chapter || !materialId || !title) {
-    showToast("Semua tingkatan (Mapel, Bab, Materi) dan Judul Latihan wajib dipilih/diisi!", "error");
+    showToast("Semua tingkatan dan Judul Latihan wajib diisi!", "error");
     return;
   }
 
   try {
     const user = auth.currentUser;
-    
     await addDoc(collection(db, "exercises"), {
       title: title,
       materialId: materialId, 
@@ -740,7 +705,6 @@ window.saveNewExercise = async () => {
     });
     
     showToast("Latihan baru berhasil dibuat!");
-    
     document.getElementById("newExerciseTitle").value = "";
     toggleForm('formExercise');
     
@@ -758,21 +722,16 @@ window.populateExistingChapters = () => {
   if(!chapterSelect) return;
   
   chapterSelect.innerHTML = '<option value="">-- Pilih Bab Yang Sudah Ada --</option>';
-  
   if (!selectedSubject) return;
 
   const chapters = [];
   materialsGuru.forEach(m => {
     if (m.subject === selectedSubject && m.chapter) {
-      if (!chapters.includes(m.chapter)) {
-        chapters.push(m.chapter);
-      }
+      if (!chapters.includes(m.chapter)) chapters.push(m.chapter);
     }
   });
 
-  // Urutkan bab secara alfabetis (A-Z)
   chapters.sort((a, b) => a.localeCompare(b, 'id', { numeric: true, sensitivity: 'base' }));
-
   chapters.forEach(bab => {
     const opt = document.createElement("option");
     opt.value = bab;
