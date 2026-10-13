@@ -6,6 +6,7 @@ import {
   getDoc,
   updateDoc,
   addDoc,
+  deleteDoc,
   query, 
   where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -19,6 +20,7 @@ let schoolData = null;
 
 let allSchoolSimulations = [];
 let filteredSchoolSimulations = [];
+let assignedSimulationMap = {};
 
 // ==========================
 // AUTH
@@ -151,9 +153,25 @@ async function loadSchoolSimulations() {
     if (approvedSubjects.length === 0) {
       allSchoolSimulations = [];
       filteredSchoolSimulations = [];
+      assignedSimulationMap = {};
       renderSimulationsTable();
       return;
     }
+
+    // Ambil data penugasan aktif dari simulationGuru untuk sekolah ini
+    assignedSimulationMap = {};
+    const simGuruSnap = await getDocs(query(
+      collection(db, "simulationGuru"), 
+      where("schoolId", "==", currentSchoolId),
+      where("isAssigned", "==", true)
+    ));
+    
+    simGuruSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.simulationId) {
+        assignedSimulationMap[data.simulationId] = true;
+      }
+    });
 
     const qSim = query(
       collection(db, "simulations"),
@@ -187,19 +205,31 @@ function renderSimulationsTable() {
 
   filteredSchoolSimulations.forEach((sim, idx) => {
     const tr = document.createElement("tr");
+    const isAssigned = !!assignedSimulationMap[sim.id];
     const questionCount = (sim.questions || []).length;
+
+    let statusBadge = '';
+    let actionButton = '';
+
+    if (isAssigned) {
+      statusBadge = `<span style="background:#dcfce7; color:#166534; padding:3px 8px; border-radius:12px; font-weight:bold; font-size:11px;">🟢 Tampil (Aktif)</span>`;
+      actionButton = `<button onclick="togglePublishSimulation('${sim.id}', false)" style="background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Sembunyikan dari siswa">🛑 Sembunyikan</button>`;
+    } else {
+      statusBadge = `<span style="background:#f1f5f9; color:#64748b; padding:3px 8px; border-radius:12px; font-weight:bold; font-size:11px;">⚪ Belum Tampil</span>`;
+      actionButton = `<button onclick="togglePublishSimulation('${sim.id}', true)" style="background:#4f46e5; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Tampilkan ke siswa">🚀 Tampilkan</button>`;
+    }
 
     tr.innerHTML = `
       <td>${idx + 1}</td>
       <td><strong>${sim.title || "Tanpa Judul"}</strong></td>
       <td><span style="background:#f1f1f1; padding:3px 8px; border-radius:4px; font-size:12px;">${sim.subject || "-"}</span></td>
       <td>${sim.durationMinutes || 60} Menit</td>
-      <td>${sim.passingGrade || 75}%</td>
       <td><span style="background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:12px; font-weight:bold; font-size:12px;">${questionCount} Soal</span></td>
+      <td>${statusBadge}</td>
       <td>
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <button onclick="previewSimulation('${sim.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Lihat Soal Simulasi">👁️ Lihat</button>
-          <button onclick="publishSimulationToStudents('${sim.id}')" style="background:#4f46e5; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Tampilkan Simulasi ke Siswa">🚀 Tampilkan</button>
+          <button onclick="previewSimulation('${sim.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Lihat Soal">👁️ Lihat</button>
+          ${actionButton}
         </div>
       </td>
     `;
@@ -217,41 +247,62 @@ window.filterSimulationsList = () => {
 };
 
 // ==========================
-// PUBLISH SIMULATION TO STUDENTS
+// TOGGLE PUBLISH (Tampilkan / Sembunyikan)
 // ==========================
-window.publishSimulationToStudents = async (simId) => {
+window.togglePublishSimulation = async (simId, shouldPublish) => {
   const sim = allSchoolSimulations.find(s => s.id === simId);
   if (!sim) return;
 
-  if (!confirm(`Tampilkan simulasi "${sim.title}" agar dapat dikerjakan oleh seluruh siswa di sekolah ini?`)) return;
+  if (shouldPublish) {
+    if (!confirm(`Tampilkan simulasi "${sim.title}" untuk dikerjakan siswa di sekolah ini?`)) return;
 
-  try {
-    const classesSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
-    
-    if (classesSnap.empty) {
-      showToast("Tidak ada data kelas di sekolah ini!", "error");
-      return;
-    }
-
-    let batchCount = 0;
-    for (const classDoc of classesSnap.docs) {
-      const classId = classDoc.id;
+    try {
+      const classesSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
       
-      // Menyimpan penugasan simulasi aktif ke koleksi simulationGuru / schoolSimulationAssignments
-      await addDoc(collection(db, "simulationGuru"), {
-        schoolId: currentSchoolId,
-        classId: classId,
-        simulationId: simId,
-        isAssigned: true,
-        assignedAt: new Date()
-      });
-      batchCount++;
-    }
+      if (classesSnap.empty) {
+        showToast("Tidak ada data kelas di sekolah ini!", "error");
+        return;
+      }
 
-    showToast(`Berhasil! Simulasi ditampilkan ke ${batchCount} kelas.`);
-  } catch (err) {
-    console.error("Gagal menampilkan simulasi:", err);
-    showToast("Gagal menampilkan simulasi ke siswa.", "error");
+      let batchCount = 0;
+      for (const classDoc of classesSnap.docs) {
+        await addDoc(collection(db, "simulationGuru"), {
+          schoolId: currentSchoolId,
+          classId: classDoc.id,
+          simulationId: simId,
+          isAssigned: true,
+          assignedAt: new Date()
+        });
+        batchCount++;
+      }
+
+      showToast(`Berhasil! Simulasi ditampilkan ke ${batchCount} kelas.`);
+      await loadSchoolSimulations();
+    } catch (err) {
+      console.error("Gagal menampilkan simulasi:", err);
+      showToast("Gagal menampilkan simulasi.", "error");
+    }
+  } else {
+    if (!confirm(`Sembunyikan simulasi "${sim.title}" dari siswa?`)) return;
+
+    try {
+      const qCheck = query(
+        collection(db, "simulationGuru"),
+        where("schoolId", "==", currentSchoolId),
+        where("simulationId", "==", simId)
+      );
+      const snap = await getDocs(qCheck);
+      
+      for (const docSnap of snap.docs) {
+        await deleteDoc(doc(db, "simulationGuru", docSnap.id));
+      }
+
+      showToast("Simulasi berhasil disembunyikan.");
+      await loadSchoolSimulations();
+    } catch (err) {
+      console.error("Gagal menyembunyikan simulasi:", err);
+      showToast("Gagal menyembunyikan simulasi.", "error");
+    }
   }
 };
 
