@@ -11,7 +11,7 @@ let currentSchoolId = "";
 let questionsData = [];
 let dbSubmission = null;
 let currentQuestionIndex = 0;
-let isSubmitting = false; // Flag untuk mencegah peringatan keluar saat tombol kirim diklik
+let isSubmitting = false;
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -40,7 +40,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// Peringatan jika siswa mencoba keluar/refresh halaman sebelum mengirim nilai
 window.addEventListener("beforeunload", (event) => {
   if (!dbSubmission && !isSubmitting) {
     event.preventDefault();
@@ -86,10 +85,12 @@ async function loadExerciseData(exId, studentUid) {
     renderQuestions(questionsData, studentUid);
     
     setTimeout(() => {
+      const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
+      const attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
+
       questionsData.forEach((q, index) => {
-        const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
-        const attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
-        if (dbSubmission || attempts[index] >= 1) {
+        const isLocked = dbSubmission || attempts[index] >= 1;
+        if (isLocked) {
           lockQuestionFields(index);
           const explainEl = document.getElementById("explain_" + index);
           if (explainEl) explainEl.style.display = "block";
@@ -116,8 +117,7 @@ function renderQuestions(questions, studentUid) {
 
   questions.forEach((qData, index) => {
     const savedAnswer = savedData[index];
-    const currentAttempts = dbSubmission ? 1 : (savedAttempts[index] || 0);
-    const isLocked = currentAttempts >= 1;
+    const isLocked = dbSubmission ? true : (savedAttempts[index] >= 1);
 
     navHtml += `<button class="page-btn ${index === 0 ? 'active' : ''}" id="nav_btn_${index}" onclick="switchQuestion(${index})">Soal ${index + 1}</button>`;
 
@@ -211,8 +211,8 @@ function renderQuestions(questions, studentUid) {
   });
 
   html += `
-      <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'style="background:#cbd5e1; cursor:not-allowed;" disabled' : 'style="background:#cbd5e1; cursor:not-allowed; opacity:0.6;" disabled'}>
-        ${dbSubmission ? '🔒 Jawaban Telah Disimpan' : '📤 Kirim Nilai ke Guru (Selesaikan Semua Soal)'}
+      <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" style="background:#cbd5e1; cursor:not-allowed; opacity:0.6;" disabled>
+        📤 Kirim Nilai ke Guru (Selesaikan Semua Soal)
       </button>
   `;
 
@@ -257,12 +257,13 @@ window.markAnswered = function(index) {
   } else if (q.type === "checkbox") {
     userAnswer = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
   } else if (q.type === "isian") {
-    userAnswer = document.getElementById("q" + index).value.trim();
+    const el = document.getElementById("q" + index);
+    if (el) userAnswer = el.value.trim();
   } else if (q.type === "multi_isian") {
     userAnswer = [];
     (q.fields || []).forEach((_, i) => {
-      const val = document.querySelector('[name="multi_' + index + '_' + i + '"]').value.trim();
-      userAnswer.push(val);
+      const el = document.querySelector('[name="multi_' + index + '_' + i + '"]');
+      userAnswer.push(el ? el.value.trim() : "");
     });
   } else if (q.type === "match") {
     userAnswer = {};
@@ -483,7 +484,7 @@ window.toggleExplain = function(index) {
 
 window.submitToFirebase = async function() {
   if (dbSubmission) return;
-  isSubmitting = true; // Tandai proses kirim agar event beforeunload tidak memunculkan dialog konfirmasi keluar
+  isSubmitting = true;
 
   const studentUid = currentStudent.uid;
   let totalBenar = 0;
@@ -548,7 +549,7 @@ window.submitToFirebase = async function() {
     window.close();
   } catch (error) {
     console.error("Gagal mengirim:", error);
-    isSubmitting = false; // Reset flag jika gagal agar siswa bisa coba lagi
+    isSubmitting = false;
     alert("Gagal mengirim jawaban ke database: " + error.message);
   }
 };
