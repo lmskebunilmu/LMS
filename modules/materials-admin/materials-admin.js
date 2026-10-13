@@ -5,6 +5,7 @@ import {
   doc,
   getDoc,
   updateDoc,
+  addDoc,
   query, 
   where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -139,7 +140,7 @@ function renderMaterials(data) {
 }
 
 // ==========================
-// LOAD SCHOOL SIMULATIONS (READ-ONLY)
+// LOAD SCHOOL SIMULATIONS
 // ==========================
 async function loadSchoolSimulations() {
   const tbody = document.getElementById("schoolSimulationsTable");
@@ -154,7 +155,6 @@ async function loadSchoolSimulations() {
       return;
     }
 
-    // Ambil berdasarkan level dan kurikulum sekolah
     const qSim = query(
       collection(db, "simulations"),
       where("level", "==", schoolData.level),
@@ -197,7 +197,10 @@ function renderSimulationsTable() {
       <td>${sim.passingGrade || 75}%</td>
       <td><span style="background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:12px; font-weight:bold; font-size:12px;">${questionCount} Soal</span></td>
       <td>
-        <button onclick="previewSimulation('${sim.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Lihat Soal Simulasi">👁️ Lihat Soal</button>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button onclick="previewSimulation('${sim.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Lihat Soal Simulasi">👁️ Lihat</button>
+          <button onclick="publishSimulationToStudents('${sim.id}')" style="background:#4f46e5; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Tampilkan Simulasi ke Siswa">🚀 Tampilkan</button>
+        </div>
       </td>
     `;
     tbody.appendChild(tr);
@@ -214,7 +217,46 @@ window.filterSimulationsList = () => {
 };
 
 // ==========================
-// PREVIEW SIMULATION (READ-ONLY) - UPDATE LENGKAP SEMUA TIPE SOAL
+// PUBLISH SIMULATION TO STUDENTS
+// ==========================
+window.publishSimulationToStudents = async (simId) => {
+  const sim = allSchoolSimulations.find(s => s.id === simId);
+  if (!sim) return;
+
+  if (!confirm(`Tampilkan simulasi "${sim.title}" agar dapat dikerjakan oleh seluruh siswa di sekolah ini?`)) return;
+
+  try {
+    const classesSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
+    
+    if (classesSnap.empty) {
+      showToast("Tidak ada data kelas di sekolah ini!", "error");
+      return;
+    }
+
+    let batchCount = 0;
+    for (const classDoc of classesSnap.docs) {
+      const classId = classDoc.id;
+      
+      // Menyimpan penugasan simulasi aktif ke koleksi simulationGuru / schoolSimulationAssignments
+      await addDoc(collection(db, "simulationGuru"), {
+        schoolId: currentSchoolId,
+        classId: classId,
+        simulationId: simId,
+        isAssigned: true,
+        assignedAt: new Date()
+      });
+      batchCount++;
+    }
+
+    showToast(`Berhasil! Simulasi ditampilkan ke ${batchCount} kelas.`);
+  } catch (err) {
+    console.error("Gagal menampilkan simulasi:", err);
+    showToast("Gagal menampilkan simulasi ke siswa.", "error");
+  }
+};
+
+// ==========================
+// PREVIEW SIMULATION
 // ==========================
 window.previewSimulation = (simId) => {
   const sim = allSchoolSimulations.find(s => s.id === simId);
@@ -241,7 +283,6 @@ window.previewSimulation = (simId) => {
           <div style="margin-bottom:12px; font-size:14px; color:#334155;">${q.question || ""}</div>
       `;
 
-      // 1. Render Tipe PG
       if (q.type === "pg" && q.options) {
         html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
         q.options.forEach((opt, optIdx) => {
@@ -254,10 +295,7 @@ window.previewSimulation = (simId) => {
           `;
         });
         html += `</div>`;
-      }
-
-      // 2. Render Tipe Checkbox
-      else if (q.type === "checkbox" && q.options) {
+      } else if (q.type === "checkbox" && q.options) {
         html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
         const correctAnswers = Array.isArray(q.answer) ? q.answer : [];
         q.options.forEach((opt, optIdx) => {
@@ -271,10 +309,7 @@ window.previewSimulation = (simId) => {
           `;
         });
         html += `</div>`;
-      }
-
-      // 3. Render Tipe Matrix
-      else if (q.type === "matrix" && q.columns && q.rows) {
+      } else if (q.type === "matrix" && q.columns && q.rows) {
         const statementHeader = q.statementTitle || "Pernyataan / Argumen";
         html += `
           <table style="width:100%; border-collapse:collapse; margin-top:8px; font-size:13px;">
@@ -302,10 +337,7 @@ window.previewSimulation = (simId) => {
           `;
         });
         html += `</tbody></table>`;
-      }
-
-      // 4. Render Tipe Match (Menjodohkan)
-      else if (q.type === "match" && q.pairs) {
+      } else if (q.type === "match" && q.pairs) {
         html += `
           <table style="width:100%; border-collapse:collapse; margin-top:8px; font-size:13px;">
             <thead>
@@ -325,10 +357,7 @@ window.previewSimulation = (simId) => {
           `;
         });
         html += `</tbody></table>`;
-      }
-
-      // 5. Render Tipe Isian
-      else if (q.type === "isian") {
+      } else if (q.type === "isian") {
         html += `
           <div style="margin-top:8px; font-size:13px; color:#15803d; background:#f0fdf4; padding:8px 12px; border-radius:6px; border:1px solid #86efac;">
             <b>Kunci Jawaban:</b> ${q.answer || "-"}
@@ -336,7 +365,6 @@ window.previewSimulation = (simId) => {
         `;
       }
 
-      // 6. Render Pembahasan jika ada
       if (q.explanation) {
         html += `
           <div style="margin-top:10px; font-size:12px; background:#eff6ff; color:#1e40af; padding:8px 12px; border-radius:6px; border:1px solid #bfdbfe;">
