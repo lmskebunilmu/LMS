@@ -62,7 +62,6 @@ async function loadExerciseData(exId, studentUid) {
     }
     const exData = exSnap.data();
     
-    // Ambil data submission/jawaban langsung dari Firestore
     const subSnap = await getDoc(doc(dbSecondary, "student_submissions", studentUid + "_" + exId));
     if (subSnap.exists()) {
       dbSubmission = subSnap.data();
@@ -131,13 +130,13 @@ function renderQuestions(questions, studentUid) {
         html += `<label><input type="checkbox" name="q${index}" value="${i}" ${checked} ${isLocked ? 'disabled' : ''} onchange="markAnswered(${index})"> <span>${opt}</span></label>`;
       });
     } else if (qData.type === "isian") {
-      html += `<div style="margin-top:10px;"><input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban Anda..." ${isLocked ? 'disabled' : ''} oninput="markAnswered(${index})"></div>`;
+      html += `<div style="margin-top:12px;"><input type="text" id="q${index}" value="${savedAnswer || ""}" placeholder="Tulis jawaban Anda..." ${isLocked ? 'disabled' : ''} oninput="markAnswered(${index})"></div>`;
     } else if (qData.type === "multi_isian") {
       (qData.fields || []).forEach((f, i) => {
         const val = savedAnswer?.[i] || "";
         html += `
-          <div style="margin-top:10px">
-            <span style="display:block; margin-bottom:4px; font-size:13px; font-weight:600;">${f.label}</span>
+          <div style="margin-top:12px">
+            <span style="display:block; margin-bottom:6px; font-size:13px; font-weight:600; color:#334155;">${f.label}</span>
             <input type="text" name="multi_${index}_${i}" value="${val}" placeholder="Jawaban..." ${isLocked ? 'disabled' : ''} oninput="markAnswered(${index})">
           </div>
         `;
@@ -191,17 +190,17 @@ function renderQuestions(questions, studentUid) {
     html += `
         <button class="check-btn" id="btn_check_${index}" onclick="checkAnswer(${index})" ${isLocked ? 'style="background:#cbd5e1; cursor:not-allowed;" disabled' : ''}>✅ Cek Jawaban</button>
         <span class="attempts-info" id="attempts_text_${index}">${isLocked ? '🔒 Soal Terkunci' : '⚠️ Hanya bisa dicek 1 kali'}</span>
-        <div id="result_${index}" style="margin-top:8px;font-weight:bold;font-size:13px;"></div>
-        <div id="explain_${index}" style="margin-top:10px; ${isLocked ? 'display:block;' : 'display:none;'}">
-          <button onclick="toggleExplain(${index})" style="background:#10b981; color:white; padding:8px 12px; border-radius:8px; font-size:12px;">📘 Lihat Pembahasan</button>
-          <div id="explain_content_${index}" style="display:none; margin-top:8px; background:#f1f5f9; border:1px solid #e2e8f0; padding:12px; border-radius:8px; font-size:12px; line-height:1.5;">
+        <div id="result_${index}" style="margin-top:10px;font-weight:700;font-size:13px;"></div>
+        <div id="explain_${index}" style="margin-top:12px; ${isLocked ? 'display:block;' : 'display:none;'}">
+          <button onclick="toggleExplain(${index})" style="background:#059669; color:white; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer;">📘 Lihat Pembahasan</button>
+          <div id="explain_content_${index}" style="display:none; margin-top:10px; background:#f8fafc; border:1px solid #e2e8f0; padding:14px; border-radius:10px; font-size:13px; line-height:1.6; color:#334155;">
             ${qData.explanation || "Belum ada pembahasan."}
           </div>
         </div>
 
         <div class="nav-bottom-group">
-          <button class="nav-btn" onclick="prevQuestion()" ${index === 0 ? 'style="opacity:0.5; pointer-events:none;"' : ''}>⬅️ Sebelumnya</button>
-          <button class="nav-btn" onclick="nextQuestion()" ${index === questions.length - 1 ? 'style="opacity:0.5; pointer-events:none;"' : ''}>Selanjutnya ➡️</button>
+          <button class="nav-btn" onclick="prevQuestion()" ${index === 0 ? 'style="opacity:0.4; pointer-events:none;"' : ''}>⬅️ Sebelumnya</button>
+          <button class="nav-btn" onclick="nextQuestion()" ${index === questions.length - 1 ? 'style="opacity:0.4; pointer-events:none;"' : ''}>Selanjutnya ➡️</button>
         </div>
       </div>`;
   });
@@ -283,7 +282,6 @@ async function saveAnswerToCloud(index, value) {
   if (dbSubmission?.submittedAt || !currentStudent) return;
   const studentUid = currentStudent.uid;
   
-  // Ambil state existing di dbSubmission atau buat baru
   const existingAnswers = dbSubmission?.answers || {};
   existingAnswers[index] = value;
 
@@ -359,7 +357,7 @@ function checkAllQuestionsAnswered() {
 
   if (allAnswered && questionsData.length > 0) {
     submitBtn.disabled = false;
-    submitBtn.style.background = "#10b981";
+    submitBtn.style.background = "#059669";
     submitBtn.style.cursor = "pointer";
     submitBtn.style.opacity = "1";
     submitBtn.innerText = "📤 Kirim Nilai ke Guru";
@@ -434,7 +432,6 @@ window.checkAnswer = async function(index) {
     correct = totalCorrect === q.matrix.rows.length;
   }
 
-  // Simpan jawaban dan update attempts ke Firestore secara langsung
   await saveAnswerToCloud(index, userAnswer);
   try {
     const docRef = doc(dbSecondary, "student_submissions", studentUid + "_" + exerciseId);
@@ -545,8 +542,11 @@ window.submitToFirebase = async function() {
 
   try {
     await setDoc(doc(dbSecondary, "student_submissions", studentUid + "_" + exerciseId), submissionData, { merge: true });
-    alert("🎉 Berhasil dikirim! Skor Anda: " + score);
-    window.close();
+    
+    // Tampilkan Modal Popup Kustom yang Elegan
+    document.getElementById("modalScoreValue").innerText = score;
+    document.getElementById("resultModal").classList.add("active");
+
   } catch (error) {
     console.error("Gagal mengirim:", error);
     isSubmitting = false;
