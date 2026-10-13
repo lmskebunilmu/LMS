@@ -12,7 +12,6 @@
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   
-  <!-- Style Ultra-Modern, Fresh & Responsive -->
   <style>
     :root {
       --primary: #4f46e5;
@@ -47,7 +46,6 @@
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* MAIN CONTAINER SPACING */
     .main {
       padding: 20px;
       max-width: 1400px;
@@ -59,7 +57,6 @@
       }
     }
 
-    /* PROFIL CARD ULTRA-MODERN GRADIENT & MESH */
     .profile-card {
       position: relative;
       overflow: hidden;
@@ -75,31 +72,6 @@
       box-shadow: var(--shadow-profile);
     }
 
-    .profile-card::before {
-      content: '';
-      position: absolute;
-      top: -90px;
-      right: -90px;
-      width: 240px;
-      height: 240px;
-      background: rgba(255, 255, 255, 0.12);
-      border-radius: 50%;
-      pointer-events: none;
-      filter: blur(10px);
-    }
-
-    .profile-card::after {
-      content: '';
-      position: absolute;
-      bottom: -80px;
-      left: -60px;
-      width: 200px;
-      height: 200px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 50%;
-      pointer-events: none;
-    }
-
     @media (min-width: 768px) {
       .profile-card {
         flex-direction: row;
@@ -107,12 +79,6 @@
         gap: 32px;
         padding: 44px;
       }
-    }
-
-    .profile-avatar-container {
-      position: relative;
-      flex-shrink: 0;
-      z-index: 1;
     }
 
     .profile-avatar {
@@ -133,11 +99,6 @@
       }
     }
 
-    .profile-details {
-      flex-grow: 1;
-      z-index: 1;
-    }
-
     .school-badge {
       display: inline-flex;
       align-items: center;
@@ -149,26 +110,7 @@
       font-weight: 600;
       backdrop-filter: blur(10px);
       margin-top: 12px;
-      letter-spacing: 0.3px;
       border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    .profile-actions {
-      margin-top: 22px;
-      display: flex;
-      gap: 12px;
-      width: 100%;
-      justify-content: center;
-      flex-wrap: wrap;
-      z-index: 1;
-    }
-    @media (min-width: 768px) {
-      .profile-actions { 
-        margin-top: 0; 
-        margin-left: auto; 
-        width: auto; 
-        justify-content: flex-end; 
-      }
     }
 
     .btn-action {
@@ -181,7 +123,7 @@
       font-size: 13px;
       cursor: pointer;
       backdrop-filter: blur(8px);
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.25s ease;
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -189,10 +131,8 @@
     .btn-action:hover { 
       background: rgba(255, 255, 255, 0.38); 
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
     }
 
-    /* QUICK STATS BAR */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -209,12 +149,6 @@
       align-items: center;
       gap: 16px;
       box-shadow: var(--shadow-sm);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .stat-card:hover {
-      transform: translateY(-3px);
-      box-shadow: var(--shadow-md);
-      border-color: #cbd5e1;
     }
     .stat-icon {
       width: 48px;
@@ -224,34 +158,25 @@
       align-items: center;
       justify-content: center;
       font-size: 22px;
-      flex-shrink: 0;
     }
     .stat-info .stat-value {
       font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 20px;
       font-weight: 800;
       color: var(--text-main);
-      line-height: 1.2;
     }
     .stat-info .stat-label {
       font-size: 12px;
-      font-weight: 500;
       color: var(--text-muted);
-      margin-top: 2px;
     }
 
-    /* SECTION TITLE */
     .section-title {
       font-size: 18px;
       font-weight: 700;
       color: var(--text-main);
       margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
     }
 
-    /* MENU GRID MODERN */
     .menu-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -266,14 +191,11 @@
       border-radius: var(--radius);
       text-align: center;
       cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: var(--shadow-sm);
-      position: relative;
-      overflow: hidden;
+      transition: all 0.3s ease;
     }
     .menu-card:hover {
       transform: translateY(-5px);
-      box-shadow: var(--shadow-md);
       border-color: var(--primary);
     }
     .menu-card .icon-box {
@@ -286,92 +208,27 @@
       justify-content: center;
       font-size: 28px;
       margin: 0 auto 14px auto;
-      transition: all 0.3s ease;
-    }
-    .menu-card:hover .icon-box {
-      background: var(--primary);
-      color: white;
-      transform: scale(1.08) rotate(3deg);
-    }
-    .menu-card .title { 
-      font-size: 14px; 
-      font-weight: 700; 
-      color: var(--text-main); 
     }
 
-    /* CARDS & REPORTS STYLE */
-    .report-card {
+    .report-card, .task-alert-item {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: var(--radius);
-      padding: 28px;
+      padding: 24px;
       margin-bottom: 28px;
       box-shadow: var(--shadow-sm);
     }
 
-    /* REPORT ITEM ULTRA MODERN */
-    .report-item {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      padding: 16px 20px;
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-    }
-    
-    @media (min-width: 640px) {
-      .report-item {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-      }
-    }
-
-    .report-item:hover {
-      border-color: var(--primary);
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.08), 0 8px 10px -6px rgba(79, 70, 229, 0.04);
-    }
-
-    /* TUGAS AKTIF ULTRA MODERN MINIMALIST LIST */
     .task-alert-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
       padding: 16px 20px;
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
       border-radius: 16px;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-bottom: 10px;
       position: relative;
-      overflow: hidden;
-    }
-
-    .task-alert-item::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 4px;
-      background: var(--primary);
-      opacity: 0.8;
-      transition: width 0.2s ease;
-    }
-
-    .task-alert-item:hover {
-      border-color: var(--primary);
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.08), 0 8px 10px -6px rgba(79, 70, 229, 0.04);
-    }
-
-    .task-alert-item:hover::before {
-      width: 6px;
+      border-left: 4px solid var(--primary);
     }
 
     .btn-work {
@@ -383,74 +240,12 @@
       font-size: 12px;
       border: none;
       cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
     }
-
     .btn-work:hover {
       background: var(--primary);
       color: white;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
     }
-
-    /* MODAL STYLING */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(15, 23, 42, 0.65);
-      backdrop-filter: blur(10px);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      animation: fadeIn 0.25s ease-out;
-    }
-    .modal-overlay.active { display: flex; }
-    
-    .modal-box {
-      background: white;
-      width: 100%;
-      max-width: 480px;
-      padding: 36px;
-      border-radius: 28px;
-      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.3);
-      animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes scaleUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #334155; }
-    .form-group input { 
-      width: 100%; 
-      padding: 14px 16px; 
-      border: 1px solid #cbd5e1; 
-      border-radius: var(--radius-sm); 
-      font-size: 14px; 
-      outline: none; 
-      transition: all 0.2s; 
-      box-sizing: border-box;
-      background: #f8fafc;
-    }
-    .form-group input:focus { 
-      border-color: var(--primary); 
-      background: #fff;
-      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12); 
-    }
-    
-    .modal-buttons { display: flex; gap: 12px; margin-top: 28px; }
-    .modal-buttons button { flex: 1; padding: 14px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; border: none; font-size: 14px; transition: all 0.2s;}
-    .btn-save { background: var(--primary); color: white; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3); }
-    .btn-save:hover { background: var(--primary-hover); }
-    .btn-cancel { background: #f1f5f9; color: #475569; }
-    .btn-cancel:hover { background: #e2e8f0; }
 
     .empty-state {
       text-align: center;
@@ -469,7 +264,6 @@
 
   <!-- MAIN CONTENT -->
   <div class="main">
-    <!-- HEADER CONTAINER -->
     <div id="header-container"></div>
 
     <!-- PROFILE SISWA -->
@@ -479,7 +273,7 @@
       </div>
       <div class="profile-details">
         <h2 id="headerNameCard" style="margin:0 0 6px 0; font-size:28px; font-weight: 800; color: #ffffff;">Nama Siswa</h2>
-        <p id="headerEmailCard" style="margin:0 0 12px 0; color: rgba(255,255,255,0.9); font-size:14px; font-weight: 500;">email@siswa.com</p>
+        <p id="headerEmailCard" style="margin:0 0 12px 0; color: rgba(255,255,255,0.9); font-size:14px;">email@siswa.com</p>
         <div>
           <span id="headerSchoolCard" class="school-badge">🏫 Memuat sekolah...</span>
         </div>
@@ -514,19 +308,28 @@
       </div>
     </div>
 
-    <!-- NOTIFIKASI TUGAS BELUM DIKERJAKAN -->
+    <!-- NOTIFIKASI TUGAS BELUM DIKERJAKAN (EXERCISE) -->
     <div id="pendingTasksCard" style="display: none; margin-bottom: 28px;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
-        <h3 style="margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-main);">
-          <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--primary-light); color: var(--primary); border-radius: 8px; font-size: 14px;">🔔</span>
-          Tugas Aktif Menunggu
+        <h3 style="margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: var(--primary-light); color: var(--primary); border-radius: 8px;">🔔</span>
+          Tugas Latihan Aktif Menunggu
         </h3>
-        <span id="pendingBadgeCount" style="background: var(--primary); color: white; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);">0 Tugas</span>
+        <span id="pendingBadgeCount" style="background: var(--primary); color: white; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">0 Tugas</span>
       </div>
-      
-      <div id="pendingTasksContainer" style="display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto; padding-right: 2px;">
-        <!-- Diisi otomatis oleh JavaScript -->
+      <div id="pendingTasksContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
+    </div>
+
+    <!-- NOTIFIKASI SIMULASI UJIAN (DI BAWAH EXERCISE) -->
+    <div id="pendingSimulationsCard" style="display: none; margin-bottom: 28px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #dbeafe; color: #1e40af; border-radius: 8px;">🎯</span>
+          Simulasi Ujian Tersedia
+        </h3>
+        <span id="pendingSimulationBadgeCount" style="background: #2563eb; color: white; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">0 Simulasi</span>
       </div>
+      <div id="pendingSimulationsContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
     </div>
     
     <!-- MENU CEPAT -->
@@ -535,50 +338,24 @@
       <div class="menu-grid">
         <div class="menu-card" onclick="goMaterialsSiswa()">
           <div class="icon-box">📚</div>
-          <div class="title">Materi & Tugas</div>
+          <div class="title" style="font-weight:700;">Materi & Tugas</div>
         </div>
-       
         <div class="menu-card" onclick="logout()" style="border-color: #fee2e2;">
           <div class="icon-box" style="background: var(--danger-light); color: var(--danger);">🚪</div>
-          <div class="title" style="color: var(--danger);">Logout</div>
+          <div class="title" style="color: var(--danger); font-weight:700;">Logout</div>
         </div>
       </div>
     </div>
 
     <!-- REPORT NILAI SAYA -->
     <div class="report-card">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-        <h3 style="margin: 0; font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--text-main);">
-          <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: var(--primary-light); color: var(--primary); border-radius: 10px; font-size: 15px;">📊</span>
-          Report Nilai Latihan Saya
-        </h3>
-      </div>
+      <h3 style="margin: 0 0 6px 0; font-size: 17px; font-weight: 700;">📊 Report Nilai Latihan Saya</h3>
       <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">Rekap riwayat nilai dari latihan dan tugas yang telah Anda selesaikan.</p>
-      
-      <div id="reportContainer" style="display: flex; flex-direction: column; gap: 12px;">
+      <div id="reportContainer">
         <div class="empty-state">Memuat riwayat nilai...</div>
       </div>
     </div>
 
-  </div>
-</div>
-
-<!-- MODAL EDIT PROFIL -->
-<div id="profileModal" class="modal-overlay">
-  <div class="modal-box">
-    <h3 style="margin-top:0; font-size: 20px; font-weight: 700; margin-bottom: 20px; color: var(--text-main);">✏️ Edit Profil Siswa</h3>
-    <div class="form-group">
-      <label>Nama Lengkap</label>
-      <input type="text" id="profileName" placeholder="Masukkan nama lengkap...">
-    </div>
-    <div class="form-group">
-      <label>Foto Profil Baru (Opsional)</label>
-      <input type="file" id="profileImageFile" accept="image/*">
-    </div>
-    <div class="modal-buttons">
-      <button class="btn-cancel" onclick="closeProfileModal()">Batal</button>
-      <button class="btn-save" id="btnSaveProfile" onclick="saveProfile()">Simpan Perubahan</button>
-    </div>
   </div>
 </div>
 
