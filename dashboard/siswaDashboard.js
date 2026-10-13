@@ -19,7 +19,6 @@ import { loadLayout } from "../assets/js/components.js";
 const CLOUDINARY_CLOUD_NAME = "djlvnubgn";
 const CLOUDINARY_UPLOAD_PRESET = "lms_unsigned";
 
-// Global cache untuk statistik
 let totalCompletedCount = 0;
 let totalPendingCount = 0;
 let totalScoresSum = 0;
@@ -72,6 +71,7 @@ onAuthStateChanged(auth, async (user) => {
     
     listenStudentReports(user.uid);
     listenPendingExercises(user.uid);
+    listenActiveSimulations(user.uid); // Mendengarkan daftar simulasi aktif untuk siswa
   } catch (err) {
     console.error(err);
   }
@@ -119,13 +119,11 @@ async function loadProfileHeader(user) {
     }
   }
 
-  // Header Layout
   if (document.getElementById("headerNameHeader")) document.getElementById("headerNameHeader").innerText = name;
   if (document.getElementById("headerAvatarHeader")) document.getElementById("headerAvatarHeader").src = avatar;
   if (document.getElementById("headerSchoolName")) document.getElementById("headerSchoolName").innerText = schoolName;
   if (document.getElementById("headerSchoolLogo")) document.getElementById("headerSchoolLogo").src = schoolLogo;
 
-  // Profile Card
   if (document.getElementById("headerNameCard")) document.getElementById("headerNameCard").innerText = name;
   if (document.getElementById("headerEmailCard")) document.getElementById("headerEmailCard").innerText = email;
   if (document.getElementById("headerAvatarCard")) document.getElementById("headerAvatarCard").src = avatar;
@@ -135,7 +133,7 @@ async function loadProfileHeader(user) {
 }
 
 // ==========================
-// REAL-TIME PENDING EXERCISES (TUGAS AKTIF & SEDANG DIKERJAKAN)
+// REAL-TIME PENDING EXERCISES (TUGAS AKTIF)
 // ==========================
 async function listenPendingExercises(studentUid) {
   const cardSection = document.getElementById("pendingTasksCard");
@@ -156,7 +154,6 @@ async function listenPendingExercises(studentUid) {
     );
 
     onSnapshot(subQuery, async (subSnap) => {
-      // Hanya masukkan ke set "sudah selesai" jika field submittedAt benar-benar ada (sudah dikirim ke guru)
       const fullySubmittedExerciseIds = new Set();
       const inProgressExerciseIds = new Set();
 
@@ -185,16 +182,13 @@ async function listenPendingExercises(studentUid) {
         const assign = d.data();
         const exerciseId = assign.exerciseId;
 
-        // Jika sudah dikirim secara permanen ke guru, skip dari tugas aktif
         if (fullySubmittedExerciseIds.has(exerciseId)) continue;
 
         let isExpired = false;
         let deadlineString = "Waktu fleksibel";
         if (assign.deadlineDate && assign.deadlineTime) {
           const deadlineTarget = new Date(`${assign.deadlineDate}T${assign.deadlineTime}:00`);
-          if (sekarang > deadlineTarget) {
-            isExpired = true;
-          }
+          if (sekarang > deadlineTarget) isExpired = true;
           const tanggalRapi = new Date(assign.deadlineDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' });
           deadlineString = `${tanggalRapi} - ${assign.deadlineTime} WIB`;
         }
@@ -215,7 +209,7 @@ async function listenPendingExercises(studentUid) {
         pendingHtml += `
           <div class="task-alert-item">
             <div style="min-width: 0; flex: 1; padding-right: 8px;">
-              <div style="font-weight: 700; font-size: 14px; color: var(--text-main); word-break: break-word; overflow-wrap: break-word; margin-bottom: 4px;">📝 ${exerciseTitle}</div>
+              <div style="font-weight: 700; font-size: 14px; color: var(--text-main); margin-bottom: 4px;">📝 ${exerciseTitle}</div>
               <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
                 ${statusLabel}
                 <span>•</span>
@@ -245,15 +239,115 @@ async function listenPendingExercises(studentUid) {
   }
 }
 
+// ==========================
+// REAL-TIME ACTIVE SIMULATIONS (SIMULASI UJIAN)
+// ==========================
+async function listenActiveSimulations(studentUid) {
+  const cardSection = document.getElementById("pendingSimulationsCard");
+  const container = document.getElementById("pendingSimulationsContainer");
+  const badgeEl = document.getElementById("pendingSimulationBadgeCount");
+  if (!container || !cardSection) return;
+
+  try {
+    const studentDocSnap = await getDoc(doc(db, "students", studentUid));
+    if (!studentDocSnap.exists()) return;
+    const studentData = studentDocSnap.data();
+    const classId = studentData.classId;
+    const schoolId = studentData.schoolId;
+    if (!classId || !schoolId) return;
+
+    // Cek submission simulasi yang sudah dikerjakan siswa
+    const subQuery = query(
+      collection(dbSecondary, "student_simulation_submissions"),
+      where("studentUid", "==", studentUid)
+    );
+
+    onSnapshot(subQuery, async (subSnap) => {
+      const completedSimulationIds = new Set();
+      subSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.submittedAt) {
+          completedSimulationIds.add(data.simulationId);
+        }
+      });
+
+      // Ambil data penugasan simulasi dari koleksi simulationGuru
+      const simGuruQuery = query(
+        collection(db, "simulationGuru"),
+        where("classId", "==", classId),
+        where("schoolId", "==", schoolId),
+        where("isAssigned", "==", true)
+      );
+      const simGuruSnap = await getDocs(simGuruQuery);
+
+      let simulationHtml = "";
+      let activeCount = 0;
+
+      for (const d of simGuruSnap.docs) {
+        const assign = d.data();
+        const simulationId = assign.simulationId;
+
+        if (completedSimulationIds.has(simulationId)) continue;
+
+        let simTitle = "Simulasi Ujian";
+        let simSubject = "-";
+        let simDuration = 60;
+        let simQuestionsCount = 0;
+
+        const simSnap = await getDoc(doc(db, "simulations", simulationId));
+        if (simSnap.exists()) {
+          const simData = simSnap.data();
+          simTitle = simData.title || simTitle;
+          simSubject = simData.subject || simSubject;
+          simDuration = simData.durationMinutes || 60;
+          simQuestionsCount = (simData.questions || []).length;
+        }
+
+        activeCount++;
+        simulationHtml += `
+          <div class="task-alert-item" style="border-left-color: #2563eb;">
+            <div style="min-width: 0; flex: 1; padding-right: 8px;">
+              <div style="font-weight: 700; font-size: 14px; color: var(--text-main); margin-bottom: 4px;">🎯 ${simTitle}</div>
+              <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                <span style="background: #eff6ff; color: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-weight: 600;">${simSubject}</span>
+                <span>•</span>
+                <span>⏱ Durasi: <strong>${simDuration} Menit</strong></span>
+                <span>•</span>
+                <span>📝 <strong>${simQuestionsCount} Soal</strong></span>
+              </div>
+            </div>
+            <button class="btn-work" style="background: #dbeafe; color: #1e40af;" onclick="openSimulationFromDashboard('${simulationId}')">Mulai Ujian ➔</button>
+          </div>
+        `;
+      }
+
+      if (badgeEl) badgeEl.innerText = `${activeCount} Simulasi`;
+
+      if (activeCount > 0) {
+        cardSection.style.display = "block";
+        container.innerHTML = simulationHtml;
+      } else {
+        cardSection.style.display = "none";
+      }
+    });
+
+  } catch (err) {
+    console.error("Gagal memuat daftar simulasi siswa:", err);
+  }
+}
+
 window.openExerciseFromDashboard = (id) => {
   const win = window.open(`https://lmskebunilmu.github.io/LMS/modules/materials-siswa/exercise.html?id=${id}`, "_blank");
-  if (!win) {
-    alert("Pop-up diblokir browser! Izinkan pop-up untuk mengerjakan latihan.");
-  }
+  if (!win) alert("Pop-up diblokir browser!");
+};
+
+window.openSimulationFromDashboard = (id) => {
+  const win = window.open(`https://lmskebunilmu.github.io/LMS/modules/materials-siswa/simulation-runner.html?id=${id}`, "_blank");
+  if (!win) alert("Pop-up diblokir browser!");
 };
 
 // ==========================
-// REAL-TIME STUDENT REPORTS (NILAI LATIHAN YANG SUDAH DI-SUBMIT)
+// REAL-TIME STUDENT REPORTS (NILAI)
 // ==========================
 function listenStudentReports(studentUid) {
   const container = document.getElementById("reportContainer");
@@ -271,7 +365,6 @@ function listenStudentReports(studentUid) {
 
     snap.forEach(docSnap => {
       const sub = docSnap.data();
-      // Hanya masukkan ke rekap nilai jika sudah melakukan submit resmi (ada submittedAt)
       if (sub.submittedAt) {
         completedCount++;
         scoresSum += (sub.score || 0);
@@ -288,22 +381,17 @@ function listenStudentReports(studentUid) {
 
     for (const docSnap of snap.docs) {
       const sub = docSnap.data();
-      if (!sub.submittedAt) continue; // Skip yang masih draft/sedang dikerjakan
+      if (!sub.submittedAt) continue;
 
       const score = sub.score || 0;
       let exerciseTitle = "Latihan / Tugas";
       try {
         const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
-        if (exSnap.exists()) {
-          exerciseTitle = exSnap.data().title || exerciseTitle;
-        }
-      } catch (e) {
-        console.error(e);
-      }
+        if (exSnap.exists()) exerciseTitle = exSnap.data().title || exerciseTitle;
+      } catch (e) { console.error(e); }
 
       const isExcellent = score >= 75;
       const isGood = score >= 60 && score < 75;
-      
       const scoreColor = isExcellent ? "#059669" : isGood ? "#d97706" : "#dc2626";
       const scoreBg = isExcellent ? "#ecfdf5" : isGood ? "#fffbeb" : "#fef2f2";
 
@@ -313,21 +401,13 @@ function listenStudentReports(studentUid) {
       }
 
       html += `
-        <div class="report-item">
-          <div style="min-width: 0; flex: 1;">
-            <div style="font-weight: 700; font-size: 14px; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; word-break: break-word; overflow-wrap: break-word;">
-              <span>📝</span> ${exerciseTitle}
-            </div>
-            <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-              <span>📅 ${dateStr}</span>
-              <span>•</span>
-              <span>Benar: <strong style="color: var(--text-main);">${sub.correctAnswers || 0}/${sub.totalQuestions || 0}</strong> soal</span>
-            </div>
+        <div class="report-item" style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:16px; margin-bottom:12px;">
+          <div>
+            <div style="font-weight: 700; font-size: 14px; color: var(--text-main); margin-bottom: 4px;">📝 ${exerciseTitle}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">📅 ${dateStr} • Benar: <strong>${sub.correctAnswers || 0}/${sub.totalQuestions || 0}</strong> soal</div>
           </div>
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-            <div style="background: ${scoreBg}; color: ${scoreColor}; padding: 6px 16px; border-radius: 12px; font-weight: 800; font-size: 15px; border: 1px solid ${scoreColor}33; display: flex; align-items: center; gap: 4px;">
-              <span>⭐</span> ${score}
-            </div>
+          <div style="background: ${scoreBg}; color: ${scoreColor}; padding: 6px 16px; border-radius: 12px; font-weight: 800; font-size: 15px; border: 1px solid ${scoreColor}33;">
+            ⭐ ${score}
           </div>
         </div>
       `;
@@ -336,16 +416,12 @@ function listenStudentReports(studentUid) {
     totalCompletedCount = completedCount;
     totalScoresSum = scoresSum;
     updateStatsUI();
-
     container.innerHTML = html;
-  }, (err) => {
-    console.error("Gagal memuat report nilai:", err);
-    container.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 20px; font-size: 13px;">Gagal memuat riwayat nilai.</div>`;
   });
 }
 
 // ==========================
-// MODAL PROFIL
+// MODAL PROFIL & AUTH ACTIONS
 // ==========================
 window.openProfileModal = () => document.getElementById("profileModal")?.classList.add("active");
 window.closeProfileModal = () => document.getElementById("profileModal")?.classList.remove("active");
@@ -353,22 +429,17 @@ window.closeProfileModal = () => document.getElementById("profileModal")?.classL
 window.saveProfile = async () => {
   const user = auth.currentUser;
   if (!user) return;
-
   const name = document.getElementById("profileName").value.trim();
   const fileInput = document.getElementById("profileImageFile");
   const saveBtn = document.getElementById("btnSaveProfile");
 
-  if (!name) {
-    alert("Nama tidak boleh kosong!");
-    return;
-  }
+  if (!name) return alert("Nama tidak boleh kosong!");
 
   try {
     saveBtn.innerText = "Menyimpan...";
     saveBtn.disabled = true;
 
     let avatarURL = null;
-
     if (fileInput.files && fileInput.files[0]) {
       const file = fileInput.files[0];
       const formData = new FormData();
@@ -379,30 +450,23 @@ window.saveProfile = async () => {
         method: "POST",
         body: formData
       });
-
       const data = await response.json();
-      if (data.secure_url) {
-        avatarURL = data.secure_url;
-      } else {
-        throw new Error("Gagal mengunggah foto ke Cloudinary.");
-      }
+      if (data.secure_url) avatarURL = data.secure_url;
     }
 
     const profileUpdates = { displayName: name };
     if (avatarURL) profileUpdates.photoURL = avatarURL;
     await updateProfile(user, profileUpdates);
 
-    const userDocRef = doc(db, "users", user.uid);
     const userUpdates = { name };
     if (avatarURL) userUpdates.avatarURL = avatarURL;
-    await updateDoc(userDocRef, userUpdates);
+    await updateDoc(doc(db, "users", user.uid), userUpdates);
 
     alert("Profil berhasil diupdate!");
     closeProfileModal();
     fileInput.value = "";
     await loadProfileHeader(user);
   } catch (err) {
-    console.error(err);
     alert("Gagal update profil: " + err.message);
   } finally {
     saveBtn.innerText = "Simpan Perubahan";
@@ -411,19 +475,16 @@ window.saveProfile = async () => {
 };
 
 function lockDashboard() {
-  const main = document.querySelector(".main");
-  if (!main) return;
-  main.innerHTML = `
+  document.querySelector(".main").innerHTML = `
     <div style="text-align:center; padding:50px;">
       <h2>🚫 Akses Ditolak</h2>
       <p>Sekolah kamu nonaktif</p>
-      <button onclick="window.location='../login.html'" style="padding:10px 20px; background:#ef4444; color:white; border:none; border-radius:10px; cursor:pointer; font-weight:600;">Logout</button>
+      <button onclick="window.location='../login.html'" style="padding:10px 20px; background:#ef4444; color:white; border:none; border-radius:10px; cursor:pointer;">Logout</button>
     </div>
   `;
 }
 
 window.goMaterialsSiswa = () => window.location.href = "https://lmskebunilmu.github.io/LMS/modules/materials-siswa/materials-siswa.html";
-
 window.logout = async () => {
   await signOut(auth);
   window.location.href = "../login.html";
