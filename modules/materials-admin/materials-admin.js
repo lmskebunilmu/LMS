@@ -1,101 +1,403 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
-<title>Materi & Simulasi Sekolah</title>
-<link rel="stylesheet" href="../../assets/css/style.css">
-<link rel="stylesheet" href="../../assets/css/responsive.css">
-</head>
+import { auth, db } from "../../firebase/firebase-config.js";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+  query, 
+  where
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-<body>
-<div class="wrapper">
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { loadLayout } from "../../assets/js/components.js";
 
-  <!-- SIDEBAR -->
-  <div id="sidebar-container"></div>
+let materialsData = [];
+let currentSchoolId = null;
+let schoolData = null;
 
-  <!-- MAIN -->
-  <div class="main">
+let allSchoolSimulations = [];
+let filteredSchoolSimulations = [];
 
-    <!-- HEADER -->
-    <div id="header-container"></div>
+// ==========================
+// AUTH
+// ==========================
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return window.location = "../../login.html";
 
-    <!-- KONTEN MATERI -->
-    <div class="card">
-      <h3>Materi Tersedia</h3>
+  const userSnap = await getDoc(doc(db, "users", user.uid));
+  const userData = userSnap.data();
 
-      <div style="margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <select id="subjectSelect"></select>
-        <button class="primary" onclick="approveSubject()">
-          ✔ Aktifkan Mapel
-        </button>
-      </div>
+  if (userData.role !== "admin") {
+    alert("Akses ditolak!");
+    return window.location = "../../login.html";
+  }
 
-      <div id="activeSubjects" style="margin-bottom:15px;"></div>
+  currentSchoolId = userData.schoolId;
 
-      <input type="text" id="searchMaterial"
-        placeholder="Cari materi..."
-        oninput="filterMaterials()">
+  await loadLayout("admin");
 
-      <table class="table" style="margin-bottom: 20px;">
-        <thead>
-          <tr>
-            <th>Judul</th>
-            <th>Mapel</th>
-            <th>Level</th>
-            <th>Kurikulum</th>
-            <th>Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="materialList"></tbody>
-      </table>
+  await waitForHeader();
+  await loadProfileHeader(user);
+
+  await loadSchoolData();
+  if (!schoolData || schoolData.status !== "aktif") return;
+
+  renderActiveSubjects();
+  await loadSubjects();
+  await loadMaterials();
+  await loadSchoolSimulations();
+});
+
+// ==========================
+// LOAD SCHOOL
+// ==========================
+async function loadSchoolData() {
+  const snap = await getDoc(doc(db, "schools", currentSchoolId));
+  schoolData = snap.data();
+
+  if (schoolData?.status !== "aktif") {
+    showToast("Sekolah kamu nonaktif!", "error");
+    lockDashboard();
+    return;
+  }
+
+  const allowed = schoolData.allowedSubjects || [];
+  let approved = schoolData.approvedSubjects || [];
+
+  approved = approved.filter(sub => allowed.includes(sub));
+
+  if (approved.length !== (schoolData.approvedSubjects || []).length) {
+    await updateDoc(doc(db, "schools", currentSchoolId), {
+      approvedSubjects: approved
+    });
+    schoolData.approvedSubjects = approved;
+  }
+}
+
+// ==========================
+// LOAD MATERIALS
+// ==========================
+async function loadMaterials() {
+  if (!schoolData) return;
+
+  const list = document.getElementById("materialList");
+  if (list) {
+    list.innerHTML = `<tr><td colspan="5">⏳ Memuat materi...</td></tr>`;
+  }
+
+  try {
+    const q = query(
+      collection(db, "materials"),
+      where("level", "==", schoolData.level),
+      where("curriculum", "==", schoolData.curriculum)
+    );
+
+    const snapshot = await getDocs(q);
+    const approved = schoolData.approvedSubjects || [];
+
+    materialsData = (snapshot.docs || [])
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(m => approved.includes(m.subject));
+
+    renderMaterials(materialsData);
+
+  } catch (err) {
+    console.error(err);
+    if (list) {
+      list.innerHTML = `<tr><td colspan="5">❌ Gagal memuat data</td></tr>`;
+    }
+  }
+}
+
+function renderMaterials(data) {
+  const list = document.getElementById("materialList");
+  list.innerHTML = "";
+
+  if (data.length === 0) {
+    list.innerHTML = `<tr><td colspan="5">Belum ada materi tersedia</td></tr>`;
+    return;
+  }
+
+  data.forEach(m => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${m.title}</td>
+      <td>
+        <span style="background:#f1f1f1;padding:4px 8px;border-radius:5px;">
+          ${m.subject}
+        </span>
+      </td>
+      <td>${m.level}</td>
+      <td>${m.curriculum}</td>
+      <td>
+        <button class="primary" onclick="viewMaterial('${m.id}')" title="Lihat Materi">👁</button>
+      </td>
+    `;
+    list.appendChild(tr);
+  });
+}
+
+// ==========================
+// LOAD SCHOOL SIMULATIONS (READ-ONLY)
+// ==========================
+async function loadSchoolSimulations() {
+  const tbody = document.getElementById("schoolSimulationsTable");
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:gray;">Memuat daftar simulasi...</td></tr>`;
+
+  try {
+    const approvedSubjects = schoolData.approvedSubjects || [];
+    if (approvedSubjects.length === 0) {
+      allSchoolSimulations = [];
+      filteredSchoolSimulations = [];
+      renderSimulationsTable();
+      return;
+    }
+
+    // Ambil berdasarkan level dan kurikulum sekolah
+    const qSim = query(
+      collection(db, "simulations"),
+      where("level", "==", schoolData.level),
+      where("curriculum", "==", schoolData.curriculum)
+    );
+
+    const snap = await getDocs(qSim);
+    
+    allSchoolSimulations = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(sim => approvedSubjects.includes(sim.subject));
+
+    filteredSchoolSimulations = allSchoolSimulations;
+    renderSimulationsTable();
+
+  } catch (err) {
+    console.error("Error loading school simulations:", err);
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Gagal memuat daftar simulasi.</td></tr>`;
+  }
+}
+
+function renderSimulationsTable() {
+  const tbody = document.getElementById("schoolSimulationsTable");
+  tbody.innerHTML = "";
+
+  if (filteredSchoolSimulations.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:gray; padding:20px;">Belum ada simulasi untuk mapel aktif di tingkat ini.</td></tr>`;
+    return;
+  }
+
+  filteredSchoolSimulations.forEach((sim, idx) => {
+    const tr = document.createElement("tr");
+    const questionCount = (sim.questions || []).length;
+
+    tr.innerHTML = `
+      <td>${idx + 1}</td>
+      <td><strong>${sim.title || "Tanpa Judul"}</strong></td>
+      <td><span style="background:#f1f1f1; padding:3px 8px; border-radius:4px; font-size:12px;">${sim.subject || "-"}</span></td>
+      <td>${sim.durationMinutes || 60} Menit</td>
+      <td>${sim.passingGrade || 75}%</td>
+      <td><span style="background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:12px; font-weight:bold; font-size:12px;">${questionCount} Soal</span></td>
+      <td>
+        <button onclick="previewSimulation('${sim.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Lihat Soal Simulasi">👁️ Lihat Soal</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+window.filterSimulationsList = () => {
+  const search = document.getElementById("searchSimulationInput").value.toLowerCase();
+  filteredSchoolSimulations = allSchoolSimulations.filter(s => 
+    (s.title || "").toLowerCase().includes(search) || 
+    (s.subject || "").toLowerCase().includes(search)
+  );
+  renderSimulationsTable();
+};
+
+// ==========================
+// PREVIEW SIMULATION (READ-ONLY)
+// ==========================
+window.previewSimulation = (simId) => {
+  const sim = allSchoolSimulations.find(s => s.id === simId);
+  if (!sim) return;
+
+  const container = document.getElementById("previewQuestionsListContainer");
+  container.innerHTML = "";
+
+  const questions = sim.questions || [];
+  if (questions.length === 0) {
+    container.innerHTML = `<p style="text-align:center; color:gray;">Simulasi ini belum memiliki soal.</p>`;
+  } else {
+    questions.forEach((q, idx) => {
+      let html = `
+        <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
+          <div style="font-weight:bold; margin-bottom:8px; font-size:14px; color:#1e293b;">
+            Soal ${idx + 1} <span style="font-size:10px; background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; margin-left:6px;">${(q.type || "pg").toUpperCase()}</span>
+          </div>
+          <div style="margin-bottom:10px;">${q.question || ""}</div>
+      `;
+
+      if (q.type === "pg" && q.options) {
+        html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
+        q.options.forEach((opt, optIdx) => {
+          const isCorrect = q.answer === optIdx;
+          html += `
+            <div style="padding:8px 10px; border:1px solid ${isCorrect ? '#86efac' : '#e5e7eb'}; border-radius:6px; background:${isCorrect ? '#f0fdf4' : '#fff'}; font-size:13px;">
+              <b>${String.fromCharCode(65 + optIdx)}.</b> ${opt}
+              ${isCorrect ? '<span style="float:right; font-size:11px; background:#22c55e; color:white; padding:2px 6px; border-radius:4px;">Kunci</span>' : ''}
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+
+      html += `</div>`;
+      container.innerHTML += html;
+    });
+  }
+
+  document.getElementById("previewQuestionModal").style.display = "flex";
+  if (window.MathJax) {
+    MathJax.typesetPromise([container]);
+  }
+};
+
+window.closePreviewQuestionModal = () => {
+  document.getElementById("previewQuestionModal").style.display = "none";
+};
+
+// ==========================
+// STANDAR (SUBJECTS, VIEW, SEARCH)
+// ==========================
+async function loadSubjects() {
+  const select = document.getElementById("subjectSelect");
+  if (!select || !schoolData) return;
+
+  const allowedSubjects = schoolData.allowedSubjects || [];
+  select.innerHTML = `<option value="">Pilih Mapel</option>`;
+
+  allowedSubjects.forEach(sub => {
+    const opt = document.createElement("option");
+    opt.value = sub;
+    opt.textContent = sub;
+    select.appendChild(opt);
+  });
+}
+
+async function loadProfileHeader(user) {
+  const userSnap = await getDoc(doc(db, "users", user.uid));
+  if (!userSnap.exists()) return;
+
+  const data = userSnap.data();
+  const name = data.name || "Admin";
+  const avatar = data.avatarURL || "../../assets/images/default-avatar.png";
+
+  if (document.getElementById("headerNameHeader")) document.getElementById("headerNameHeader").innerText = name;
+  if (document.getElementById("headerAvatarHeader")) document.getElementById("headerAvatarHeader").src = avatar;
+
+  if (currentSchoolId) {
+    const schoolSnap = await getDoc(doc(db, "schools", currentSchoolId));
+    if (schoolSnap.exists()) {
+      const school = schoolSnap.data();
+      if (document.getElementById("headerSchoolName")) document.getElementById("headerSchoolName").innerText = school.name || "-";
+      if (document.getElementById("headerSchoolLogo")) document.getElementById("headerSchoolLogo").src = school.logoURL || "../../assets/images/default-logo.png";
+    }
+  }
+}
+
+window.approveSubject = async () => {
+  const subject = document.getElementById("subjectSelect").value;
+  if (!subject) return showToast("Pilih mapel dulu");
+
+  let subjects = schoolData.approvedSubjects || [];
+  if (!subjects.includes(subject)) {
+    subjects.push(subject);
+    await updateDoc(doc(db, "schools", currentSchoolId), { approvedSubjects: subjects });
+    showToast("Mapel berhasil diaktifkan");
+    await loadSchoolData();
+    renderActiveSubjects();
+    await loadMaterials();
+    await loadSchoolSimulations();
+  } else {
+    showToast("Mapel sudah aktif");
+  }
+};
+
+window.removeSubject = async (subject) => {
+  let subjects = schoolData.approvedSubjects || [];
+  subjects = subjects.filter(s => s !== subject);
+
+  await updateDoc(doc(db, "schools", currentSchoolId), { approvedSubjects: subjects });
+  showToast("Mapel dinonaktifkan");
+  await loadSchoolData();
+  renderActiveSubjects();
+  loadMaterials();
+  loadSchoolSimulations();
+};
+
+window.viewMaterial = (id) => {
+  const data = materialsData.find(m => m.id === id);
+  if (!data) return;
+
+  const win = window.open("", "_blank");
+  win.document.open();
+  win.document.write(data.content || "");
+  win.document.close();
+};
+
+window.filterMaterials = () => {
+  const search = document.getElementById("searchMaterial").value.toLowerCase();
+  const filtered = materialsData.filter(m =>
+    m.title.toLowerCase().includes(search) ||
+    m.subject.toLowerCase().includes(search)
+  );
+  renderMaterials(filtered);
+};
+
+function showToast(msg, type = "success") {
+  const t = document.getElementById("toast");
+  t.innerText = msg;
+  t.className = type === "error" ? "toast error active" : "toast active";
+  setTimeout(() => t.classList.remove("active"), 3000);
+}
+
+function waitForHeader() {
+  return new Promise(resolve => {
+    const interval = setInterval(() => {
+      const el = document.getElementById("headerAvatarHeader");
+      if (el) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 50);
+  });
+}
+
+function renderActiveSubjects() {
+  const container = document.getElementById("activeSubjects");
+  if (!container) return;
+
+  const subjects = schoolData.approvedSubjects || [];
+  if (subjects.length === 0) {
+    container.innerHTML = `<small>Belum ada mapel aktif</small>`;
+    return;
+  }
+
+  container.innerHTML = subjects.map(sub => `
+    <span style="background:#e3f2fd; color:#1976d2; padding:5px 10px; margin:3px; border-radius:20px; display:inline-flex; align-items:center;">
+      ${sub}
+      <button onclick="removeSubject('${sub}')" style="margin-left:5px; background:none; border:none; cursor:pointer;">❌</button>
+    </span>
+  `).join("");
+}
+
+function lockDashboard() {
+  const main = document.querySelector(".main");
+  if (!main) return;
+  main.innerHTML = `
+    <div style="display:flex; justify-content:center; align-items:center; height:80vh; flex-direction:column; text-align:center;">
+      <h1 style="color:red;">🚫 Akses Ditolak</h1>
+      <p>Sekolah kamu sedang <b>nonaktif</b></p>
+      <button onclick="location.href='../../login.html'" class="primary">Logout</button>
     </div>
-
-    <!-- DAFTAR SIMULASI SEKOLAH (READ-ONLY) -->
-    <div class="card" style="margin-top: 20px;">
-      <div style="margin-bottom: 15px;">
-        <h3 style="margin: 0; font-size: 18px;">🎯 Daftar Simulasi Ujian</h3>
-        <p style="font-size: 12px; color: gray; margin: 3px 0 0 0;">Daftar simulasi yang tersedia berdasarkan mapel dan kurikulum sekolah Anda (Hanya lihat).</p>
-      </div>
-
-      <input type="text" id="searchSimulationInput" placeholder="Cari judul simulasi atau mapel..." oninput="filterSimulationsList()" style="width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
-
-      <table class="table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Judul Simulasi</th>
-            <th>Mapel</th>
-            <th>Durasi</th>
-            <th>Passing Grade</th>
-            <th>Jumlah Soal</th>
-            <th>Aksi</th>
-          </tr>
-        </thead>
-        <tbody id="schoolSimulationsTable"></tbody>
-      </table>
-    </div>
-
-  </div>
-</div>
-
-<!-- MODAL PREVIEW SOAL -->
-<div id="previewQuestionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;">
-  <div style="background: white; width: 100%; max-width: 650px; max-height: 85vh; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-    <div style="padding: 15px 20px; background: #10b981; color: white; display: flex; justify-content: space-between; align-items: center;">
-      <h3 style="margin: 0; font-size: 16px;">Pratinjau Soal Simulasi</h3>
-      <button onclick="closePreviewQuestionModal()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">&times;</button>
-    </div>
-    <div id="previewQuestionsListContainer" style="padding: 20px; overflow-y: auto; flex: 1;"></div>
-  </div>
-</div>
-
-<div id="toast" class="toast"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<script type="module" src="./materials-admin.js"></script>
-</body>
-</html>
+  `;
+}
