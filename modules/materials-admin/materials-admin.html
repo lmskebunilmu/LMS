@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0"
   />
-<title>Materi Sekolah</title>
+<title>Materi & Simulasi Sekolah</title>
 <link rel="stylesheet" href="../../assets/css/style.css">
 <link rel="stylesheet" href="../../assets/css/responsive.css">
 </head>
@@ -23,46 +23,207 @@
     <!-- HEADER -->
     <div id="header-container"></div>
 
+    <!-- KONTEN MATERI (YANG SUDAH ADA) -->
     <div class="card">
-
       <h3>Materi Tersedia</h3>
 
-<!-- 🔥 SELECT MAPEL -->
-<div style="margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-  <select id="subjectSelect"></select>
+      <div style="margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <select id="subjectSelect"></select>
+        <button class="primary" onclick="approveSubject()">
+          ✔ Aktifkan Mapel
+        </button>
+      </div>
 
-  <button class="primary" onclick="approveSubject()">
-    ✔ Aktifkan Mapel
-  </button>
-</div>
+      <div id="activeSubjects" style="margin-bottom:15px;"></div>
 
-<div id="activeSubjects" style="margin-bottom:15px;"></div>
+      <input type="text" id="searchMaterial"
+        placeholder="Cari materi..."
+        oninput="filterMaterials()">
 
-<!-- SEARCH -->
-<input type="text" id="searchMaterial"
-  placeholder="Cari materi..."
-  oninput="filterMaterials()">
+      <table class="table" style="margin-bottom: 20px;">
+        <thead>
+          <tr>
+            <th>Judul</th>
+            <th>Mapel</th>
+            <th>Level</th>
+            <th>Kurikulum</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="materialList"></tbody>
+      </table>
+    </div>
 
-<table class="table">
-  <thead>
-    <tr>
-      <th>Judul</th>
-      <th>Mapel</th>
-      <th>Level</th>
-      <th>Kurikulum</th>
-      <th>Aksi</th>
-    </tr>
-  </thead>
-  <tbody id="materialList"></tbody>
-</table>
+    <!-- 🔥 TAMBAHAN: KARTU KELOLA SIMULASI BERDASARKAN MATERI -->
+    <div class="card" id="simulationSectionCard" style="display:none; margin-top: 20px;">
+      <div id="simulationListView">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h3 id="materialTitleHeader" style="margin: 0; font-size: 18px;">🎯 Kelola Simulasi</h3>
+            <p id="materialDetail" style="font-size: 12px; color: gray; margin: 3px 0 0 0;"></p>
+          </div>
+          <button class="primary" onclick="openCreateSimulationModal()">➕ Buat Simulasi Baru</button>
+        </div>
 
+        <input type="text" id="searchSimulationInput" placeholder="Cari judul simulasi..." oninput="filterSimulationsList()" style="width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Judul Simulasi</th>
+              <th>Durasi</th>
+              <th>Passing Grade</th>
+              <th>Jumlah Soal</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="simulationListTable"></tbody>
+        </table>
+      </div>
+
+      <!-- VIEW EDITOR SOAL SIMULASI -->
+      <div id="simulationEditorView" style="display:none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">
+          <div>
+            <button onclick="closeSimulationEditor()" style="background: #64748b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 5px;">&larr; Kembali ke Daftar Simulasi</button>
+            <h3 id="activeSimTitle" style="margin: 5px 0 0 0;">Judul Simulasi</h3>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="primary" onclick="openImportMultiModal()">📥 Impor dari Latihan</button>
+            <button onclick="showAddQuestionModal()" style="background:#10b981; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:600;">➕ Tambah Soal Manual</button>
+          </div>
+        </div>
+
+        <!-- Pengaturan Simulasi -->
+        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+          <h4 style="margin: 0 0 10px 0; font-size: 14px;">⚙️ Pengaturan Ujian</h4>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+            <div>
+              <label style="font-size: 12px; font-weight: bold;">Judul Simulasi:</label>
+              <input type="text" id="simTitle" style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px;">
+            </div>
+            <div>
+              <label style="font-size: 12px; font-weight: bold;">Durasi (Menit):</label>
+              <input type="number" id="simDuration" style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px;">
+            </div>
+            <div>
+              <label style="font-size: 12px; font-weight: bold;">Passing Grade (%):</label>
+              <input type="number" id="simPassingGrade" style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px;">
+            </div>
+            <div>
+              <label style="font-size: 12px; font-weight: bold;">Acak Soal:</label>
+              <select id="simRandom" style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px;">
+                <option value="true">Ya (Acak)</option>
+                <option value="false">Tidak</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="saveSimulationConfig()" style="margin-top: 10px; background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">Simpan Pengaturan</button>
+        </div>
+
+        <h4>Daftar Soal (<span id="totalQuestionsCount">0</span> Soal)</h4>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Tipe</th>
+              <th>Pertanyaan</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="questionList"></tbody>
+        </table>
+      </div>
     </div>
 
   </div>
 </div>
 
+<!-- MODAL BUAT SIMULASI BARU -->
+<div id="createSimModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;">
+  <div style="background: white; width: 100%; max-width: 450px; border-radius: 8px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+    <h3 style="margin-top:0;">Buat Simulasi Baru</h3>
+    <div style="margin-bottom: 12px;">
+      <label style="font-size: 12px; font-weight: bold;">Judul Simulasi:</label>
+      <input type="text" id="newSimTitle" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-top:4px;">
+    </div>
+    <div style="margin-bottom: 12px;">
+      <label style="font-size: 12px; font-weight: bold;">Durasi (Menit):</label>
+      <input type="number" id="newSimDuration" value="60" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-top:4px;">
+    </div>
+    <div style="margin-bottom: 15px;">
+      <label style="font-size: 12px; font-weight: bold;">Passing Grade (%):</label>
+      <input type="number" id="newSimPassingGrade" value="75" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-top:4px;">
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <button onclick="closeCreateSimulationModal()" style="background: #64748b; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer;">Batal</button>
+      <button onclick="createNewSimulation()" class="primary" style="padding: 8px 14px;">Simpan & Buat</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPOR LATIHAN -->
+<div id="importMultiModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;">
+  <div style="background: white; width: 100%; max-width: 650px; max-height: 85vh; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+    <div style="padding: 15px 20px; background: #2563eb; color: white; display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; font-size: 16px;">Impor Soal dari Paket Latihan</h3>
+      <button onclick="closeImportMultiModal()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">&times;</button>
+    </div>
+    <div style="padding: 15px; border-bottom: 1px solid #e5e7eb;">
+      <input type="text" id="searchExerciseInput" placeholder="Cari judul latihan atau mapel..." oninput="filterExercisesList()" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+    </div>
+    <div id="exercisesContainerList" style="padding: 15px; overflow-y: auto; flex: 1; background: #f8fafc;"></div>
+    <div style="padding: 12px 20px; background: white; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 8px;">
+      <button onclick="closeImportMultiModal()" style="background: #64748b; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer;">Batal</button>
+      <button onclick="confirmImportSelectedExercises()" class="primary" style="padding: 8px 14px;">Impor Soal Terpilih</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH SOAL MANUAL (JSON) -->
+<div id="questionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;">
+  <div style="background: white; width: 100%; max-width: 600px; border-radius: 8px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+    <h3 style="margin-top:0;">Tambah Soal (Format JSON)</h3>
+    <textarea id="jsonInput" rows="10" placeholder='Contoh: {"type": "pg", "question": "Berapakah 2 + 2?", "options": ["3", "4", "5", "6"], "answer": 1}' style="width: 100%; font-family: monospace; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"></textarea>
+    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
+      <button onclick="closeQuestionModal()" style="background: #64748b; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer;">Batal</button>
+      <button onclick="saveQuestionJSON()" class="primary" style="padding: 8px 14px;">Simpan Soal</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW SOAL -->
+<div id="previewQuestionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;">
+  <div style="background: white; width: 100%; max-width: 650px; max-height: 85vh; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+    <div style="padding: 15px 20px; background: #10b981; color: white; display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; font-size: 16px;">Pratinjau Soal (<span id="previewBadgeType">PG</span>)</h3>
+      <button onclick="closePreviewQuestionModal()" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">&times;</button>
+    </div>
+    <div id="previewQuestionContainer" style="padding: 20px; overflow-y: auto; flex: 1;"></div>
+    <div id="previewExplanationContainer" style="padding: 15px 20px; background: #f0fdf4; border-top: 1px solid #86efac; display: none;">
+      <b style="font-size: 12px; color: #15803d;">Pembahasan:</b>
+      <div id="previewExplanationText" style="font-size: 13px; color: #166534; margin-top: 4px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT SATU SOAL -->
+<div id="editSingleQuestionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box;">
+  <div style="background: white; width: 100%; max-width: 600px; border-radius: 8px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+    <h3 style="margin-top:0;">Edit Soal</h3>
+    <input type="hidden" id="editQuestionIndex">
+    <textarea id="editQuestionJsonInput" rows="10" style="width: 100%; font-family: monospace; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"></textarea>
+    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px;">
+      <button onclick="closeEditSingleQuestionModal()" style="background: #64748b; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer;">Batal</button>
+      <button onclick="saveSingleQuestionEdit()" class="primary" style="padding: 8px 14px;">Simpan Perubahan</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <script type="module" src="./materials-admin.js"></script>
 </body>
 </html>
