@@ -11,6 +11,7 @@ let currentSchoolId = "";
 let questionsData = [];
 let dbSubmission = null;
 let currentQuestionIndex = 0;
+let isSubmitting = false; // Flag untuk mencegah peringatan keluar saat tombol kirim diklik
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -36,6 +37,15 @@ onAuthStateChanged(auth, async (user) => {
     loadExerciseData(exerciseId, user.uid);
   } else {
     document.getElementById("exerciseTitle").innerText = "Latihan tidak valid.";
+  }
+});
+
+// Peringatan jika siswa mencoba keluar/refresh halaman sebelum mengirim nilai
+window.addEventListener("beforeunload", (event) => {
+  if (!dbSubmission && !isSubmitting) {
+    event.preventDefault();
+    event.returnValue = "Jawaban Anda belum dikirim secara resmi ke guru. Yakin ingin keluar?";
+    return event.returnValue;
   }
 });
 
@@ -86,7 +96,7 @@ async function loadExerciseData(exId, studentUid) {
         }
       });
       updatePaginationState();
-      checkAllQuestionsAnswered(); // Cek status tombol kirim saat pertama kali dimuat
+      checkAllQuestionsAnswered();
     }, 300);
 
   } catch (error) {
@@ -200,7 +210,6 @@ function renderQuestions(questions, studentUid) {
       </div>`;
   });
 
-  // Tombol Kirim awalnya disabled sampai semua soal terjawab
   html += `
       <button class="submit-btn" id="final_submit_btn" onclick="submitToFirebase()" ${dbSubmission ? 'style="background:#cbd5e1; cursor:not-allowed;" disabled' : 'style="background:#cbd5e1; cursor:not-allowed; opacity:0.6;" disabled'}>
         ${dbSubmission ? '🔒 Jawaban Telah Disimpan' : '📤 Kirim Nilai ke Guru (Selesaikan Semua Soal)'}
@@ -270,7 +279,7 @@ window.markAnswered = function(index) {
 
   saveAnswerToCloud(index, userAnswer);
   updatePaginationState();
-  checkAllQuestionsAnswered(); // Cek apakah tombol kirim sudah bisa dibuka
+  checkAllQuestionsAnswered();
 };
 
 async function saveAnswerToCloud(index, value) {
@@ -317,7 +326,6 @@ function updatePaginationState() {
   });
 }
 
-// Fungsi bantu untuk memeriksa apakah suatu soal sudah dijawab dengan valid
 function isAnswerValid(q, ans) {
   if (ans === undefined || ans === null) return false;
   if (q.type === "pg" || q.type === "isian") {
@@ -334,7 +342,6 @@ function isAnswerValid(q, ans) {
   return false;
 }
 
-// Fungsi baru untuk memvalidasi apakah SEMUA soal telah terjawab
 function checkAllQuestionsAnswered() {
   if (dbSubmission) return;
   const studentUid = currentStudent.uid;
@@ -476,6 +483,8 @@ window.toggleExplain = function(index) {
 
 window.submitToFirebase = async function() {
   if (dbSubmission) return;
+  isSubmitting = true; // Tandai proses kirim agar event beforeunload tidak memunculkan dialog konfirmasi keluar
+
   const studentUid = currentStudent.uid;
   let totalBenar = 0;
   const key = "exercise_" + exerciseId + "_" + studentUid;
@@ -539,6 +548,7 @@ window.submitToFirebase = async function() {
     window.close();
   } catch (error) {
     console.error("Gagal mengirim:", error);
+    isSubmitting = false; // Reset flag jika gagal agar siswa bisa coba lagi
     alert("Gagal mengirim jawaban ke database: " + error.message);
   }
 };
