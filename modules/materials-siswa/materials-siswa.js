@@ -11,7 +11,6 @@ import {
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { loadLayout } from "../../assets/js/components.js";
 
-// ==========================
 let materialsSiswa = [];
 let exercisesSiswa = [];
 let filteredMaterials = [];
@@ -19,9 +18,6 @@ let filteredExercises = [];
 let schoolData = null;
 let studentClassId = null;
 
-// ==========================
-// AUTH & INITIAL LOAD
-// ==========================
 onAuthStateChanged(auth, async (user) => {
   if (!user) return window.location = "../../login.html";
 
@@ -50,9 +46,6 @@ onAuthStateChanged(auth, async (user) => {
   renderMaterials(materialsSiswa, exercisesSiswa);
 });
 
-// ==========================
-// HEADER PROFIL
-// ==========================
 async function loadProfileHeader(user, userData){
   const schoolSnap = await getDoc(doc(db, "schools", userData.schoolId));
   const school = schoolSnap.exists() ? schoolSnap.data() : {};
@@ -96,9 +89,6 @@ async function findStudentClass(studentUid) {
   }
 }
 
-// ==========================
-// LOAD DATA MATERIALS & EXERCISES
-// ==========================
 async function loadMaterials(schoolId, classId) {
   const q = query(
     collection(db, "materialGuru"),
@@ -169,9 +159,6 @@ async function loadExercises(schoolId, classId) {
   filteredExercises = exercisesSiswa;
 }
 
-// ==========================
-// RENDER UI (MAPEL -> BAB -> SUB-BAB -> ITEM) [URUT ABJAD A-Z]
-// ==========================
 function renderMaterials(matData, exData) {
   const container = document.getElementById("materialSiswaList");
   if (!container) return;
@@ -348,9 +335,6 @@ function renderMaterials(matData, exData) {
   });
 }
 
-// ==========================
-// TOGGLE ACCORDION
-// ==========================
 window.toggleAccordion = (el) => {
   el.classList.toggle("active");
   const content = el.nextElementSibling;
@@ -363,9 +347,6 @@ window.toggleAccordion = (el) => {
   }
 };
 
-// ==========================
-// OPEN MATERIAL VIEWER (DIARAHKAN KE view-material.html)
-// ==========================
 window.openMaterial = (id) => {
   const win = window.open(`view-material.html?id=${id}`, "_blank");
   if (!win) {
@@ -383,9 +364,6 @@ function lockPage(){
   `;
 }
 
-// ==========================
-// OPEN EXERCISE (MENGGUNAKAN HALAMAN TERPISAH exercise.html)
-// ==========================
 window.openExercise = (id) => {
   const win = window.open(`exercise.html?id=${id}`, "_blank");
   if (!win) {
@@ -393,9 +371,6 @@ window.openExercise = (id) => {
   }
 };
 
-// ==========================
-// SEARCH FILTER
-// ==========================
 window.filterMaterialsSiswa = () => {
   const search = document.getElementById("searchMaterialSiswa").value.toLowerCase();
   
