@@ -240,14 +240,20 @@ window.switchStatusTab = (status, btnEl) => {
 };
 
 window.filterReports = () => {
-  const selectedClass = document.getElementById("filterClass").value;
-  const selectedEx = document.getElementById("filterExercise").value;
-  const keyword = document.getElementById("searchStudent").value.toLowerCase();
+  const classEl = document.getElementById("filterClass");
+  const exEl = document.getElementById("filterExercise");
+  const searchEl = document.getElementById("searchStudent");
+
+  if (!classEl || !exEl || !searchEl) return;
+
+  const selectedClass = classEl.value;
+  const selectedEx = exEl.value;
+  const keyword = searchEl.value.toLowerCase().trim();
 
   const filtered = globalMasterData.filter(item => {
     const matchClass = selectedClass ? item.classId === selectedClass : true;
     const matchEx = selectedEx ? item.exerciseId === selectedEx : true;
-    const matchName = item.studentName.toLowerCase().includes(keyword);
+    const matchName = (item.studentName || "").toLowerCase().includes(keyword);
     
     let matchStatus = true;
     if (currentStatusFilter === 'sudah') matchStatus = item.isSubmitted;
