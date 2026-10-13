@@ -214,7 +214,7 @@ window.filterSimulationsList = () => {
 };
 
 // ==========================
-// PREVIEW SIMULATION (READ-ONLY)
+// PREVIEW SIMULATION (READ-ONLY) - UPDATE LENGKAP SEMUA TIPE SOAL
 // ==========================
 window.previewSimulation = (simId) => {
   const sim = allSchoolSimulations.find(s => s.id === simId);
@@ -228,14 +228,20 @@ window.previewSimulation = (simId) => {
     container.innerHTML = `<p style="text-align:center; color:gray;">Simulasi ini belum memiliki soal.</p>`;
   } else {
     questions.forEach((q, idx) => {
+      let badgeColor = "background:#e0e7ff; color:#3730a3;";
+      if (q.type === "matrix") badgeColor = "background:#fef3c7; color:#92400e;";
+      if (q.type === "checkbox") badgeColor = "background:#dcfce7; color:#166534;";
+
       let html = `
-        <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e2e8f0;">
-          <div style="font-weight:bold; margin-bottom:8px; font-size:14px; color:#1e293b;">
-            Soal ${idx + 1} <span style="font-size:10px; background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; margin-left:6px;">${(q.type || "pg").toUpperCase()}</span>
+        <div style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
+          <div style="font-weight:bold; margin-bottom:8px; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:8px;">
+            <span>Soal ${idx + 1}</span>
+            <span style="font-size:10px; ${badgeColor} padding:2px 6px; border-radius:4px;">${(q.type || "pg").toUpperCase()}</span>
           </div>
-          <div style="margin-bottom:10px;">${q.question || ""}</div>
+          <div style="margin-bottom:12px; font-size:14px; color:#334155;">${q.question || ""}</div>
       `;
 
+      // 1. Render Tipe PG
       if (q.type === "pg" && q.options) {
         html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
         q.options.forEach((opt, optIdx) => {
@@ -243,11 +249,100 @@ window.previewSimulation = (simId) => {
           html += `
             <div style="padding:8px 10px; border:1px solid ${isCorrect ? '#86efac' : '#e5e7eb'}; border-radius:6px; background:${isCorrect ? '#f0fdf4' : '#fff'}; font-size:13px;">
               <b>${String.fromCharCode(65 + optIdx)}.</b> ${opt}
-              ${isCorrect ? '<span style="float:right; font-size:11px; background:#22c55e; color:white; padding:2px 6px; border-radius:4px;">Kunci</span>' : ''}
+              ${isCorrect ? '<span style="float:right; font-size:11px; background:#22c55e; color:white; padding:2px 6px; border-radius:4px;">Kunci Jawaban</span>' : ''}
             </div>
           `;
         });
         html += `</div>`;
+      }
+
+      // 2. Render Tipe Checkbox
+      else if (q.type === "checkbox" && q.options) {
+        html += `<div style="display:flex; flex-direction:column; gap:6px;">`;
+        const correctAnswers = Array.isArray(q.answer) ? q.answer : [];
+        q.options.forEach((opt, optIdx) => {
+          const isCorrect = correctAnswers.includes(optIdx);
+          html += `
+            <div style="padding:8px 10px; border:1px solid ${isCorrect ? '#86efac' : '#e5e7eb'}; border-radius:6px; background:${isCorrect ? '#f0fdf4' : '#fff'}; font-size:13px; display:flex; align-items:center;">
+              <input type="checkbox" ${isCorrect ? 'checked' : ''} disabled style="margin-right:8px;">
+              <div style="flex:1;"><b>${String.fromCharCode(65 + optIdx)}.</b> ${opt}</div>
+              ${isCorrect ? '<span style="font-size:11px; background:#22c55e; color:white; padding:2px 6px; border-radius:4px;">Kunci Jawaban</span>' : ''}
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+
+      // 3. Render Tipe Matrix
+      else if (q.type === "matrix" && q.columns && q.rows) {
+        const statementHeader = q.statementTitle || "Pernyataan / Argumen";
+        html += `
+          <table style="width:100%; border-collapse:collapse; margin-top:8px; font-size:13px;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="padding:8px; border:1px solid #d1d5db; text-align:left;">${statementHeader}</th>
+                ${q.columns.map(col => `<th style="padding:8px; border:1px solid #d1d5db; text-align:center; width:110px;">${col}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        q.rows.forEach((row) => {
+          html += `
+            <tr>
+              <td style="padding:8px; border:1px solid #d1d5db;">${row.statement}</td>
+              ${q.columns.map((col, cIdx) => {
+                const isCorrect = row.answer === cIdx;
+                return `
+                  <td style="padding:8px; border:1px solid #d1d5db; text-align:center; background:${isCorrect ? '#f0fdf4' : 'transparent'};">
+                    <input type="radio" ${isCorrect ? 'checked' : ''} disabled>
+                  </td>
+                `;
+              }).join('')}
+            </tr>
+          `;
+        });
+        html += `</tbody></table>`;
+      }
+
+      // 4. Render Tipe Match (Menjodohkan)
+      else if (q.type === "match" && q.pairs) {
+        html += `
+          <table style="width:100%; border-collapse:collapse; margin-top:8px; font-size:13px;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="padding:8px; border:1px solid #d1d5db; text-align:left; width:50%;">Pernyataan / Item (Kiri)</th>
+                <th style="padding:8px; border:1px solid #d1d5db; text-align:left; width:50%;">Pasangan Jawaban (Kanan)</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        q.pairs.forEach(p => {
+          html += `
+            <tr>
+              <td style="padding:8px; border:1px solid #d1d5db;">${p.left}</td>
+              <td style="padding:8px; border:1px solid #d1d5db; background:#f0fdf4; color:#15803d; font-weight:bold;">➡️ ${p.right}</td>
+            </tr>
+          `;
+        });
+        html += `</tbody></table>`;
+      }
+
+      // 5. Render Tipe Isian
+      else if (q.type === "isian") {
+        html += `
+          <div style="margin-top:8px; font-size:13px; color:#15803d; background:#f0fdf4; padding:8px 12px; border-radius:6px; border:1px solid #86efac;">
+            <b>Kunci Jawaban:</b> ${q.answer || "-"}
+          </div>
+        `;
+      }
+
+      // 6. Render Pembahasan jika ada
+      if (q.explanation) {
+        html += `
+          <div style="margin-top:10px; font-size:12px; background:#eff6ff; color:#1e40af; padding:8px 12px; border-radius:6px; border:1px solid #bfdbfe;">
+            <b>💡 Pembahasan:</b> ${q.explanation}
+          </div>
+        `;
       }
 
       html += `</div>`;
