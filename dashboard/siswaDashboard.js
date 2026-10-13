@@ -135,7 +135,7 @@ async function loadProfileHeader(user) {
 }
 
 // ==========================
-// REAL-TIME PENDING EXERCISES (TUGAS AKTIF)
+// REAL-TIME PENDING EXERCISES (TUGAS AKTIF & SEDANG DIKERJAKAN)
 // ==========================
 async function listenPendingExercises(studentUid) {
   const cardSection = document.getElementById("pendingTasksCard");
@@ -156,9 +156,17 @@ async function listenPendingExercises(studentUid) {
     );
 
     onSnapshot(subQuery, async (subSnap) => {
-      const submittedExerciseIds = new Set();
+      // Hanya masukkan ke set "sudah selesai" jika field submittedAt benar-benar ada (sudah dikirim ke guru)
+      const fullySubmittedExerciseIds = new Set();
+      const inProgressExerciseIds = new Set();
+
       subSnap.forEach(docSnap => {
-        submittedExerciseIds.add(docSnap.data().exerciseId);
+        const data = docSnap.data();
+        if (data.submittedAt) {
+          fullySubmittedExerciseIds.add(data.exerciseId);
+        } else {
+          inProgressExerciseIds.add(data.exerciseId);
+        }
       });
 
       const exGuruQuery = query(
@@ -177,7 +185,8 @@ async function listenPendingExercises(studentUid) {
         const assign = d.data();
         const exerciseId = assign.exerciseId;
 
-        if (submittedExerciseIds.has(exerciseId)) continue;
+        // Jika sudah dikirim secara permanen ke guru, skip dari tugas aktif
+        if (fullySubmittedExerciseIds.has(exerciseId)) continue;
 
         let isExpired = false;
         let deadlineString = "Waktu fleksibel";
@@ -199,16 +208,21 @@ async function listenPendingExercises(studentUid) {
         }
 
         pendingCount++;
-        // Menggunakan word-break & overflow-wrap agar teks judul panjang wrap rapi ke bawah
+        const statusLabel = inProgressExerciseIds.has(exerciseId) 
+          ? `<span style="color: var(--warning); font-weight: 600;">⚠️ Sedang Dikerjakan</span>` 
+          : `<span style="color: var(--primary); font-weight: 600;">📌 Belum Dikerjakan</span>`;
+
         pendingHtml += `
           <div class="task-alert-item">
             <div style="min-width: 0; flex: 1; padding-right: 8px;">
               <div style="font-weight: 700; font-size: 14px; color: var(--text-main); word-break: break-word; overflow-wrap: break-word; margin-bottom: 4px;">📝 ${exerciseTitle}</div>
-              <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
-                <span>⏱ Batas:</span> <span style="font-weight: 500; color: var(--text-main);">${deadlineString}</span>
+              <div style="font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                ${statusLabel}
+                <span>•</span>
+                <span>⏱ Batas: <strong style="color: var(--text-main);">${deadlineString}</strong></span>
               </div>
             </div>
-            <button class="btn-work" onclick="openExerciseFromDashboard('${exerciseId}')">Kerjakan ➔</button>
+            <button class="btn-work" onclick="openExerciseFromDashboard('${exerciseId}')">Lanjutkan ➔</button>
           </div>
         `;
       }
@@ -239,7 +253,7 @@ window.openExerciseFromDashboard = (id) => {
 };
 
 // ==========================
-// REAL-TIME STUDENT REPORTS (NILAI LATIHAN)
+// REAL-TIME STUDENT REPORTS (NILAI LATIHAN YANG SUDAH DI-SUBMIT)
 // ==========================
 function listenStudentReports(studentUid) {
   const container = document.getElementById("reportContainer");
@@ -251,25 +265,32 @@ function listenStudentReports(studentUid) {
   );
 
   onSnapshot(q, async (snap) => {
-    if (snap.empty) {
-      container.innerHTML = `<div class="empty-state">Belum ada latihan atau tugas yang dikerjakan.</div>`;
+    let html = "";
+    let completedCount = 0;
+    let scoresSum = 0;
+
+    snap.forEach(docSnap => {
+      const sub = docSnap.data();
+      // Hanya masukkan ke rekap nilai jika sudah melakukan submit resmi (ada submittedAt)
+      if (sub.submittedAt) {
+        completedCount++;
+        scoresSum += (sub.score || 0);
+      }
+    });
+
+    if (completedCount === 0) {
+      container.innerHTML = `<div class="empty-state">Belum ada latihan atau tugas yang dikirim ke guru.</div>`;
       totalCompletedCount = 0;
       totalScoresSum = 0;
       updateStatsUI();
       return;
     }
 
-    let html = "";
-    let completedCount = 0;
-    let scoresSum = 0;
-
     for (const docSnap of snap.docs) {
       const sub = docSnap.data();
-      completedCount++;
-      
-      const score = sub.score || 0;
-      scoresSum += score;
+      if (!sub.submittedAt) continue; // Skip yang masih draft/sedang dikerjakan
 
+      const score = sub.score || 0;
       let exerciseTitle = "Latihan / Tugas";
       try {
         const exSnap = await getDoc(doc(db, "exercises", sub.exerciseId));
