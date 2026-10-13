@@ -43,7 +43,7 @@ onAuthStateChanged(auth, async (user) => {
 window.addEventListener("beforeunload", (event) => {
   if (!dbSubmission && !isSubmitting) {
     event.preventDefault();
-    event.returnValue = "Jawaban Anda belum dikirim secara resmi ke guru. Yakin ingin keluar?";
+    event.returnValue = "Jawaban Anda sudah tersinkronisasi ke Cloud. Yakin ingin keluar?";
     return event.returnValue;
   }
 });
@@ -62,15 +62,13 @@ async function loadExerciseData(exId, studentUid) {
     }
     const exData = exSnap.data();
     
+    // Ambil data submission/jawaban langsung dari Firestore
     const subSnap = await getDoc(doc(dbSecondary, "student_submissions", studentUid + "_" + exId));
     if (subSnap.exists()) {
       dbSubmission = subSnap.data();
-      if (dbSubmission.answers) {
-        localStorage.setItem("exercise_" + exId + "_" + studentUid, JSON.stringify(dbSubmission.answers));
-      }
     }
 
-    document.getElementById("exerciseTitle").innerText = exData.title + (dbSubmission ? " (Selesai Dikumpulkan)" : "");
+    document.getElementById("exerciseTitle").innerText = exData.title + (dbSubmission?.submittedAt ? " (Selesai Dikumpulkan)" : "");
 
     const qQuery = query(collection(db, "questions"), where("exerciseId", "==", exId));
     const qSnap = await getDocs(qQuery);
@@ -85,11 +83,9 @@ async function loadExerciseData(exId, studentUid) {
     renderQuestions(questionsData, studentUid);
     
     setTimeout(() => {
-      const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
-      const attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
-
       questionsData.forEach((q, index) => {
-        const isLocked = dbSubmission || attempts[index] >= 1;
+        const savedAttempts = dbSubmission?.attempts || {};
+        const isLocked = dbSubmission?.submittedAt || savedAttempts[index] >= 1;
         if (isLocked) {
           lockQuestionFields(index);
           const explainEl = document.getElementById("explain_" + index);
@@ -109,15 +105,15 @@ async function loadExerciseData(exId, studentUid) {
 function renderQuestions(questions, studentUid) {
   const container = document.getElementById("exerciseContainer");
   const navPagination = document.getElementById("navPagination");
-  const savedData = dbSubmission?.answers || JSON.parse(localStorage.getItem(`exercise_${exerciseId}_${studentUid}`) || "{}");
-  const savedAttempts = JSON.parse(localStorage.getItem(`attempts_${exerciseId}_${studentUid}`) || "{}");
+  const savedData = dbSubmission?.answers || {};
+  const savedAttempts = dbSubmission?.attempts || {};
   
   let navHtml = "";
   let html = "";
 
   questions.forEach((qData, index) => {
     const savedAnswer = savedData[index];
-    const isLocked = dbSubmission ? true : (savedAttempts[index] >= 1);
+    const isLocked = dbSubmission?.submittedAt ? true : (savedAttempts[index] >= 1);
 
     navHtml += `<button class="page-btn ${index === 0 ? 'active' : ''}" id="nav_btn_${index}" onclick="switchQuestion(${index})">Soal ${index + 1}</button>`;
 
@@ -247,7 +243,7 @@ window.prevQuestion = function() {
 };
 
 window.markAnswered = function(index) {
-  if (dbSubmission) return;
+  if (dbSubmission?.submittedAt) return;
   const q = questionsData[index];
   let userAnswer = null;
 
@@ -284,13 +280,18 @@ window.markAnswered = function(index) {
 };
 
 async function saveAnswerToCloud(index, value) {
-  if (dbSubmission || !currentStudent) return;
+  if (dbSubmission?.submittedAt || !currentStudent) return;
   const studentUid = currentStudent.uid;
-  const key = "exercise_" + exerciseId + "_" + studentUid;
   
-  const localData = JSON.parse(localStorage.getItem(key) || "{}");
-  localData[index] = value;
-  localStorage.setItem(key, JSON.stringify(localData));
+  // Ambil state existing di dbSubmission atau buat baru
+  const existingAnswers = dbSubmission?.answers || {};
+  existingAnswers[index] = value;
+
+  if (!dbSubmission) {
+    dbSubmission = { answers: existingAnswers };
+  } else {
+    dbSubmission.answers = existingAnswers;
+  }
 
   try {
     const docRef = doc(dbSecondary, "student_submissions", studentUid + "_" + exerciseId);
@@ -299,7 +300,7 @@ async function saveAnswerToCloud(index, value) {
       exerciseId: String(exerciseId),
       classId: String(studentClassId),
       schoolId: String(currentSchoolId),
-      answers: localData,
+      answers: existingAnswers,
       updatedAt: new Date()
     }, { merge: true });
   } catch (err) {
@@ -308,9 +309,7 @@ async function saveAnswerToCloud(index, value) {
 }
 
 function updatePaginationState() {
-  const studentUid = currentStudent.uid;
-  const key = "exercise_" + exerciseId + "_" + studentUid;
-  const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
+  const savedAnswers = dbSubmission?.answers || {};
 
   questionsData.forEach((q, index) => {
     const btn = document.getElementById("nav_btn_" + index);
@@ -344,10 +343,8 @@ function isAnswerValid(q, ans) {
 }
 
 function checkAllQuestionsAnswered() {
-  if (dbSubmission) return;
-  const studentUid = currentStudent.uid;
-  const key = "exercise_" + exerciseId + "_" + studentUid;
-  const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
+  if (dbSubmission?.submittedAt) return;
+  const savedAnswers = dbSubmission?.answers || {};
 
   let allAnswered = true;
   questionsData.forEach((q, index) => {
@@ -375,15 +372,16 @@ function checkAllQuestionsAnswered() {
   }
 }
 
-window.checkAnswer = function(index) {
-  if (dbSubmission) return alert("Latihan sudah dikumpulkan!");
+window.checkAnswer = async function(index) {
+  if (dbSubmission?.submittedAt) return alert("Latihan sudah dikumpulkan!");
   const studentUid = currentStudent.uid;
   const q = questionsData[index];
   
-  const attemptKey = "attempts_" + exerciseId + "_" + studentUid;
-  let attempts = JSON.parse(localStorage.getItem(attemptKey) || "{}");
+  let attempts = dbSubmission?.attempts || {};
   attempts[index] = 1;
-  localStorage.setItem(attemptKey, JSON.stringify(attempts));
+  
+  if (!dbSubmission) dbSubmission = {};
+  dbSubmission.attempts = attempts;
 
   document.getElementById("attempts_text_" + index).innerText = "🔒 Soal Terkunci";
 
@@ -394,17 +392,14 @@ window.checkAnswer = function(index) {
     const selected = document.querySelector('input[name="q' + index + '"]:checked');
     if (!selected) return alert("Pilih opsi jawaban terlebih dahulu!");
     userAnswer = selected.value;
-    saveAnswerToCloud(index, userAnswer);
     correct = userAnswer == q.answer;
   } else if (q.type === "checkbox") {
     const checked = [...document.querySelectorAll('input[name="q' + index + '"]:checked')].map(x => x.value);
     userAnswer = checked;
-    saveAnswerToCloud(index, userAnswer);
     correct = JSON.stringify(checked.sort()) === JSON.stringify((q.answer || []).map(String).sort());
   } else if (q.type === "isian") {
     const input = document.getElementById("q" + index);
     userAnswer = input.value.trim();
-    saveAnswerToCloud(index, userAnswer);
     correct = userAnswer.toLowerCase() === String(q.answer).toLowerCase();
   } else if (q.type === "multi_isian") {
     userAnswer = [];
@@ -414,7 +409,6 @@ window.checkAnswer = function(index) {
       userAnswer.push(val);
       if (val.toLowerCase() === String(f.answer).toLowerCase()) totalCorrect++;
     });
-    saveAnswerToCloud(index, userAnswer);
     correct = totalCorrect === q.fields.length;
   } else if (q.type === "match") {
     userAnswer = {};
@@ -424,7 +418,6 @@ window.checkAnswer = function(index) {
       const val = sel.value;
       userAnswer[leftIdx] = val;
     });
-    saveAnswerToCloud(index, userAnswer);
     (q.pairs || []).forEach((p, i) => {
       if (userAnswer[i] === p.right) totalCorrect++;
     });
@@ -438,8 +431,16 @@ window.checkAnswer = function(index) {
       userAnswer[rIdx] = val;
       if (val === row.answerKey) totalCorrect++;
     });
-    saveAnswerToCloud(index, userAnswer);
     correct = totalCorrect === q.matrix.rows.length;
+  }
+
+  // Simpan jawaban dan update attempts ke Firestore secara langsung
+  await saveAnswerToCloud(index, userAnswer);
+  try {
+    const docRef = doc(dbSecondary, "student_submissions", studentUid + "_" + exerciseId);
+    await setDoc(docRef, { attempts: attempts }, { merge: true });
+  } catch (err) {
+    console.error("Gagal memperbarui status attempts:", err);
   }
 
   const result = document.getElementById("result_" + index);
@@ -483,13 +484,12 @@ window.toggleExplain = function(index) {
 };
 
 window.submitToFirebase = async function() {
-  if (dbSubmission) return;
+  if (dbSubmission?.submittedAt) return;
   isSubmitting = true;
 
   const studentUid = currentStudent.uid;
   let totalBenar = 0;
-  const key = "exercise_" + exerciseId + "_" + studentUid;
-  const savedAnswers = JSON.parse(localStorage.getItem(key) || "{}");
+  const savedAnswers = dbSubmission?.answers || {};
 
   questionsData.forEach((q, index) => {
     const uAns = savedAnswers[index];
