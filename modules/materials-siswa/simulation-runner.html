@@ -61,14 +61,45 @@
     .brand-name { font-size: 20px; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; text-align: left; line-height: 1.1; }
     .brand-name span { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
 
-    .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-    .step-icon { width: 40px; height: 40px; background: var(--primary-light); color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-    .step-title h2 { font-size: 18px; font-weight: 800; color: var(--text-main); }
-    .step-title p { font-size: 12px; color: var(--text-muted); font-weight: 500; }
-
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-weight: 700; margin-bottom: 6px; color: #334155; font-size: 11px; text-transform: uppercase; }
-    .form-control { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-color); font-size: 14px; outline: none; font-family: inherit; color: var(--text-main); background: #f8fafc; }
+    /* Style Tabel Soal Matriks */
+    .matrix-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+    }
+    .matrix-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    .matrix-table th, .matrix-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color);
+      border-right: 1px solid var(--border-color);
+    }
+    .matrix-table th:last-child, .matrix-table td:last-child {
+      border-right: none;
+    }
+    .matrix-table th {
+      background: #f1f5f9;
+      font-weight: 700;
+      text-align: center;
+      color: #334155;
+    }
+    .matrix-table tr:last-child td {
+      border-bottom: none;
+    }
+    .matrix-table td:not(:first-child) {
+      text-align: center;
+    }
+    .matrix-table input[type="radio"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
 
     .btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); }
     .btn:hover { background: var(--primary-hover); }
@@ -235,7 +266,6 @@
 
     async function loadStudentAndSimulationData(user) {
       try {
-        // Ambil Profil Siswa
         const userDocRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userDocRef);
         
@@ -254,7 +284,6 @@
           };
         }
 
-        // Ambil Data Simulasi Ujian
         const simSnap = await getDoc(doc(db, "simulations", simulationId));
         if (!simSnap.exists()) {
           alert("Data simulasi ujian tidak ditemukan.");
@@ -283,7 +312,6 @@
         questions = questions.sort(() => Math.random() - 0.5);
       }
 
-      // Paksa Fullscreen
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
       else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
@@ -317,7 +345,7 @@
       const container = document.getElementById("answerOptionsArea");
       container.innerHTML = "";
 
-      // 1. Tipe Pilihan Ganda (pg)
+      // 1. Pilihan Ganda (pg)
       if (q.type === "pg" && q.options) {
         let html = `<div class="options-wrapper">`;
         q.options.forEach((opt, idx) => {
@@ -332,7 +360,7 @@
         html += `</div>`;
         container.innerHTML = html;
       }
-      // 2. Tipe Checkbox Kompleks
+      // 2. Checkbox Kompleks
       else if (q.type === "checkbox" && q.options) {
         let html = `<div class="options-wrapper">`;
         const currentAns = userAnswers[currentIndex] || [];
@@ -348,7 +376,7 @@
         html += `</div>`;
         container.innerHTML = html;
       }
-      // 3. Tipe Isian Singkat
+      // 3. Isian Singkat
       else if (q.type === "isian") {
         const val = userAnswers[currentIndex] !== undefined ? userAnswers[currentIndex] : "";
         container.innerHTML = `
@@ -356,6 +384,40 @@
             oninput="window.saveAnswer(this.value)"
             style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px;">
         `;
+      }
+      // 4. Soal Matriks (BARU DITAMBAHKAN)
+      else if (q.type === "matrix" && q.columns && q.rows) {
+        const currentAns = userAnswers[currentIndex] || {};
+        const statementHeader = q.statementTitle || "Pernyataan / Argumen";
+
+        let tableHtml = `
+          <div class="matrix-table-wrapper">
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th style="text-align: left; width: 45%;">${statementHeader}</th>
+        `;
+        q.columns.forEach(col => {
+          tableHtml += `<th>${decodeHTML(col)}</th>`;
+        });
+        tableHtml += `</tr></thead><tbody>`;
+
+        q.rows.forEach((row, rIdx) => {
+          const statementText = typeof row === 'object' ? (row.statement || "") : row;
+          tableHtml += `<tr><td><b>${rIdx + 1}.</b> ${decodeHTML(statementText)}</td>`;
+          q.columns.forEach((_, cIdx) => {
+            const isChecked = currentAns[rIdx] === cIdx ? "checked" : "";
+            tableHtml += `
+              <td>
+                <input type="radio" name="matrix_row_${rIdx}" value="${cIdx}" ${isChecked} onchange="window.saveAnswerMatrix(${rIdx}, ${cIdx})">
+              </td>
+            `;
+          });
+          tableHtml += `</tr>`;
+        });
+
+        tableHtml += `</tbody></table></div>`;
+        container.innerHTML = tableHtml;
       }
 
       const btnDoubt = document.getElementById("btnDoubt");
@@ -392,6 +454,14 @@
       renderGridNumbers();
     };
 
+    window.saveAnswerMatrix = function(rIdx, cIdx) {
+      if (!userAnswers[currentIndex] || typeof userAnswers[currentIndex] !== "object") {
+        userAnswers[currentIndex] = {};
+      }
+      userAnswers[currentIndex][rIdx] = cIdx;
+      renderGridNumbers();
+    };
+
     function prevQuestion() {
       if (currentIndex > 0) {
         currentIndex--;
@@ -419,8 +489,17 @@
     }
 
     function isQuestionAnswered(idx) {
+      const q = questions[idx];
       const ans = userAnswers[idx];
       if (ans === undefined || ans === null) return false;
+
+      if (q.type === "matrix") {
+        if (typeof ans !== "object") return false;
+        const totalRows = (q.rows || []).length;
+        let answeredRows = Object.keys(ans).length;
+        return answeredRows >= totalRows;
+      }
+
       if (typeof ans === "string") return ans.trim() !== "";
       if (typeof ans === "number") return true; 
       if (Array.isArray(ans)) return ans.length > 0;
@@ -500,6 +579,17 @@
             if (JSON.stringify(expected) === JSON.stringify(userSel)) isCorrect = true;
           } else if (q.type === "isian") {
             if (String(ans).trim().toLowerCase() === String(q.answer).trim().toLowerCase()) isCorrect = true;
+          } else if (q.type === "matrix") {
+            const rows = q.rows || [];
+            let allMatch = true;
+            for (let r = 0; r < rows.length; r++) {
+              const expectedCol = typeof rows[r] === 'object' ? rows[r].answer : null;
+              if (ans[r] !== expectedCol) {
+                allMatch = false;
+                break;
+              }
+            }
+            if (allMatch && rows.length > 0) isCorrect = true;
           }
         }
 
@@ -513,7 +603,6 @@
       const isPassed = finalScore >= passingGrade;
 
       try {
-        // DISIMPAN KE DATABASE KEDUA (dbSecondary)
         const subId = `${currentAuthUser.uid}_${simulationId}`;
         await setDoc(doc(dbSecondary, "student_simulation_submissions", subId), {
           studentUid: currentAuthUser.uid,
