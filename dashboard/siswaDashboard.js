@@ -70,8 +70,9 @@ onAuthStateChanged(auth, async (user) => {
     await loadProfileHeader(user);
     
     listenStudentReports(user.uid);
+    listenSimulationReports(user.uid);
     listenPendingExercises(user.uid);
-    listenActiveSimulations(user.uid); // Mendengarkan daftar simulasi aktif untuk siswa
+    listenActiveSimulations(user.uid);
   } catch (err) {
     console.error(err);
   }
@@ -256,7 +257,6 @@ async function listenActiveSimulations(studentUid) {
     const schoolId = studentData.schoolId;
     if (!classId || !schoolId) return;
 
-    // Cek submission simulasi yang sudah dikerjakan siswa
     const subQuery = query(
       collection(dbSecondary, "student_simulation_submissions"),
       where("studentUid", "==", studentUid)
@@ -271,7 +271,6 @@ async function listenActiveSimulations(studentUid) {
         }
       });
 
-      // Ambil data penugasan simulasi dari koleksi simulationGuru
       const simGuruQuery = query(
         collection(db, "simulationGuru"),
         where("classId", "==", classId),
@@ -347,7 +346,7 @@ window.openSimulationFromDashboard = (id) => {
 };
 
 // ==========================
-// REAL-TIME STUDENT REPORTS (NILAI)
+// REAL-TIME STUDENT REPORTS (NILAI LATIHAN)
 // ==========================
 function listenStudentReports(studentUid) {
   const container = document.getElementById("reportContainer");
@@ -417,6 +416,70 @@ function listenStudentReports(studentUid) {
     totalScoresSum = scoresSum;
     updateStatsUI();
     container.innerHTML = html;
+  });
+}
+
+// ==========================
+// REAL-TIME SIMULATION REPORTS (REKAP NILAI SIMULASI)
+// ==========================
+function listenSimulationReports(studentUid) {
+  const container = document.getElementById("simulationReportContainer");
+  if (!container) return;
+
+  const q = query(
+    collection(dbSecondary, "student_simulation_submissions"),
+    where("studentUid", "==", studentUid)
+  );
+
+  onSnapshot(q, async (snap) => {
+    let html = "";
+    if (snap.empty) {
+      container.innerHTML = `<div class="empty-state">Belum ada simulasi ujian yang diselesaikan.</div>`;
+      return;
+    }
+
+    snap.forEach(docSnap => {
+      const sub = docSnap.data();
+      if (!sub.submittedAt) return;
+
+      const score = sub.score || 0;
+      const title = sub.simulationTitle || "Simulasi Ujian";
+      const subject = sub.subject || "-";
+      
+      const isExcellent = score >= 75;
+      const isGood = score >= 60 && score < 75;
+      const scoreColor = isExcellent ? "#059669" : isGood ? "#d97706" : "#dc2626";
+      const scoreBg = isExcellent ? "#ecfdf5" : isGood ? "#fffbeb" : "#fef2f2";
+
+      let dateStr = "-";
+      if (sub.submittedAt?.toDate) {
+        dateStr = sub.submittedAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+
+      html += `
+        <div class="report-item" style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:16px; margin-bottom:12px;">
+          <div>
+            <div style="font-weight: 700; font-size: 14px; color: var(--text-main); margin-bottom: 4px;">🎯 ${title}</div>
+            <div style="font-size: 12px; color: var(--text-muted); display:flex; gap:6px; align-items:center;">
+              <span style="background:#eff6ff; color:#1d4ed8; padding:2px 6px; border-radius:4px; font-weight:600;">${subject}</span>
+              <span>•</span>
+              <span>📅 ${dateStr}</span>
+              <span>•</span>
+              <span>Benar: <strong>${sub.correctAnswers || 0}/${sub.totalQuestions || 0}</strong></span>
+            </div>
+          </div>
+          <div style="background: ${scoreBg}; color: ${scoreColor}; padding: 6px 16px; border-radius: 12px; font-weight: 800; font-size: 15px; border: 1px solid ${scoreColor}33;">
+            ⭐ ${score}
+          </div>
+        </div>
+      `;
+    });
+
+    if (html === "") {
+      container.innerHTML = `<div class="empty-state">Belum ada simulasi ujian yang diselesaikan.</div>`;
+    } else {
+      container.innerHTML = html;
+    }
   });
 }
 
