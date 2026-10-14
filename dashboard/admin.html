@@ -16,6 +16,27 @@
     .profile-info-wrapper { display: flex; justify-content: space-between; align-items: center; flex: 1; }
     .btn-edit { background-color: #3b82f6; color: white; border: none; padding: 10px 20px; font-size: 0.95rem; border-radius: 10px; cursor: pointer; flex-shrink:0; transition:0.2s; }
     .btn-edit:hover { background-color: #2563eb; }
+    
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 13px;
+    }
+    .report-table th, .report-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+    }
+    .report-table th {
+      background-color: #f8fafc;
+      color: #1e293b;
+      font-weight: 600;
+    }
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
   </style>
 </head>
 <body>
@@ -86,19 +107,42 @@
 
       <!-- Statistik -->
       <h3>Statistik</h3>
-      <div class="stats" style="display:flex; gap:20px;">
-        <div class="card" style="flex:1; text-align:center;">
+      <div class="stats" style="display:flex; gap:20px; flex-wrap: wrap;">
+        <div class="card" style="flex:1; text-align:center; min-width: 150px;">
           <h2 id="totalStudents">0</h2>
           <p>Murid Terdaftar</p>
         </div>
-        <div class="card" style="flex:1; text-align:center;">
+        <div class="card" style="flex:1; text-align:center; min-width: 150px;">
           <h2 id="totalTeachers">0</h2>
           <p>Guru Terdaftar</p>
         </div>
-        <div class="card" style="flex:1; text-align:center;">
+        <div class="card" style="flex:1; text-align:center; min-width: 150px;">
           <h2 id="totalClasses">0</h2>
           <p>Kelas</p>
         </div>
+      </div>
+
+      <!-- REKAP NILAI SIMULASI UJIAN (BARU) -->
+      <h3 style="margin-top:24px;">🎯 Rekap Nilai Simulasi Ujian Siswa</h3>
+      <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Daftar hasil nilai simulasi ujian yang telah diselesaikan oleh siswa di sekolah ini.</p>
+      <div class="table-responsive">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama Siswa</th>
+              <th>Judul Simulasi</th>
+              <th>Skor</th>
+              <th>Status</th>
+              <th>Waktu Kumpul</th>
+            </tr>
+          </thead>
+          <tbody id="adminSimReportTableBody">
+            <tr>
+              <td colspan="6" style="text-align: center; color: #94a3b8;">Memuat rekap simulasi...</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Aktivitas Terbaru -->
