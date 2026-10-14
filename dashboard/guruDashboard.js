@@ -15,6 +15,9 @@ let globalClassesMap = {};
 let globalExercisesMap = {};
 let currentStatusFilter = 'all';
 
+let globalSimMasterData = [];
+let globalSimulationsMap = {};
+
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location = "/LMS/login.html";
@@ -57,6 +60,7 @@ onAuthStateChanged(auth, async (user) => {
 
     await loadProfileHeader(userData);
     await loadExerciseReports(user);
+    await loadSimulationReports(user); // BARU: Memuat rekap laporan simulasi ujian
     await loadClassWithStudents(user);
 
   } catch (err) {
@@ -231,6 +235,152 @@ async function loadExerciseReports(user) {
     document.getElementById("reportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Gagal memuat laporan.</td></tr>`;
   }
 }
+
+// ==========================
+// LOAD SIMULATION REPORTS (BARU)
+// ==========================
+async function loadSimulationReports(user) {
+  try {
+    if (!currentSchoolId) return;
+
+    // Ambil penugasan simulasi oleh guru ini dari simulationGuru
+    const qSimGuru = query(
+      collection(db, "simulationGuru"),
+      where("teacherId", "==", user.uid),
+      where("isAssigned", "==", true)
+    );
+    const simGuruSnap = await getDocs(qSimGuru);
+
+    const assignedSimIds = new Set();
+    simGuruSnap.forEach(d => {
+      const data = d.data();
+      if (data.simulationId) assignedSimIds.add(data.simulationId);
+    });
+
+    const filterSimSelect = document.getElementById("filterSimulation");
+    if (filterSimSelect) filterSimSelect.innerHTML = `<option value="">-- Semua Simulasi Ujian --</option>`;
+
+    if (assignedSimIds.size === 0) {
+      document.getElementById("simReportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">📭 Belum ada simulasi ujian yang Anda tugaskan.</td></tr>`;
+      return;
+    }
+
+    globalSimulationsMap = {};
+    for (const simId of assignedSimIds) {
+      const simDoc = await getDoc(doc(db, "simulations", simId));
+      if (simDoc.exists()) {
+        const simTitle = simDoc.data().title || "Simulasi Ujian";
+        globalSimulationsMap[simId] = simTitle;
+        if (filterSimSelect) {
+          filterSimSelect.innerHTML += `<option value="${simId}">${simTitle}</option>`;
+        }
+      }
+    }
+
+    // Ambil data submission simulasi dari dbSecondary (student_simulation_submissions)
+    const subSimSnap = await getDocs(collection(dbSecondary, "student_simulation_submissions"));
+    globalSimMasterData = [];
+
+    subSimSnap.forEach(docSnap => {
+      const sub = docSnap.data();
+      if (assignedSimIds.has(sub.simulationId)) {
+        globalSimMasterData.push({
+          submissionId: docSnap.id,
+          studentUid: sub.studentUid,
+          studentName: sub.studentName || "Siswa",
+          studentSchool: sub.studentSchool || "-",
+          simulationId: sub.simulationId,
+          simulationTitle: sub.simulationTitle || "Simulasi Ujian",
+          score: sub.score || 0,
+          isPassed: sub.isPassed || false,
+          submittedAt: sub.submittedAt || null
+        });
+      }
+    });
+
+    filterSimulationReports();
+
+  } catch (err) {
+    console.error("Gagal memuat laporan simulasi:", err);
+    document.getElementById("simReportTableBody").innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Gagal memuat rekap simulasi.</td></tr>`;
+  }
+}
+
+window.filterSimulationReports = () => {
+  const simEl = document.getElementById("filterSimulation");
+  const searchEl = document.getElementById("searchSimulationStudent");
+  if (!simEl || !searchEl) return;
+
+  const selectedSim = simEl.value;
+  const keyword = searchEl.value.toLowerCase().trim();
+
+  const filtered = globalSimMasterData.filter(item => {
+    const matchSim = selectedSim ? item.simulationId === selectedSim : true;
+    const matchName = (item.studentName || "").toLowerCase().includes(keyword);
+    return matchSim && matchName;
+  });
+
+  renderSimulationReportTable(filtered);
+};
+
+function renderSimulationReportTable(dataList) {
+  const tbody = document.getElementById("simReportTableBody");
+  if (!tbody) return;
+
+  if (dataList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 20px;">📭 Belum ada siswa yang menyelesaikan simulasi ini.</td></tr>`;
+    return;
+  }
+
+  dataList.sort((a, b) => (b.submittedAt?.toMillis?.() || 0) - (a.submittedAt?.toMillis?.() || 0));
+
+  let html = "";
+  dataList.forEach((item, index) => {
+    let scoreColor = item.score >= 75 ? "#059669" : "#dc2626";
+    let statusBadge = item.isPassed 
+      ? `<span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">LULUS</span>` 
+      : `<span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">TIDAK LULUS</span>`;
+
+    let timeText = "-";
+    if (item.submittedAt) {
+      const dateObj = item.submittedAt.toDate ? item.submittedAt.toDate() : new Date(item.submittedAt);
+      timeText = dateObj.toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    html += `
+      <tr>
+        <td>${index + 1}</td>
+        <td><b>👤 ${item.studentName}</b></td>
+        <td>${item.studentSchool}</td>
+        <td><span style="color: #2563eb; font-weight: 500;">🎯 ${item.simulationTitle}</span></td>
+        <td><span style="background: ${scoreColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">${item.score}</span></td>
+        <td>${statusBadge}</td>
+        <td style="font-size: 12px; color: #64748b;">${timeText}</td>
+        <td>
+          <button onclick="deleteSimulationSubmission('${item.submissionId}')" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">🗑️ Hapus</button>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
+
+window.deleteSimulationSubmission = async (subId) => {
+  if (!confirm("Apakah Anda yakin ingin menghapus hasil simulasi ini? Siswa dapat mengulang ujian jika riwayat dihapus.")) {
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(dbSecondary, "student_simulation_submissions", subId));
+    showToast("Hasil simulasi berhasil dihapus");
+    const user = auth.currentUser;
+    if (user) await loadSimulationReports(user);
+  } catch (err) {
+    console.error("Gagal menghapus hasil simulasi:", err);
+    showToast("Gagal menghapus rekap simulasi", "error");
+  }
+};
 
 window.switchStatusTab = (status, btnEl) => {
   currentStatusFilter = status;
