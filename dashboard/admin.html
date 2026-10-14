@@ -2,14 +2,15 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Sekolah Dashboard</title>
   <link rel="stylesheet" href="../assets/css/style.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF & AutoTable untuk fitur Download/Cetak PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  
   <style>
     .profile-card { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
     .avatar-wrapper img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
@@ -37,67 +38,60 @@
       width: 100%;
       overflow-x: auto;
     }
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+    .filter-grid select, .filter-grid input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+      background: #f8fafc;
+    }
   </style>
 </head>
 <body>
 
 <div class="wrapper">
-
   <!-- SIDEBAR -->
   <div id="sidebar-container"></div>
 
   <!-- MAIN CONTENT -->
   <div class="main">
-
     <!-- HEADER -->
     <div id="header-container"></div>
 
     <!-- PROFILE SEKOLAH CARD -->
-<div class="profile-card" id="schoolProfileCard">
-
-  <div class="avatar-wrapper">
-    <img src="../assets/images/default-logo.png"
-         id="schoolLogoCard"
-         alt="Logo Sekolah">
-  </div>
-
-  <div class="profile-info-wrapper">
-
-    <div class="profile-info">
-          <h2 id="schoolNameCard">
-            Nama Sekolah
-          </h2>
-
-          <p id="schoolCodeCard">
-            Kode Sekolah
-          </p>
-        </div>
-
-        <button class="btn-edit"
-                onclick="openSchoolModal()">
-          Edit Sekolah
-        </button>
-
+    <div class="profile-card" id="schoolProfileCard">
+      <div class="avatar-wrapper">
+        <img src="../assets/images/default-logo.png" id="schoolLogoCard" alt="Logo Sekolah">
       </div>
-
+      <div class="profile-info-wrapper">
+        <div class="profile-info">
+          <h2 id="schoolNameCard">Nama Sekolah</h2>
+          <p id="schoolCodeCard">Kode Sekolah</p>
+        </div>
+        <button class="btn-edit" onclick="openSchoolModal()">Edit Sekolah</button>
+      </div>
     </div>
 
     <!-- PROFILE CARD -->
     <div class="profile-card" id="profileCard">
-        <div class="avatar-wrapper">
-            <img src="../assets/images/default-avatar.png" id="headerAvatarCard" alt="Avatar Admin">
-        </div>
-        <div class="profile-info-wrapper">
+      <div class="avatar-wrapper">
+        <img src="../assets/images/default-avatar.png" id="headerAvatarCard" alt="Avatar Admin">
+      </div>
+      <div class="profile-info-wrapper">
         <div class="profile-info">
-    <h2 id="headerNameCard">Nama Admin</h2>
-    <p id="headerEmailCard">admin@sekolah.com</p>
-
-    <!-- Tambahan -->
-    <p id="headerSchoolCard">Nama Sekolah</p>
-
-</div>
-            <button class="btn-edit" onclick="openProfileModal()">Edit Profile</button>
+          <h2 id="headerNameCard">Nama Admin</h2>
+          <p id="headerEmailCard">admin@sekolah.com</p>
+          <p id="headerSchoolCard">Nama Sekolah</p>
         </div>
+        <button class="btn-edit" onclick="openProfileModal()">Edit Profile</button>
+      </div>
     </div>
 
     <!-- DASHBOARD CARD -->
@@ -120,33 +114,70 @@
           <h2 id="totalClasses">0</h2>
           <p>Kelas</p>
         </div>
+        <!-- CARD RATA-RATA KESELURUHAN -->
+        <div class="card" style="flex:1; text-align:center; min-width: 180px; background: #eff6ff; border-color: #bfdbfe;">
+          <h2 id="overallAverageScore" style="color: #1d4ed8;">0</h2>
+          <p style="color: #1e40af; font-weight: 600;">Rata-rata Nilai Simulasi</p>
+          <span id="overallCategoryBadge" style="display:inline-block; margin-top:4px; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:bold; background:#dbeafe; color:#1e40af;">-</span>
+        </div>
       </div>
 
-      <!-- REKAP NILAI SIMULASI UJIAN (BARU) -->
-      <h3 style="margin-top:24px;">🎯 Rekap Nilai Simulasi Ujian Siswa</h3>
-      <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">Daftar hasil nilai simulasi ujian yang telah diselesaikan oleh siswa di sekolah ini.</p>
+      <!-- REKAP NILAI SIMULASI UJIAN -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 28px; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h3 style="margin:0;">🎯 Rekap Nilai Simulasi Ujian Siswa</h3>
+          <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">Daftar hasil nilai simulasi ujian yang telah diselesaikan oleh siswa sekolah ini.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="exportSimSimulationCSV()" style="background: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">📥 Export CSV</button>
+          <button onclick="exportSimSimulationPDF()" style="background: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">📄 Cetak PDF</button>
+        </div>
+      </div>
+
+      <!-- Filter Berdasarkan Bab & Nama Simulasi -->
+      <div class="filter-grid" style="margin-top: 15px;">
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filter Bab / Mata Pelajaran:</label>
+          <select id="filterChapter" onchange="filterAdminSimulationReports()">
+            <option value="">-- Semua Bab / Mapel --</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filter Nama Simulasi:</label>
+          <select id="filterSimulationName" onchange="filterAdminSimulationReports()">
+            <option value="">-- Semua Simulasi --</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Cari Nama Siswa:</label>
+          <input type="text" id="searchAdminStudent" placeholder="Ketik nama siswa..." oninput="filterAdminSimulationReports()">
+        </div>
+      </div>
+
       <div class="table-responsive">
         <table class="report-table">
           <thead>
             <tr>
               <th>No</th>
               <th>Nama Siswa</th>
+              <th>Bab / Mapel</th>
               <th>Judul Simulasi</th>
               <th>Skor</th>
-              <th>Status</th>
+              <th>Kategori (vs Rata-rata)</th>
               <th>Waktu Kumpul</th>
+              <th>Aksi</th>
             </tr>
           </thead>
           <tbody id="adminSimReportTableBody">
             <tr>
-              <td colspan="6" style="text-align: center; color: #94a3b8;">Memuat rekap simulasi...</td>
+              <td colspan="8" style="text-align: center; color: #94a3b8;">Memuat rekap simulasi...</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <!-- Aktivitas Terbaru -->
-      <h3 style="margin-top:24px;">Aktivitas Terbaru</h3>
+      <h3 style="margin-top:28px;">Aktivitas Terbaru</h3>
       <div class="timeline" id="activityTimeline"></div>
 
       <!-- Grafik Murid per Kelas -->
@@ -161,61 +192,34 @@
 <div id="profileModal" class="modal">
   <div class="modal-content">
     <h3>Edit Profile</h3>
-
     <input type="text" id="profileName" placeholder="Nama Lengkap">
-
     <input type="email" id="profileEmail" placeholder="Email">
-
-    <!-- INI WAJIB -->
     <input type="file" id="profileAvatarFile" accept="image/*">
-
     <input type="text" id="profileSchool" placeholder="Nama Sekolah">
-
     <div class="modal-actions">
       <button class="primary" onclick="saveProfile()">Simpan</button>
       <button class="danger" onclick="closeProfileModal()">Batal</button>
     </div>
-
   </div>
 </div>
 
 <!-- EDIT SEKOLAH MODAL -->
 <div id="schoolModal" class="modal">
-
   <div class="modal-content">
-
     <h3>Edit Profil Sekolah</h3>
-
-    <input type="text"
-           id="schoolNameInput"
-           placeholder="Nama Sekolah">
-
-    <input type="file"
-           id="schoolLogoFile"
-           accept="image/*">
-
+    <input type="text" id="schoolNameInput" placeholder="Nama Sekolah">
+    <input type="file" id="schoolLogoFile" accept="image/*">
     <div class="modal-actions">
-
-      <button class="primary"
-              onclick="saveSchoolProfile()">
-        Simpan
-      </button>
-
-      <button class="danger"
-              onclick="closeSchoolModal()">
-        Batal
-      </button>
-
+      <button class="primary" onclick="saveSchoolProfile()">Simpan</button>
+      <button class="danger" onclick="closeSchoolModal()">Batal</button>
     </div>
-
   </div>
+</div>
 
-</div>
 <div id="toast" class="toast">
-  <span id="toastMessage">
-    Berhasil
-  </span>
+  <span id="toastMessage">Berhasil</span>
 </div>
+
 <script type="module" src="./adminDashboard.js"></script>
 </body>
 </html>
