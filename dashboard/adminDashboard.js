@@ -1,520 +1,250 @@
-import { auth, db } from "../firebase/firebase-config.js";
+import { auth, db, dbSecondary } from "../firebase/firebase-config.js";
 import { signOut, onAuthStateChanged, updateEmail, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, getDocs, getDoc, doc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadLayout } from "../assets/js/components.js";
 
-
 let isSchoolActive = true;
 let currentSchoolId = null;
-let currentSchoolRef = null; // TAMBAH
-let currentSchoolName = "";  // TAMBAH
-let currentSchoolLogo =
-  "../assets/images/default-logo.png";
+let currentSchoolRef = null;
+let currentSchoolName = "";
+let currentSchoolLogo = "../assets/images/default-logo.png";
+
 // ==========================
 // AUTH STATE
 // ==========================
 onAuthStateChanged(auth, async (user) => {
-
   if (!user) {
     window.location = "../login.html";
     return;
   }
 
   try {
-
-    // Ambil data user dari Firestore
-    const userSnap =
-      await getDoc(doc(db, "users", user.uid));
-
+    const userSnap = await getDoc(doc(db, "users", user.uid));
     if (!userSnap.exists()) {
       alert("User tidak ditemukan!");
       window.location = "../login.html";
       return;
     }
 
-    const userData =
-      userSnap.data();
-
-    // =========================
-    // CEK ROLE ADMIN
-    // =========================
-
+    const userData = userSnap.data();
     if (userData.role !== "admin") {
-
       alert("Akses ditolak! Hanya Admin.");
-
-      window.location =
-        "../login.html";
-
+      window.location = "../login.html";
       return;
     }
 
-    // =========================
-    // LOAD LAYOUT SESUAI ROLE
-    // =========================
-
-    window.role =
-      userData.role;
-
+    window.role = userData.role;
     await loadLayout(window.role);
+    await waitForHeader();
+    await loadProfileHeader(user);
 
-await waitForHeader();
-
-await loadProfileHeader(user);
-
-if (isSchoolActive) {
-  await loadDashboard();
-}
-
+    if (isSchoolActive) {
+      await loadDashboard();
+    }
   } catch (err) {
-
     console.error(err);
-
     alert("Terjadi kesalahan!");
-
-    window.location =
-      "../login.html";
-
+    window.location = "../login.html";
   }
-
 });
+
 // ==========================
 // UPLOAD AVATAR KE CLOUDINARY
 // ==========================
 async function uploadAvatarToCloudinary(file) {
-
   const cloudName = "djlvnubgn";
   const uploadPreset = "lms_unsigned";
-
-  const url =
-    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-
+  const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
   const formData = new FormData();
-
   formData.append("file", file);
   formData.append("upload_preset", uploadPreset);
 
   try {
-
-    const res =
-      await fetch(url, {
-        method: "POST",
-        body: formData
-      });
-
+    const res = await fetch(url, { method: "POST", body: formData });
     const data = await res.json();
-
-    console.log("Cloudinary response:", data);
-
     if (data.secure_url) {
-
       return data.secure_url;
-
     } else {
-
-      alert(
-        "Upload gagal: " +
-        (data.error?.message || "Unknown error")
-      );
-
+      alert("Upload gagal: " + (data.error?.message || "Unknown error"));
       return null;
-
     }
-
   } catch (err) {
-
     console.error(err);
-
     alert("Upload avatar gagal!");
-
     return null;
-
   }
-
 }
+
 // ==========================
 // LOGOUT
 // ==========================
 window.logout = () => {
   signOut(auth).then(() => window.location = "../login.html").catch(err => alert(err.message));
 };
+
 // ==========================
 // WAIT HEADER READY
 // ==========================
 function waitForHeader() {
   return new Promise(resolve => {
-
     const interval = setInterval(() => {
-
-      const avatar =
-        document.getElementById("headerAvatarHeader");
-
+      const avatar = document.getElementById("headerAvatarHeader");
       if (avatar) {
         clearInterval(interval);
         resolve();
       }
-
     }, 50);
-
   });
 }
+
 // ==========================
 // LOAD PROFILE HEADER
 // ==========================
 async function loadProfileHeader(user) {
-
-  // =========================
-  // AMBIL USER
-  // =========================
-
-  const userSnap =
-    await getDoc(doc(db, "users", user.uid));
-
+  const userSnap = await getDoc(doc(db, "users", user.uid));
   if (!userSnap.exists()) return;
 
   const data = userSnap.data();
-
-  const name =
-    data.name || user.displayName || "Admin";
-
-  const avatar =
-    data.avatarURL ||
-    user.photoURL ||
-    "../assets/images/default-avatar.png";
-
-  const email =
-    data.email || user.email;
-
-  currentSchoolId =
-    data.schoolId || null;
-
-  // =========================
-  // AMBIL DATA SEKOLAH
-  // =========================
+  const name = data.name || user.displayName || "Admin";
+  const avatar = data.avatarURL || user.photoURL || "../assets/images/default-avatar.png";
+  const email = data.email || user.email;
+  currentSchoolId = data.schoolId || null;
 
   let schoolName = "-";
-  let schoolLogo =
-    "../assets/images/default-logo.png";
+  let schoolLogo = "../assets/images/default-logo.png";
 
- if (currentSchoolId) {
-  const schoolSnap = await getDoc(doc(db, "schools", currentSchoolId));
+  if (currentSchoolId) {
+    const schoolSnap = await getDoc(doc(db, "schools", currentSchoolId));
+    if (schoolSnap.exists()) {
+      const schoolData = schoolSnap.data();
+      if (schoolData.status !== "aktif") {
+        showToast("Sekolah kamu nonaktif!", "error");
+        lockDashboard();
+        isSchoolActive = false;
+        return;
+      } else {
+        isSchoolActive = true;
+      }
 
-  if (schoolSnap.exists()) {
-    const schoolData = schoolSnap.data();
-
-    // 🚨 CEK STATUS SEKOLAH
-    if (schoolData.status !== "aktif") {
-      showToast("Sekolah kamu nonaktif!", "error");
-
-      // 🔒 LOCK UI
-      lockDashboard();
-      isSchoolActive = false;
-      return; // STOP semua proses
-    } else {
-      isSchoolActive = true;
+      currentSchoolRef = schoolSnap.ref;
+      schoolName = schoolData.name || "-";
+      currentSchoolName = schoolName;
+      schoolLogo = schoolData.logoURL || "../assets/images/default-logo.png";
+      currentSchoolLogo = schoolLogo;
     }
-
-    // ✅ lanjut normal
-    currentSchoolRef = schoolSnap.ref;
-    schoolName = schoolData.name || "-";
-    currentSchoolName = schoolName;
-    schoolLogo = schoolData.logoURL || "../assets/images/default-logo.png";
-    currentSchoolLogo = schoolLogo;
   }
+
+  document.getElementById("headerNameHeader").innerText = name;
+  document.getElementById("headerAvatarHeader").src = avatar;
+  document.getElementById("headerSchoolName").innerText = schoolName;
+  document.getElementById("headerSchoolLogo").src = schoolLogo;
+
+  const schoolNameCard = document.getElementById("schoolNameCard");
+  const schoolCodeCard = document.getElementById("schoolCodeCard");
+  const schoolLogoCard = document.getElementById("schoolLogoCard");
+
+  if (schoolNameCard) schoolNameCard.innerText = schoolName;
+  if (schoolCodeCard) schoolCodeCard.innerText = currentSchoolId || "-";
+  if (schoolLogoCard) schoolLogoCard.src = schoolLogo;
+
+  document.getElementById("headerNameCard").innerText = name;
+  document.getElementById("headerEmailCard").innerText = email;
+  document.getElementById("headerAvatarCard").src = avatar;
+  document.getElementById("headerSchoolCard").innerText = schoolName;
+
+  document.getElementById("profileName").value = name;
+  document.getElementById("profileEmail").value = email;
+  document.getElementById("profileSchool").value = currentSchoolName;
 }
 
-  // =========================
-  // UPDATE HEADER
-  // =========================
-
-  document.getElementById(
-    "headerNameHeader"
-  ).innerText = name;
-
-  document.getElementById(
-    "headerAvatarHeader"
-  ).src = avatar;
-
-  document.getElementById(
-    "headerSchoolName"
-  ).innerText = schoolName;
-
-  document.getElementById(
-    "headerSchoolLogo"
-  ).src = schoolLogo;
-
-  // =========================
-// UPDATE SCHOOL PROFILE CARD
-// =========================
-
-const schoolNameCard =
-  document.getElementById("schoolNameCard");
-
-const schoolCodeCard =
-  document.getElementById("schoolCodeCard");
-
-const schoolLogoCard =
-  document.getElementById("schoolLogoCard");
-
-if (schoolNameCard)
-  schoolNameCard.innerText =
-    schoolName;
-
-if (schoolCodeCard)
-  schoolCodeCard.innerText =
-    currentSchoolId || "-";
-
-if (schoolLogoCard)
-  schoolLogoCard.src =
-    schoolLogo;
-  // =========================
-  // UPDATE PROFILE CARD
-  // =========================
-
-  document.getElementById(
-    "headerNameCard"
-  ).innerText = name;
-
-  document.getElementById(
-    "headerEmailCard"
-  ).innerText = email;
-
-  document.getElementById(
-    "headerAvatarCard"
-  ).src = avatar;
-
-  document.getElementById(
-    "headerSchoolCard"
-  ).innerText = schoolName;
-
-  // =========================
-  // ISI MODAL
-  // =========================
-
-  document.getElementById(
-    "profileName"
-  ).value = name;
-
-  document.getElementById(
-    "profileEmail"
-  ).value = email;
-
-  
-
-  document.getElementById(
-  "profileSchool"
-).value = currentSchoolName;
-}
 // ==========================
 // MODAL CONTROLS
 // ==========================
 window.openProfileModal = () => document.getElementById("profileModal").classList.add("active");
 window.closeProfileModal = () => document.getElementById("profileModal").classList.remove("active");
-// ==========================
-// SCHOOL MODAL CONTROLS
-// ==========================
 
 window.openSchoolModal = () => {
-
-  document
-    .getElementById("schoolModal")
-    .classList.add("active");
-
-  // isi nama sekolah saat buka modal
-
-  document
-    .getElementById("schoolNameInput")
-    .value = currentSchoolName;
-
+  document.getElementById("schoolModal").classList.add("active");
+  document.getElementById("schoolNameInput").value = currentSchoolName;
 };
 
 window.closeSchoolModal = () => {
-
-  document
-    .getElementById("schoolModal")
-    .classList.remove("active");
-
+  document.getElementById("schoolModal").classList.remove("active");
 };
+
 // ==========================
 // SAVE PROFILE
 // ==========================
 window.saveProfile = async () => {
-
   const user = auth.currentUser;
   if (!user) return;
 
-  const name =
-    document.getElementById("profileName").value.trim();
-
-  const email =
-    document.getElementById("profileEmail").value.trim();
-
-  const schoolName =
-    document.getElementById("profileSchool").value.trim();
-
-  const file =
-    document.getElementById("profileAvatarFile").files[0];
+  const name = document.getElementById("profileName").value.trim();
+  const email = document.getElementById("profileEmail").value.trim();
+  const schoolName = document.getElementById("profileSchool").value.trim();
+  const file = document.getElementById("profileAvatarFile").files[0];
 
   if (!name || !email) {
-
     alert("Isi semua data!");
     return;
-
   }
 
   try {
-
-    let avatarURL =
-      user.photoURL ||
-      "../assets/images/default-avatar.png";
-
-    // =====================
-    // UPLOAD FILE JIKA ADA
-    // =====================
-
+    let avatarURL = user.photoURL || "../assets/images/default-avatar.png";
     if (file) {
-
-      const uploadedURL =
-        await uploadAvatarToCloudinary(file);
-
-      if (uploadedURL)
-        avatarURL = uploadedURL;
-
+      const uploadedURL = await uploadAvatarToCloudinary(file);
+      if (uploadedURL) avatarURL = uploadedURL;
     }
 
-    // =====================
-    // UPDATE AUTH
-    // =====================
+    await updateProfile(user, { displayName: name, photoURL: avatarURL });
+    if (email !== user.email) await updateEmail(user, email);
 
-    await updateProfile(user, {
-      displayName: name,
-      photoURL: avatarURL
-    });
-
-    if (email !== user.email)
-      await updateEmail(user, email);
-
-    // =====================
-    // UPDATE FIRESTORE
-    // =====================
-
-    await updateDoc(
-      doc(db, "users", user.uid),
-      {
-        name,
-        email,
-        avatarURL
-      }
-    );
-
-    // =====================
-    // UPDATE SCHOOL NAME
-    // =====================
-
+    await updateDoc(doc(db, "users", user.uid), { name, email, avatarURL });
     if (currentSchoolRef && schoolName) {
-
-      await updateDoc(
-        currentSchoolRef,
-        {
-          name: schoolName
-        }
-      );
-
+      await updateDoc(currentSchoolRef, { name: schoolName });
     }
 
-    showToast(
-  "Profil admin berhasil diperbarui"
-);
+    showToast("Profil admin berhasil diperbarui");
     closeProfileModal();
-
     await loadProfileHeader(user);
-
   } catch (err) {
-
-    showToast(
-  "Gagal update profil",
-  "error"
-);
+    showToast("Gagal update profil", "error");
   }
-
 };
 
 // ==========================
 // SAVE SCHOOL PROFILE
 // ==========================
-
 window.saveSchoolProfile = async () => {
-
   if (!currentSchoolRef) {
-
     alert("Data sekolah tidak ditemukan!");
     return;
-
   }
 
-  const schoolName =
-    document
-      .getElementById("schoolNameInput")
-      .value.trim();
-
-  const file =
-    document
-      .getElementById("schoolLogoFile")
-      .files[0];
+  const schoolName = document.getElementById("schoolNameInput").value.trim();
+  const file = document.getElementById("schoolLogoFile").files[0];
 
   if (!schoolName) {
-
     alert("Nama sekolah wajib diisi!");
     return;
-
   }
 
   try {
-
-    let logoURL =
-      currentSchoolLogo;
-
-    // upload logo jika ada
-
+    let logoURL = currentSchoolLogo;
     if (file) {
-
-      const uploadedURL =
-        await uploadAvatarToCloudinary(file);
-
-      if (uploadedURL)
-        logoURL = uploadedURL;
-
+      const uploadedURL = await uploadAvatarToCloudinary(file);
+      if (uploadedURL) logoURL = uploadedURL;
     }
 
-    // update firestore
-
-    await updateDoc(
-      currentSchoolRef,
-      {
-        name: schoolName,
-        logoURL: logoURL
-      }
-    );
-
-    showToast(
-  "Profil sekolah berhasil diperbarui"
-);
+    await updateDoc(currentSchoolRef, { name: schoolName, logoURL: logoURL });
+    showToast("Profil sekolah berhasil diperbarui");
     closeSchoolModal();
-
-    await loadProfileHeader(
-      auth.currentUser
-    );
-
+    await loadProfileHeader(auth.currentUser);
   } catch (err) {
-
-    showToast(
-  "Gagal update sekolah",
-  "error"
-);
-
+    showToast("Gagal update sekolah", "error");
   }
-
 };
+
 // ==========================
 // DASHBOARD DATA
 // ==========================
@@ -529,12 +259,78 @@ async function loadDashboard() {
   document.getElementById("totalTeachers").innerText = teacherSnap.size;
   document.getElementById("totalClasses").innerText = classSnap.size;
 
+  // Memuat Rekap Simulasi Ujian untuk Sekolah Ini
+  await loadSimulationReports(studentSnap);
+
   renderTimeline([
     { time: new Date(), desc: "Admin masuk dashboard" },
     { time: new Date(), desc: "Data murid diperbarui" }
   ]);
 
   renderClassChart(studentSnap, classSnap);
+}
+
+// ==========================
+// LOAD SIMULATION REPORTS (BARU)
+// ==========================
+async function loadSimulationReports(studentSnap) {
+  const tbody = document.getElementById("adminSimReportTableBody");
+  if (!tbody) return;
+
+  try {
+    // Ambil semua UID siswa di sekolah ini
+    const studentUids = [];
+    studentSnap.forEach(sDoc => {
+      studentUids.push(sDoc.id);
+    });
+
+    if (studentUids.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
+      return;
+    }
+
+    // Ambil data submission dari dbSecondary (student_simulation_submissions)
+    const subSimSnap = await getDocs(collection(dbSecondary, "student_simulation_submissions"));
+    let html = "";
+    let count = 0;
+
+    subSimSnap.forEach(docSnap => {
+      const sub = docSnap.data();
+      // Filter hanya siswa yang berasal dari sekolah ini
+      if (sub.submittedAt && studentUids.includes(sub.studentUid)) {
+        count++;
+        const scoreColor = sub.score >= 75 ? "#059669" : "#dc2626";
+        const statusBadge = sub.isPassed 
+          ? `<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">LULUS</span>` 
+          : `<span style="background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">TIDAK LULUS</span>`;
+
+        let timeText = "-";
+        if (sub.submittedAt?.toDate) {
+          timeText = sub.submittedAt.toDate().toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        html += `
+          <tr>
+            <td>${count}</td>
+            <td><b>👤 ${sub.studentName || "Siswa"}</b></td>
+            <td><span style="color: #2563eb; font-weight: 500;">🎯 ${sub.simulationTitle || "Simulasi Ujian"}</span></td>
+            <td><span style="background: ${scoreColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">${sub.score || 0}</span></td>
+            <td>${statusBadge}</td>
+            <td style="font-size: 12px; color: #64748b;">${timeText}</td>
+          </tr>
+        `;
+      }
+    });
+
+    if (html === "") {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8;">Belum ada siswa yang menyelesaikan simulasi ujian.</td></tr>`;
+    } else {
+      tbody.innerHTML = html;
+    }
+  } catch (err) {
+    console.error("Gagal memuat rekap simulasi admin:", err);
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Gagal memuat rekap simulasi.</td></tr>`;
+  }
 }
 
 // ==========================
@@ -574,127 +370,63 @@ function renderClassChart(studentSnap, classSnap) {
 }
 
 // ==========================
-// PREVIEW AVATAR (FIX)
+// PREVIEW AVATAR
 // ==========================
-
 window.openProfileModal = () => {
-
-  document
-    .getElementById("profileModal")
-    .classList.add("active");
-
-  const avatarInput =
-    document.getElementById("profileAvatarFile");
-
+  document.getElementById("profileModal").classList.add("active");
+  const avatarInput = document.getElementById("profileAvatarFile");
   if (avatarInput) {
-
     avatarInput.onchange = function(e){
-
       const file = e.target.files[0];
-
       if (!file) return;
-
-      // Batasi ukuran 2MB
       if (file.size > 2 * 1024 * 1024) {
-
         alert("Ukuran gambar maksimal 2MB");
         return;
-
       }
-
       const reader = new FileReader();
-
       reader.onload = function(event){
-
-        // Preview profile card
-        document
-          .getElementById("headerAvatarCard")
-          .src = event.target.result;
-
-        // Preview header
-        const headerAvatar =
-          document.getElementById("headerAvatarHeader");
-
-        if (headerAvatar) {
-
-          headerAvatar.src =
-            event.target.result;
-
-        }
-
+        document.getElementById("headerAvatarCard").src = event.target.result;
+        const headerAvatar = document.getElementById("headerAvatarHeader");
+        if (headerAvatar) headerAvatar.src = event.target.result;
       };
-
       reader.readAsDataURL(file);
-
     };
-
   }
-
 };
 
 // ==========================
 // PREVIEW LOGO SEKOLAH
 // ==========================
-
-document
-  .getElementById("schoolLogoFile")
-  ?.addEventListener("change", function(e){
-
-    const file = e.target.files[0];
-
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = function(event){
-
-      document
-        .getElementById("schoolLogoCard")
-        .src =
-          event.target.result;
-
-    };
-
-    reader.readAsDataURL(file);
-
+document.getElementById("schoolLogoFile")?.addEventListener("change", function(e){
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(event){
+    document.getElementById("schoolLogoCard").src = event.target.result;
+  };
+  reader.readAsDataURL(file);
 });
+
 // ==========================
 // TOAST FUNCTION
 // ==========================
-
 window.showToast = function(message, type = "success") {
-
-  const toast =
-    document.getElementById("toast");
-
-  const msg =
-    document.getElementById("toastMessage");
-
+  const toast = document.getElementById("toast");
+  const msg = document.getElementById("toastMessage");
   msg.innerText = message;
-
   toast.classList.remove("error");
-
   if (type === "error") {
-
     toast.classList.add("error");
-
   }
-
   toast.classList.add("active");
-
   setTimeout(() => {
-
     toast.classList.remove("active");
-
   }, 3000);
-
 };
-function lockDashboard() {
-  // disable semua isi main
-  const main = document.querySelector(".main");
-  
-  if (!main) return;
 
+function lockDashboard() {
+  const main = document.querySelector(".main");
+  if (!main) return;
   main.innerHTML = `
     <div style="
       display:flex;
