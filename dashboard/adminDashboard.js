@@ -268,7 +268,7 @@ async function loadDashboard() {
 }
 
 // ==========================
-// HELPER KATEGORI BERDASARKAN RATA-RATA KELAS
+// KATEGORI BERDASARKAN POSISI NILAI TERHADAP RATA-RATA
 // ==========================
 function getStudentCategoryVsAverage(studentScore, overallAvg) {
   const selisih = studentScore - overallAvg;
@@ -387,7 +387,7 @@ function renderAdminSimulationTable(dataList) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data rekap simulasi yang ditemukan.</td></tr>`;
     if (elOverallAvg) elOverallAvg.innerText = "0";
     if (elOverallBadge) {
-      elOverallBadge.innerText = "-";
+      elOverallBadge.innerText = "Skor Rata-rata: 0";
       elOverallBadge.style.background = "#dbeafe";
       elOverallBadge.style.color = "#1e40af";
     }
@@ -402,7 +402,7 @@ function renderAdminSimulationTable(dataList) {
   if (elOverallAvg) elOverallAvg.innerText = overallAvg;
 
   if (elOverallBadge) {
-    elOverallBadge.innerText = `Rata-rata: ${overallAvg}`;
+    elOverallBadge.innerText = `Skor Rata-rata: ${overallAvg}`;
     elOverallBadge.style.background = "#dbeafe";
     elOverallBadge.style.color = "#1e40af";
   }
