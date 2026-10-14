@@ -1,446 +1,225 @@
-import { auth, db, dbSecondary } from "../firebase/firebase-config.js";
-import { signOut, onAuthStateChanged, updateEmail, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, getDocs, getDoc, doc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { loadLayout } from "../assets/js/components.js";
-
-let isSchoolActive = true;
-let currentSchoolId = null;
-let currentSchoolRef = null;
-let currentSchoolName = "";
-let currentSchoolLogo = "../assets/images/default-logo.png";
-
-// ==========================
-// AUTH STATE
-// ==========================
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location = "../login.html";
-    return;
-  }
-
-  try {
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    if (!userSnap.exists()) {
-      alert("User tidak ditemukan!");
-      window.location = "../login.html";
-      return;
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Sekolah Dashboard</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF & AutoTable untuk fitur Download/Cetak PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  
+  <style>
+    .profile-card { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+    .avatar-wrapper img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
+    .profile-info-wrapper { display: flex; justify-content: space-between; align-items: center; flex: 1; }
+    .btn-edit { background-color: #3b82f6; color: white; border: none; padding: 10px 20px; font-size: 0.95rem; border-radius: 10px; cursor: pointer; flex-shrink:0; transition:0.2s; }
+    .btn-edit:hover { background-color: #2563eb; }
+    
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 13px;
     }
-
-    const userData = userSnap.data();
-    if (userData.role !== "admin") {
-      alert("Akses ditolak! Hanya Admin.");
-      window.location = "../login.html";
-      return;
+    .report-table th, .report-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
     }
-
-    window.role = userData.role;
-    await loadLayout(window.role);
-    await waitForHeader();
-    await loadProfileHeader(user);
-
-    if (isSchoolActive) {
-      await loadDashboard();
+    .report-table th {
+      background-color: #f8fafc;
+      color: #1e293b;
+      font-weight: 600;
     }
-  } catch (err) {
-    console.error(err);
-    alert("Terjadi kesalahan!");
-    window.location = "../login.html";
-  }
-});
-
-// ==========================
-// UPLOAD AVATAR KE CLOUDINARY
-// ==========================
-async function uploadAvatarToCloudinary(file) {
-  const cloudName = "djlvnubgn";
-  const uploadPreset = "lms_unsigned";
-  const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
-
-  try {
-    const res = await fetch(url, { method: "POST", body: formData });
-    const data = await res.json();
-    if (data.secure_url) {
-      return data.secure_url;
-    } else {
-      alert("Upload gagal: " + (data.error?.message || "Unknown error"));
-      return null;
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
     }
-  } catch (err) {
-    console.error(err);
-    alert("Upload avatar gagal!");
-    return null;
-  }
-}
-
-// ==========================
-// LOGOUT
-// ==========================
-window.logout = () => {
-  signOut(auth).then(() => window.location = "../login.html").catch(err => alert(err.message));
-};
-
-// ==========================
-// WAIT HEADER READY
-// ==========================
-function waitForHeader() {
-  return new Promise(resolve => {
-    const interval = setInterval(() => {
-      const avatar = document.getElementById("headerAvatarHeader");
-      if (avatar) {
-        clearInterval(interval);
-        resolve();
-      }
-    }, 50);
-  });
-}
-
-// ==========================
-// LOAD PROFILE HEADER
-// ==========================
-async function loadProfileHeader(user) {
-  const userSnap = await getDoc(doc(db, "users", user.uid));
-  if (!userSnap.exists()) return;
-
-  const data = userSnap.data();
-  const name = data.name || user.displayName || "Admin";
-  const avatar = data.avatarURL || user.photoURL || "../assets/images/default-avatar.png";
-  const email = data.email || user.email;
-  currentSchoolId = data.schoolId || null;
-
-  let schoolName = "-";
-  let schoolLogo = "../assets/images/default-logo.png";
-
-  if (currentSchoolId) {
-    const schoolSnap = await getDoc(doc(db, "schools", currentSchoolId));
-    if (schoolSnap.exists()) {
-      const schoolData = schoolSnap.data();
-      if (schoolData.status !== "aktif") {
-        showToast("Sekolah kamu nonaktif!", "error");
-        lockDashboard();
-        isSchoolActive = false;
-        return;
-      } else {
-        isSchoolActive = true;
-      }
-
-      currentSchoolRef = schoolSnap.ref;
-      schoolName = schoolData.name || "-";
-      currentSchoolName = schoolName;
-      schoolLogo = schoolData.logoURL || "../assets/images/default-logo.png";
-      currentSchoolLogo = schoolLogo;
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 15px;
     }
-  }
-
-  document.getElementById("headerNameHeader").innerText = name;
-  document.getElementById("headerAvatarHeader").src = avatar;
-  document.getElementById("headerSchoolName").innerText = schoolName;
-  document.getElementById("headerSchoolLogo").src = schoolLogo;
-
-  const schoolNameCard = document.getElementById("schoolNameCard");
-  const schoolCodeCard = document.getElementById("schoolCodeCard");
-  const schoolLogoCard = document.getElementById("schoolLogoCard");
-
-  if (schoolNameCard) schoolNameCard.innerText = schoolName;
-  if (schoolCodeCard) schoolCodeCard.innerText = currentSchoolId || "-";
-  if (schoolLogoCard) schoolLogoCard.src = schoolLogo;
-
-  document.getElementById("headerNameCard").innerText = name;
-  document.getElementById("headerEmailCard").innerText = email;
-  document.getElementById("headerAvatarCard").src = avatar;
-  document.getElementById("headerSchoolCard").innerText = schoolName;
-
-  document.getElementById("profileName").value = name;
-  document.getElementById("profileEmail").value = email;
-  document.getElementById("profileSchool").value = currentSchoolName;
-}
-
-// ==========================
-// MODAL CONTROLS
-// ==========================
-window.openProfileModal = () => document.getElementById("profileModal").classList.add("active");
-window.closeProfileModal = () => document.getElementById("profileModal").classList.remove("active");
-
-window.openSchoolModal = () => {
-  document.getElementById("schoolModal").classList.add("active");
-  document.getElementById("schoolNameInput").value = currentSchoolName;
-};
-
-window.closeSchoolModal = () => {
-  document.getElementById("schoolModal").classList.remove("active");
-};
-
-// ==========================
-// SAVE PROFILE
-// ==========================
-window.saveProfile = async () => {
-  const user = auth.currentUser;
-  if (!user) return;
-
-  const name = document.getElementById("profileName").value.trim();
-  const email = document.getElementById("profileEmail").value.trim();
-  const schoolName = document.getElementById("profileSchool").value.trim();
-  const file = document.getElementById("profileAvatarFile").files[0];
-
-  if (!name || !email) {
-    alert("Isi semua data!");
-    return;
-  }
-
-  try {
-    let avatarURL = user.photoURL || "../assets/images/default-avatar.png";
-    if (file) {
-      const uploadedURL = await uploadAvatarToCloudinary(file);
-      if (uploadedURL) avatarURL = uploadedURL;
+    .filter-grid select, .filter-grid input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+      background: #f8fafc;
     }
+  </style>
+</head>
+<body>
 
-    await updateProfile(user, { displayName: name, photoURL: avatarURL });
-    if (email !== user.email) await updateEmail(user, email);
+<div class="wrapper">
+  <!-- SIDEBAR -->
+  <div id="sidebar-container"></div>
 
-    await updateDoc(doc(db, "users", user.uid), { name, email, avatarURL });
-    if (currentSchoolRef && schoolName) {
-      await updateDoc(currentSchoolRef, { name: schoolName });
-    }
+  <!-- MAIN CONTENT -->
+  <div class="main">
+    <!-- HEADER -->
+    <div id="header-container"></div>
 
-    showToast("Profil admin berhasil diperbarui");
-    closeProfileModal();
-    await loadProfileHeader(user);
-  } catch (err) {
-    showToast("Gagal update profil", "error");
-  }
-};
-
-// ==========================
-// SAVE SCHOOL PROFILE
-// ==========================
-window.saveSchoolProfile = async () => {
-  if (!currentSchoolRef) {
-    alert("Data sekolah tidak ditemukan!");
-    return;
-  }
-
-  const schoolName = document.getElementById("schoolNameInput").value.trim();
-  const file = document.getElementById("schoolLogoFile").files[0];
-
-  if (!schoolName) {
-    alert("Nama sekolah wajib diisi!");
-    return;
-  }
-
-  try {
-    let logoURL = currentSchoolLogo;
-    if (file) {
-      const uploadedURL = await uploadAvatarToCloudinary(file);
-      if (uploadedURL) logoURL = uploadedURL;
-    }
-
-    await updateDoc(currentSchoolRef, { name: schoolName, logoURL: logoURL });
-    showToast("Profil sekolah berhasil diperbarui");
-    closeSchoolModal();
-    await loadProfileHeader(auth.currentUser);
-  } catch (err) {
-    showToast("Gagal update sekolah", "error");
-  }
-};
-
-// ==========================
-// DASHBOARD DATA
-// ==========================
-async function loadDashboard() {
-  if (!currentSchoolId) return;
-
-  const studentSnap = await getDocs(query(collection(db, "students"), where("schoolId", "==", currentSchoolId)));
-  const teacherSnap = await getDocs(query(collection(db, "teachers"), where("schoolId", "==", currentSchoolId)));
-  const classSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
-
-  document.getElementById("totalStudents").innerText = studentSnap.size;
-  document.getElementById("totalTeachers").innerText = teacherSnap.size;
-  document.getElementById("totalClasses").innerText = classSnap.size;
-
-  // Memuat Rekap Simulasi Ujian untuk Sekolah Ini
-  await loadSimulationReports(studentSnap);
-
-  renderTimeline([
-    { time: new Date(), desc: "Admin masuk dashboard" },
-    { time: new Date(), desc: "Data murid diperbarui" }
-  ]);
-
-  renderClassChart(studentSnap, classSnap);
-}
-
-// ==========================
-// LOAD SIMULATION REPORTS (BARU)
-// ==========================
-async function loadSimulationReports(studentSnap) {
-  const tbody = document.getElementById("adminSimReportTableBody");
-  if (!tbody) return;
-
-  try {
-    // Ambil semua UID siswa di sekolah ini
-    const studentUids = [];
-    studentSnap.forEach(sDoc => {
-      studentUids.push(sDoc.id);
-    });
-
-    if (studentUids.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
-      return;
-    }
-
-    // Ambil data submission dari dbSecondary (student_simulation_submissions)
-    const subSimSnap = await getDocs(collection(dbSecondary, "student_simulation_submissions"));
-    let html = "";
-    let count = 0;
-
-    subSimSnap.forEach(docSnap => {
-      const sub = docSnap.data();
-      // Filter hanya siswa yang berasal dari sekolah ini
-      if (sub.submittedAt && studentUids.includes(sub.studentUid)) {
-        count++;
-        const scoreColor = sub.score >= 75 ? "#059669" : "#dc2626";
-        const statusBadge = sub.isPassed 
-          ? `<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">LULUS</span>` 
-          : `<span style="background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold;">TIDAK LULUS</span>`;
-
-        let timeText = "-";
-        if (sub.submittedAt?.toDate) {
-          timeText = sub.submittedAt.toDate().toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        }
-
-        html += `
-          <tr>
-            <td>${count}</td>
-            <td><b>👤 ${sub.studentName || "Siswa"}</b></td>
-            <td><span style="color: #2563eb; font-weight: 500;">🎯 ${sub.simulationTitle || "Simulasi Ujian"}</span></td>
-            <td><span style="background: ${scoreColor}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">${sub.score || 0}</span></td>
-            <td>${statusBadge}</td>
-            <td style="font-size: 12px; color: #64748b;">${timeText}</td>
-          </tr>
-        `;
-      }
-    });
-
-    if (html === "") {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8;">Belum ada siswa yang menyelesaikan simulasi ujian.</td></tr>`;
-    } else {
-      tbody.innerHTML = html;
-    }
-  } catch (err) {
-    console.error("Gagal memuat rekap simulasi admin:", err);
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Gagal memuat rekap simulasi.</td></tr>`;
-  }
-}
-
-// ==========================
-// TIMELINE
-// ==========================
-function renderTimeline(activity) {
-  const timelineEl = document.getElementById("activityTimeline");
-  if(!timelineEl) return;
-  timelineEl.innerHTML = "";
-  activity.forEach(act => {
-    const div = document.createElement("div");
-    div.className = "timeline-item";
-    div.innerHTML = `${act.desc} <span>${act.time.toLocaleString()}</span>`;
-    timelineEl.appendChild(div);
-  });
-}
-
-// ==========================
-// CHART MURID PER KELAS
-// ==========================
-function renderClassChart(studentSnap, classSnap) {
-  const classCounts = {};
-  classSnap.forEach(cls => { classCounts[cls.data().name] = 0; });
-  studentSnap.forEach(s => {
-    const className = s.data().className || "Lainnya";
-    if(classCounts[className] !== undefined) classCounts[className]++;
-  });
-
-  const ctx = document.getElementById("classChart")?.getContext("2d");
-  if(!ctx) return;
-
-  new Chart(ctx, {
-    type: 'bar',
-    data: { labels: Object.keys(classCounts), datasets: [{ label: 'Jumlah Murid', data: Object.values(classCounts), backgroundColor:'#3b82f6' }] },
-    options: { responsive:true, plugins:{ legend:{ display:false } } }
-  });
-}
-
-// ==========================
-// PREVIEW AVATAR
-// ==========================
-window.openProfileModal = () => {
-  document.getElementById("profileModal").classList.add("active");
-  const avatarInput = document.getElementById("profileAvatarFile");
-  if (avatarInput) {
-    avatarInput.onchange = function(e){
-      const file = e.target.files[0];
-      if (!file) return;
-      if (file.size > 2 * 1024 * 1024) {
-        alert("Ukuran gambar maksimal 2MB");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = function(event){
-        document.getElementById("headerAvatarCard").src = event.target.result;
-        const headerAvatar = document.getElementById("headerAvatarHeader");
-        if (headerAvatar) headerAvatar.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    };
-  }
-};
-
-// ==========================
-// PREVIEW LOGO SEKOLAH
-// ==========================
-document.getElementById("schoolLogoFile")?.addEventListener("change", function(e){
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(event){
-    document.getElementById("schoolLogoCard").src = event.target.result;
-  };
-  reader.readAsDataURL(file);
-});
-
-// ==========================
-// TOAST FUNCTION
-// ==========================
-window.showToast = function(message, type = "success") {
-  const toast = document.getElementById("toast");
-  const msg = document.getElementById("toastMessage");
-  msg.innerText = message;
-  toast.classList.remove("error");
-  if (type === "error") {
-    toast.classList.add("error");
-  }
-  toast.classList.add("active");
-  setTimeout(() => {
-    toast.classList.remove("active");
-  }, 3000);
-};
-
-function lockDashboard() {
-  const main = document.querySelector(".main");
-  if (!main) return;
-  main.innerHTML = `
-    <div style="
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      height:80vh;
-      flex-direction:column;
-      text-align:center;
-    ">
-      <h1 style="color:red;">🚫 Akses Ditolak</h1>
-      <p>Sekolah kamu sedang <b>nonaktif</b></p>
-      <button onclick="logout()" class="btn-edit">
-        Logout
-      </button>
+    <!-- PROFILE SEKOLAH CARD -->
+    <div class="profile-card" id="schoolProfileCard">
+      <div class="avatar-wrapper">
+        <img src="../assets/images/default-logo.png" id="schoolLogoCard" alt="Logo Sekolah">
+      </div>
+      <div class="profile-info-wrapper">
+        <div class="profile-info">
+          <h2 id="schoolNameCard">Nama Sekolah</h2>
+          <p id="schoolCodeCard">Kode Sekolah</p>
+        </div>
+        <button class="btn-edit" onclick="openSchoolModal()">Edit Sekolah</button>
+      </div>
     </div>
-  `;
-}
+
+    <!-- PROFILE CARD -->
+    <div class="profile-card" id="profileCard">
+      <div class="avatar-wrapper">
+        <img src="../assets/images/default-avatar.png" id="headerAvatarCard" alt="Avatar Admin">
+      </div>
+      <div class="profile-info-wrapper">
+        <div class="profile-info">
+          <h2 id="headerNameCard">Nama Admin</h2>
+          <p id="headerEmailCard">admin@sekolah.com</p>
+          <p id="headerSchoolCard">Nama Sekolah</p>
+        </div>
+        <button class="btn-edit" onclick="openProfileModal()">Edit Profile</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD CARD -->
+    <div class="card">
+      <h1>Dashboard Admin Sekolah</h1>
+      <hr>
+
+      <!-- Statistik -->
+      <h3>Statistik</h3>
+      <div class="stats" style="display:flex; gap:20px; flex-wrap: wrap;">
+        <div class="card" style="flex:1; text-align:center; min-width: 150px;">
+          <h2 id="totalStudents">0</h2>
+          <p>Murid Terdaftar</p>
+        </div>
+        <div class="card" style="flex:1; text-align:center; min-width: 150px;">
+          <h2 id="totalTeachers">0</h2>
+          <p>Guru Terdaftar</p>
+        </div>
+        <div class="card" style="flex:1; text-align:center; min-width: 150px;">
+          <h2 id="totalClasses">0</h2>
+          <p>Kelas</p>
+        </div>
+        <!-- CARD RATA-RATA KESELURUHAN -->
+        <div class="card" style="flex:1; text-align:center; min-width: 180px; background: #eff6ff; border-color: #bfdbfe;">
+          <h2 id="overallAverageScore" style="color: #1d4ed8;">0</h2>
+          <p style="color: #1e40af; font-weight: 600;">Rata-rata Nilai Simulasi</p>
+          <span id="overallCategoryBadge" style="display:inline-block; margin-top:4px; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:bold; background:#dbeafe; color:#1e40af;">-</span>
+        </div>
+      </div>
+
+      <!-- REKAP NILAI SIMULASI UJIAN -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 28px; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h3 style="margin:0;">🎯 Rekap Nilai Simulasi Ujian Siswa</h3>
+          <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">Daftar hasil nilai simulasi ujian yang telah diselesaikan oleh siswa sekolah ini.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="exportSimSimulationCSV()" style="background: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">📥 Export CSV</button>
+          <button onclick="exportSimSimulationPDF()" style="background: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">📄 Cetak PDF</button>
+        </div>
+      </div>
+
+      <!-- Filter Berdasarkan Bab & Nama Simulasi -->
+      <div class="filter-grid" style="margin-top: 15px;">
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filter Bab / Mata Pelajaran:</label>
+          <select id="filterChapter" onchange="filterAdminSimulationReports()">
+            <option value="">-- Semua Bab / Mapel --</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filter Nama Simulasi:</label>
+          <select id="filterSimulationName" onchange="filterAdminSimulationReports()">
+            <option value="">-- Semua Simulasi --</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Cari Nama Siswa:</label>
+          <input type="text" id="searchAdminStudent" placeholder="Ketik nama siswa..." oninput="filterAdminSimulationReports()">
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama Siswa</th>
+              <th>Bab / Mapel</th>
+              <th>Judul Simulasi</th>
+              <th>Skor</th>
+              <th>Kategori (vs Rata-rata)</th>
+              <th>Waktu Kumpul</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="adminSimReportTableBody">
+            <tr>
+              <td colspan="8" style="text-align: center; color: #94a3b8;">Memuat rekap simulasi...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Aktivitas Terbaru -->
+      <h3 style="margin-top:28px;">Aktivitas Terbaru</h3>
+      <div class="timeline" id="activityTimeline"></div>
+
+      <!-- Grafik Murid per Kelas -->
+      <h3 style="margin-top:24px;">Distribusi Murid per Kelas</h3>
+      <canvas id="classChart" style="max-width:400px;"></canvas>
+    </div>
+
+  </div>
+</div>
+
+<!-- EDIT PROFILE MODAL -->
+<div id="profileModal" class="modal">
+  <div class="modal-content">
+    <h3>Edit Profile</h3>
+    <input type="text" id="profileName" placeholder="Nama Lengkap">
+    <input type="email" id="profileEmail" placeholder="Email">
+    <input type="file" id="profileAvatarFile" accept="image/*">
+    <input type="text" id="profileSchool" placeholder="Nama Sekolah">
+    <div class="modal-actions">
+      <button class="primary" onclick="saveProfile()">Simpan</button>
+      <button class="danger" onclick="closeProfileModal()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT SEKOLAH MODAL -->
+<div id="schoolModal" class="modal">
+  <div class="modal-content">
+    <h3>Edit Profil Sekolah</h3>
+    <input type="text" id="schoolNameInput" placeholder="Nama Sekolah">
+    <input type="file" id="schoolLogoFile" accept="image/*">
+    <div class="modal-actions">
+      <button class="primary" onclick="saveSchoolProfile()">Simpan</button>
+      <button class="danger" onclick="closeSchoolModal()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">
+  <span id="toastMessage">Berhasil</span>
+</div>
+
+<script type="module" src="./adminDashboard.js"></script>
+</body>
+</html>
