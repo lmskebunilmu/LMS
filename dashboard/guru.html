@@ -312,6 +312,51 @@
         </div>
       </div>
 
+      <!-- LAPORAN & STATUS PENGERJAAN SIMULASI UJIAN (BARU) -->
+      <div class="card">
+        <h3>🎯 Laporan & Status Pengerjaan Simulasi Ujian</h3>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">
+          Pantau hasil nilai rekap dari simulasi ujian yang telah dikerjakan oleh siswa di kelas Anda.
+        </p>
+
+        <!-- Filter Simulasi -->
+        <div class="report-filter-grid">
+          <div>
+            <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filter Simulasi:</label>
+            <select id="filterSimulation" onchange="filterSimulationReports()">
+              <option value="">-- Semua Simulasi Ujian --</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Cari Nama Siswa:</label>
+            <input type="text" id="searchSimulationStudent" placeholder="Ketik nama siswa..." oninput="filterSimulationReports()">
+          </div>
+        </div>
+
+        <!-- Tabel Rekap Simulasi -->
+        <div class="table-responsive" id="simReportContainerWrapper">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Nama Siswa</th>
+                <th>Asal Sekolah</th>
+                <th>Judul Simulasi</th>
+                <th>Skor</th>
+                <th>Status Kelulusan</th>
+                <th>Waktu Kumpul</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="simReportTableBody">
+              <tr>
+                <td colspan="8" style="text-align: center; color: #94a3b8;">Memuat rekap simulasi...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- DAFTAR KELAS & SISWA -->
       <div class="card">
         <h3>📚 Daftar Kelas & Siswa</h3>
