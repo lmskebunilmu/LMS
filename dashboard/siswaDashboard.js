@@ -486,16 +486,32 @@ function listenSimulationReports(studentUid) {
 // ==========================
 // MODAL PROFIL & AUTH ACTIONS
 // ==========================
-window.openProfileModal = () => document.getElementById("profileModal")?.classList.add("active");
-window.closeProfileModal = () => document.getElementById("profileModal")?.classList.remove("active");
+window.openProfileModal = () => {
+  const modal = document.getElementById("profileModal");
+  if (modal) modal.style.display = "flex";
+};
+
+window.closeProfileModal = () => {
+  const modal = document.getElementById("profileModal");
+  if (modal) modal.style.display = "none";
+};
+
+// Menutup modal otomatis jika area luar kotak putih diklik
+window.addEventListener("click", (e) => {
+  const modal = document.getElementById("profileModal");
+  if (e.target === modal) {
+    window.closeProfileModal();
+  }
+});
 
 window.saveProfile = async () => {
   const user = auth.currentUser;
   if (!user) return;
-  const name = document.getElementById("profileName").value.trim();
+  const nameInput = document.getElementById("profileName");
   const fileInput = document.getElementById("profileImageFile");
   const saveBtn = document.getElementById("btnSaveProfile");
 
+  const name = nameInput ? nameInput.value.trim() : "";
   if (!name) return alert("Nama tidak boleh kosong!");
 
   try {
@@ -526,8 +542,8 @@ window.saveProfile = async () => {
     await updateDoc(doc(db, "users", user.uid), userUpdates);
 
     alert("Profil berhasil diupdate!");
-    closeProfileModal();
-    fileInput.value = "";
+    window.closeProfileModal();
+    if (fileInput) fileInput.value = "";
     await loadProfileHeader(user);
   } catch (err) {
     alert("Gagal update profil: " + err.message);
