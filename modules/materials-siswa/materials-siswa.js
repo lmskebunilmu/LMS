@@ -21,7 +21,12 @@ let studentClassId = null;
 onAuthStateChanged(auth, async (user) => {
   if (!user) return window.location = "../../login.html";
 
-  const userSnap = await getDoc(doc(db, "users", user.uid));
+  // OPTIMASI: Ambil data user dan layout secara paralel agar tidak menunggu satu per satu
+  const [userSnap] = await Promise.all([
+    getDoc(doc(db, "users", user.uid)),
+    loadLayout("siswa")
+  ]);
+
   if (!userSnap.exists()) return;
 
   const userData = userSnap.data();
@@ -31,16 +36,19 @@ onAuthStateChanged(auth, async (user) => {
     return window.location = "../../login.html";
   }
 
-  await loadLayout("siswa");
-  await waitForHeader();
-  await loadProfileHeader(user, userData);
-  await loadSchoolData(userData.schoolId);
+  // Jalankan pemuatan komponen header, data sekolah, dan kelas siswa secara paralel
+  await Promise.all([
+    waitForHeader().then(() => loadProfileHeader(user, userData)),
+    loadSchoolData(userData.schoolId),
+    findStudentClass(user.uid)
+  ]);
   
-  await findStudentClass(user.uid);
-  
+  // Jika kelas siswa sudah ada, muat materi dan latihan secara paralel (bersamaan)
   if (studentClassId) {
-    await loadMaterials(userData.schoolId, studentClassId);
-    await loadExercises(userData.schoolId, studentClassId);
+    await Promise.all([
+      loadMaterials(userData.schoolId, studentClassId),
+      loadExercises(userData.schoolId, studentClassId)
+    ]);
   }
   
   renderMaterials(materialsSiswa, exercisesSiswa);
@@ -97,15 +105,15 @@ async function loadMaterials(schoolId, classId) {
   );
 
   const snap = await getDocs(q);
-  const temp = [];
-
-  for (const d of snap.docs) {
+  
+  // OPTIMASI: Gunakan Promise.all untuk mengambil semua detail materi secara paralel (serentak)
+  const promises = snap.docs.map(async (d) => {
     const assign = d.data();
     const matSnap = await getDoc(doc(db, "materials", assign.materialId));
-    if (!matSnap.exists()) continue;
+    if (!matSnap.exists()) return null;
 
     const mat = matSnap.data();
-    temp.push({
+    return {
       materialId: assign.materialId,
       classId: assign.classId,
       subject: mat.subject || "Umum",
@@ -113,8 +121,11 @@ async function loadMaterials(schoolId, classId) {
       subChapter: mat.subChapter || "Umum",
       title: mat.title,
       content: mat.content
-    });
-  }
+    };
+  });
+
+  const results = await Promise.all(promises);
+  const temp = results.filter(item => item !== null);
 
   const map = new Map();
   temp.forEach(i => map.set(i.materialId, i));
@@ -131,15 +142,15 @@ async function loadExercises(schoolId, classId) {
   );
 
   const snap = await getDocs(q);
-  const temp = [];
-
-  for (const d of snap.docs) {
+  
+  // OPTIMASI: Gunakan Promise.all untuk mengambil semua detail latihan secara paralel (serentak)
+  const promises = snap.docs.map(async (d) => {
     const assign = d.data();
     const exSnap = await getDoc(doc(db, "exercises", assign.exerciseId));
-    if (!exSnap.exists()) continue;
+    if (!exSnap.exists()) return null;
 
     const ex = exSnap.data();
-    temp.push({
+    return {
       exerciseId: assign.exerciseId,
       classId: assign.classId,
       subject: ex.subject || "Umum",
@@ -150,8 +161,11 @@ async function loadExercises(schoolId, classId) {
       deadlineDate: assign.deadlineDate || "",
       deadlineTime: assign.deadlineTime || "",
       questions: ex.questions || []
-    });
-  }
+    };
+  });
+
+  const results = await Promise.all(promises);
+  const temp = results.filter(item => item !== null);
 
   const map = new Map();
   temp.forEach(i => map.set(i.exerciseId, i));
