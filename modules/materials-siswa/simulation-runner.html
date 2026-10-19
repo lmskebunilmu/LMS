@@ -68,12 +68,33 @@
     .brand-name { font-size: 20px; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; text-align: left; line-height: 1.1; }
     .brand-name span { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
 
-    .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-    .step-icon { width: 44px; height: 44px; background: var(--primary-light); color: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-    .step-title h2 { font-size: 18px; font-weight: 800; color: var(--text-main); }
+    /* Kotak Judul Utama Simulasi di Halaman Depan */
+    .sim-title-banner {
+      background: var(--primary-light);
+      border: 1.5px dashed var(--primary);
+      padding: 16px;
+      border-radius: 14px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .sim-title-banner h1 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+    .sim-title-banner p {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .step-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .step-icon { width: 44px; height: 44px; background: #f1f5f9; color: var(--text-muted); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .step-title h2 { font-size: 15px; font-weight: 700; color: var(--text-main); }
     .step-title p { font-size: 12px; color: var(--text-muted); font-weight: 500; }
 
-    .form-group { margin-bottom: 16px; }
+    .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-weight: 700; margin-bottom: 6px; color: #334155; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
     .form-control { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border-color); font-size: 14px; outline: none; font-family: inherit; color: var(--text-main); background: #f8fafc; font-weight: 600; }
 
@@ -144,11 +165,17 @@
         </div>
       </div>
       
+      <!-- BANNER NAMA SIMULASI DI BAGIAN ATAS -->
+      <div class="sim-title-banner">
+        <h1 id="setupSimTitle">Memuat Nama Simulasi...</h1>
+        <p id="setupSimMeta">Memuat rincian mapel & durasi...</p>
+      </div>
+
       <div class="step-header">
-        <div class="step-icon"><i class="fa-solid fa-file-shield"></i></div>
+        <div class="step-icon"><i class="fa-solid fa-id-card"></i></div>
         <div class="step-title">
-          <h2 id="setupSimTitle">Memuat Simulasi...</h2>
-          <p id="setupSimMeta">Silakan periksa data diri Anda di bawah ini</p>
+          <h2>Data Peserta Ujian</h2>
+          <p>Pastikan identitas Anda sudah benar sebelum memulai</p>
         </div>
       </div>
 
@@ -163,7 +190,7 @@
       </div>
 
       <button type="button" class="btn" id="btnStartExam" style="margin-top: 10px;" disabled>
-        <i class="fa-solid fa-expand"></i> Mulai Ujian Sekarang (Full Screen)
+        <i class="fa-solid fa-expand"></i> Mulai Simulasi & Masuk Full Screen
       </button>
     </div>
   </div>
@@ -318,7 +345,7 @@
         simulationData = simSnap.data();
         simulationData.id = simulationId;
 
-        // 3. Render ke Halaman Setup Awal
+        // 3. Render ke Halaman Setup Awal (Nama Simulasi diletakkan di Banner Atas)
         document.getElementById("setupStudentName").value = studentProfile.name;
         document.getElementById("setupStudentSchool").value = studentProfile.school;
         document.getElementById("setupSchoolNameTxt").innerText = schoolName;
@@ -374,7 +401,7 @@
       document.getElementById("btnConfirmFinish").onclick = confirmFinish;
 
       renderCurrentQuestion();
-      startTimer();
+      startTimer(); // Hitung mundur langsung dimulai di sini
     }
 
     function renderCurrentQuestion() {
