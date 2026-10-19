@@ -344,6 +344,15 @@
         simulationData = simSnap.data();
         simulationData.id = simulationId;
 
+        // --- CEK APAKAH SISWA SUDAH PERNAH MENGERJAKAN SEBELUMNYA ---
+        const subId = `${user.uid}_${simulationId}`;
+        const subSnap = await getDoc(doc(dbSecondary, "student_simulation_submissions", subId));
+        if (subSnap.exists()) {
+          alert("Anda sudah pernah menyelesaikan simulasi ujian ini! Anda tidak dapat mengerjakannya kembali.");
+          return window.close();
+        }
+        // -------------------------------------------------------------
+
         document.getElementById("setupStudentName").value = studentProfile.name;
         document.getElementById("setupStudentSchool").value = studentProfile.school;
         document.getElementById("setupSchoolNameTxt").innerText = schoolName;
@@ -407,7 +416,6 @@
 
     // --- SISTEM KEAMANAN STRICT ANTI-CURANG ---
     function initSecurityListeners() {
-      // 1. Deteksi Pindah Tab / Minimize Browser / Ganti Aplikasi (Visibility API & Pagehide)
       document.addEventListener("visibilitychange", () => {
         if (document.hidden && !isExamFinished) {
           triggerSecurityViolation("Anda terdeteksi meninggalkan halaman ujian (Pindah Tab / Minimize / Buka Aplikasi Lain)!");
@@ -426,21 +434,18 @@
         }
       });
 
-      // 2. Deteksi Keluar dari Mode Full Screen
       document.addEventListener("fullscreenchange", () => {
         if (!document.fullscreenElement && !isExamFinished) {
           triggerSecurityViolation("Anda keluar dari mode Full Screen!");
         }
       });
 
-      // 3. Blokir Copy, Cut, Paste, Klik Kanan, dan Drag Soal
       document.addEventListener("contextmenu", e => e.preventDefault());
       document.addEventListener("copy", e => { e.preventDefault(); alert("Peringatan: Menyalin soal dilarang keras!"); });
       document.addEventListener("cut", e => e.preventDefault());
       document.addEventListener("paste", e => e.preventDefault());
       document.addEventListener("dragstart", e => e.preventDefault());
 
-      // 4. Deteksi Membuka Inspect Element / Developer Tools (F12, Ctrl+Shift+I, Ctrl+U, dll)
       document.addEventListener("keydown", e => {
         if (
           e.key === "F12" ||
@@ -452,7 +457,6 @@
         }
       });
 
-      // Deteksi tambahan via perubahan ukuran jendela (Console Inspector terbuka melayang/docked)
       let threshold = 160;
       window.addEventListener("resize", () => {
         if (!isExamFinished && (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold)) {
@@ -464,7 +468,7 @@
     function triggerSecurityViolation(reason) {
       if (isExamFinished) return;
       alert(`🚨 PELANGGARAN TERDETEKSI: ${reason}\nUjian Anda langsung dihentikan dan dinilai otomatis!`);
-      calculateAndFinish(true); // Langsung auto-submit dan kunci ujian
+      calculateAndFinish(true);
     }
 
     function renderCurrentQuestion() {
@@ -694,7 +698,7 @@
       }
     }
 
-   async function calculateAndFinish(isAutoSubmit) {
+    async function calculateAndFinish(isAutoSubmit) {
       if (isExamFinished) return; // Mencegah eksekusi ganda
       isExamFinished = true;
 
@@ -734,10 +738,10 @@
 
       if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
 
-      // --- UBAH BAGIAN INI MENJADI 2 DESIMAL ---
+      // --- PERHITUNGAN SKOR AKHIR MENJADI 2 DESIMAL ---
       const rawScore = (totalCorrect / questions.length) * 100;
       const finalScore = Number(rawScore.toFixed(2)) || 0;
-      // ----------------------------------------
+      // ------------------------------------------------
 
       const passingGrade = simulationData.passingGrade || 75;
       const isPassed = finalScore >= passingGrade;
