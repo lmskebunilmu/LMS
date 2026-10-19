@@ -257,7 +257,7 @@ async function loadDashboard() {
   document.getElementById("totalTeachers").innerText = teacherSnap.size;
   document.getElementById("totalClasses").innerText = classSnap.size;
 
-  // Menggunakan Real-time Listener (onSnapshot)
+  // Realtime Listener
   initRealtimeSimulationReports(studentSnap);
 
   renderTimeline([
@@ -298,7 +298,7 @@ function initRealtimeSimulationReports(studentSnap) {
   });
 
   if (studentUids.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
     return;
   }
 
@@ -352,7 +352,7 @@ function initRealtimeSimulationReports(studentSnap) {
 
   }, (err) => {
     console.error("Gagal memuat rekap simulasi secara real-time:", err);
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Gagal memuat rekap simulasi secara real-time.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: red;">Gagal memuat rekap simulasi secara real-time.</td></tr>`;
   });
 }
 
@@ -375,19 +375,17 @@ window.filterAdminSimulationReports = () => {
 };
 
 // ==========================
-// RENDER TABEL & HITUNG KATEGORI BERDASARKAN RATA-RATA
+// RENDER TABEL & TAMPILKAN RATA-RATA DI SETIAP BARIS
 // ==========================
 function renderAdminSimulationTable(dataList) {
   const tbody = document.getElementById("adminSimReportTableBody");
-  const elAvgCell = document.getElementById("tableOverallAverageCell");
   if (!tbody) return;
 
   let totalScoreSum = 0;
   const count = dataList.length;
 
   if (count === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data rekap simulasi yang ditemukan.</td></tr>`;
-    if (elAvgCell) elAvgCell.innerHTML = `<span style="color: #64748b;">0</span>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data rekap simulasi yang ditemukan.</td></tr>`;
     return;
   }
 
@@ -396,10 +394,6 @@ function renderAdminSimulationTable(dataList) {
   });
 
   const overallAvg = Number((totalScoreSum / count).toFixed(1));
-  
-  if (elAvgCell) {
-    elAvgCell.innerHTML = `<span style="background: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 13px; font-weight: bold;">⭐ ${overallAvg}</span>`;
-  }
 
   dataList.sort((a, b) => (b.submittedAt?.toMillis?.() || 0) - (a.submittedAt?.toMillis?.() || 0));
 
@@ -420,6 +414,7 @@ function renderAdminSimulationTable(dataList) {
         <td><span style="color: #2563eb; font-weight: 500;">🎯 ${item.simulationTitle}</span></td>
         <td><span style="background: #f8fafc; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; border: 1px solid #cbd5e1;">⭐ ${item.score}</span></td>
         <td><span style="background: ${cat.bg}; color: ${cat.color}; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">${cat.label}</span></td>
+        <td><span style="background: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid #bfdbfe;">📊 ${overallAvg}</span></td>
         <td style="font-size: 12px; color: #64748b;">${timeText}</td>
         <td>
           <button onclick="deleteAdminSimulationSubmission('${item.submissionId}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">🗑️ Hapus</button>
@@ -447,7 +442,7 @@ window.deleteAdminSimulationSubmission = async (subId) => {
 };
 
 // ==========================
-// EXPORT CSV & PDF
+// EXPORT CSV
 // ==========================
 window.exportSimSimulationCSV = () => {
   if (globalAdminSimData.length === 0) {
@@ -455,13 +450,18 @@ window.exportSimSimulationCSV = () => {
     return;
   }
 
-  let csv = "No,Nama Siswa,Bab/Mapel,Judul Simulasi,Skor,Waktu Kumpul\n";
+  let csv = "No,Nama Siswa,Bab/Mapel,Judul Simulasi,Skor,Rata-rata Keseluruhan,Waktu Kumpul\n";
+  
+  let totalSum = 0;
+  globalAdminSimData.forEach(item => totalSum += (item.score || 0));
+  const avgVal = globalAdminSimData.length > 0 ? (totalSum / globalAdminSimData.length).toFixed(1) : 0;
+
   globalAdminSimData.forEach((item, index) => {
     let timeText = "-";
     if (item.submittedAt?.toDate) {
       timeText = item.submittedAt.toDate().toLocaleString("id-ID");
     }
-    csv += `${index + 1},"${item.studentName}","${item.chapter}","${item.simulationTitle}",${item.score},"${timeText}"\n`;
+    csv += `${index + 1},"${item.studentName}","${item.chapter}","${item.simulationTitle}",${item.score},${avgVal},"${timeText}"\n`;
   });
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -473,37 +473,188 @@ window.exportSimSimulationCSV = () => {
   window.URL.revokeObjectURL(url);
 };
 
-window.exportSimSimulationPDF = () => {
+// ==========================
+// HELPER: KONVERSI GAMBAR (LOGO) KE BASE64
+// ==========================
+function getBase64ImageFromUrl(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const dataURL = canvas.toDataURL("image/png");
+      resolve(dataURL);
+    };
+    img.onerror = (error) => resolve(null);
+    img.src = url;
+  });
+}
+
+// ==========================
+// EXPORT SIMULATION PDF (MODERN DESIGN)
+// ==========================
+window.exportSimSimulationPDF = async () => {
   if (globalAdminSimData.length === 0) {
     alert("Tidak ada data untuk dicetak!");
     return;
   }
 
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  doc.setFontSize(14);
-  doc.text(`Rekap Nilai Simulasi Ujian - ${currentSchoolName}`, 14, 15);
-  doc.setFontSize(10);
-  doc.text(`Tanggal Cetak: ${new Date().toLocaleDateString("id-ID", { year: 'numeric', month: 'long', day: 'numeric' })}`, 14, 22);
-
-  const tableData = globalAdminSimData.map((item, i) => [
-    i + 1,
-    item.studentName,
-    item.chapter,
-    item.simulationTitle,
-    item.score
-  ]);
-
-  doc.autoTable({
-    startY: 30,
-    head: [["No", "Nama Siswa", "Bab / Mapel", "Judul Simulasi", "Skor"]],
-    body: tableData,
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4"
   });
 
-  doc.save(`Rekap_Simulasi_${currentSchoolName.replace(/\s+/g, '_')}.pdf`);
+  const schoolName = currentSchoolName || "Sekolah";
+  const printDate = new Date().toLocaleDateString("id-ID", {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const simFilterVal = document.getElementById("filterSimulationName")?.value;
+  const chapterFilterVal = document.getElementById("filterChapter")?.value;
+  let titleTO = "Semua Simulasi & Try Out";
+  if (simFilterVal) {
+    titleTO = simFilterVal;
+  } else if (chapterFilterVal) {
+    titleTO = `Simulasi Mapel / Bab: ${chapterFilterVal}`;
+  }
+
+  let totalSum = 0;
+  globalAdminSimData.forEach(item => totalSum += (item.score || 0));
+  const avgVal = globalAdminSimData.length > 0 ? (totalSum / globalAdminSimData.length).toFixed(1) : "0";
+
+  let logoBase64 = null;
+  if (currentSchoolLogo && !currentSchoolLogo.includes("default-logo.png")) {
+    logoBase64 = await getBase64ImageFromUrl(currentSchoolLogo);
+  }
+
+  const startY = 15;
+  let textStartX = 14;
+
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, "PNG", 14, 12, 18, 18);
+      textStartX = 36;
+    } catch (e) {
+      console.warn("Gagal menambahkan logo ke PDF:", e);
+      textStartX = 14;
+    }
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(30, 41, 59);
+  doc.text(schoolName.toUpperCase(), textStartX, startY + 3);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(100, 116, 139);
+  doc.text("Laporan Rekapitulasi Hasil Try Out & Simulasi Ujian Siswa", textStartX, startY + 9);
+
+  doc.setDrawColor(59, 130, 246);
+  doc.setLineWidth(0.8);
+  doc.line(14, 34, 196, 34);
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, 38, 182, 20, 2, 2, "FD");
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(51, 65, 85);
+  doc.text("Judul Simulasi / TO :", 18, 44);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(37, 99, 235);
+  doc.text(titleTO, 55, 44);
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(51, 65, 85);
+  doc.text("Tanggal Cetak          :", 18, 51);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text(printDate, 55, 51);
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Total Siswa: ${globalAdminSimData.length}`, 145, 44);
+  doc.text(`Rata-rata TO: ${avgVal}`, 145, 51);
+
+  const tableData = globalAdminSimData.map((item, i) => {
+    const cat = getStudentCategoryVsAverage(item.score || 0, Number(avgVal));
+    let timeText = "-";
+    if (item.submittedAt?.toDate) {
+      timeText = item.submittedAt.toDate().toLocaleDateString("id-ID", {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    }
+
+    return [
+      i + 1,
+      item.studentName,
+      item.chapter,
+      item.simulationTitle,
+      item.score,
+      cat.label,
+      avgVal,
+      timeText
+    ];
+  });
+
+  doc.autoTable({
+    startY: 63,
+    head: [["No", "Nama Siswa", "Bab / Mapel", "Judul TO", "Skor", "Kategori", "Rata2", "Tanggal"]],
+    body: tableData,
+    theme: "striped",
+    headStyles: {
+      fillColor: [30, 58, 138],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+      halign: "left"
+    },
+    bodyStyles: {
+      fontSize: 8.5,
+      textColor: 50,
+      cellPadding: 3
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252]
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: "center" },
+      1: { cellWidth: 38, fontStyle: "bold" },
+      2: { cellWidth: 28 },
+      3: { cellWidth: 35 },
+      4: { cellWidth: 14, halign: "center", fontStyle: "bold" },
+      5: { cellWidth: 24 },
+      6: { cellWidth: 15, halign: "center" },
+      7: { cellWidth: 18, halign: "center" }
+    },
+    didDrawPage: (data) => {
+      const pageCount = doc.internal.getNumberOfPages();
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(148, 163, 184);
+      doc.text(
+        `Halaman ${data.pageNumber} dari ${pageCount} - Laporan Otomatis Dashboard ${schoolName}`,
+        14,
+        doc.internal.pageSize.height - 10
+      );
+    }
+  });
+
+  const safeSchoolName = schoolName.replace(/[^a-zA-Z0-9]/g, "_");
+  doc.save(`Rekap_Hasil_TO_${safeSchoolName}.pdf`);
 };
 
 // ==========================
