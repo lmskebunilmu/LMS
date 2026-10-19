@@ -393,7 +393,7 @@ function renderAdminSimulationTable(dataList) {
     totalScoreSum += (item.score || 0);
   });
 
-  const overallAvg = Number((totalScoreSum / count).toFixed(1));
+  const overallAvg = Number((totalScoreSum / count).toFixed(2));
 
   dataList.sort((a, b) => (b.submittedAt?.toMillis?.() || 0) - (a.submittedAt?.toMillis?.() || 0));
 
