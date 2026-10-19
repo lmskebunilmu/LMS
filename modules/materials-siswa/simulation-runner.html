@@ -285,10 +285,7 @@
     let doubtStatus = {};  
     let timerInterval = null;
     let timeRemaining = 0; 
-
-    // --- VARIABEL KEAMANAN ANTI-MENYONTEK ---
-    let violationCount = 0;
-    const MAX_VIOLATIONS = 2; // Toleransi pelanggaran maksimal sebelum auto-submit
+    let isExamFinished = false; // Penanda agar tidak berulang kali submit
 
     function decodeHTML(html) {
       if (!html) return "";
@@ -384,7 +381,7 @@
         el.webkitRequestFullscreen();
       }
 
-      // Inisialisasi Fitur Pengaman Ujian
+      // Inisialisasi Fitur Pengaman Anti-Curang
       initSecurityListeners();
 
       // Sembunyikan setup dan tampilkan CBT Engine
@@ -408,51 +405,66 @@
       startTimer();
     }
 
-    // --- FUNGSI KEAMANAN & PENCEGAHAN CURANG ---
+    // --- SISTEM KEAMANAN STRICT ANTI-CURANG ---
     function initSecurityListeners() {
-      // 1. Deteksi ganti tab / minimize browser (Visibility API)
+      // 1. Deteksi Pindah Tab / Minimize Browser / Ganti Aplikasi (Visibility API & Pagehide)
       document.addEventListener("visibilitychange", () => {
-        if (document.hidden && !document.getElementById("resultModal").style.display) {
-          handleViolation("Anda terdeteksi meninggalkan halaman ujian (Pindah Tab / Minimize)!");
+        if (document.hidden && !isExamFinished) {
+          triggerSecurityViolation("Anda terdeteksi meninggalkan halaman ujian (Pindah Tab / Minimize / Buka Aplikasi Lain)!");
         }
       });
 
-      // 2. Deteksi jendela kehilangan fokus (Blur)
+      window.addEventListener("pagehide", () => {
+        if (!isExamFinished) {
+          triggerSecurityViolation("Sesi ujian ditutup karena keluar dari halaman.");
+        }
+      });
+
       window.addEventListener("blur", () => {
-        if (!document.getElementById("resultModal").style.display) {
-          handleViolation("Jendela ujian kehilangan fokus!");
+        if (!isExamFinished) {
+          triggerSecurityViolation("Aplikasi ujian kehilangan fokus!");
         }
       });
 
-      // 3. Deteksi keluar dari Full Screen
+      // 2. Deteksi Keluar dari Mode Full Screen
       document.addEventListener("fullscreenchange", () => {
-        if (!document.fullscreenElement && !document.getElementById("resultModal").style.display) {
-          handleViolation("Anda keluar dari mode Full Screen!");
-          // Coba paksa masuk kembali ke fullscreen
-          const el = document.documentElement;
-          if (el.requestFullscreen) {
-            el.requestFullscreen().catch(() => {});
-          }
+        if (!document.fullscreenElement && !isExamFinished) {
+          triggerSecurityViolation("Anda keluar dari mode Full Screen!");
         }
       });
 
-      // 4. Blokir klik kanan, copy, cut, dan paste
+      // 3. Blokir Copy, Cut, Paste, Klik Kanan, dan Drag Soal
       document.addEventListener("contextmenu", e => e.preventDefault());
-      document.addEventListener("copy", e => {
-        e.preventDefault();
-        alert("Menyalin soal tidak diizinkan selama ujian!");
-      });
+      document.addEventListener("copy", e => { e.preventDefault(); alert("Peringatan: Menyalin soal dilarang keras!"); });
       document.addEventListener("cut", e => e.preventDefault());
+      document.addEventListener("paste", e => e.preventDefault());
+      document.addEventListener("dragstart", e => e.preventDefault());
+
+      // 4. Deteksi Membuka Inspect Element / Developer Tools (F12, Ctrl+Shift+I, Ctrl+U, dll)
+      document.addEventListener("keydown", e => {
+        if (
+          e.key === "F12" ||
+          (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
+          (e.ctrlKey && e.key === "U")
+        ) {
+          e.preventDefault();
+          triggerSecurityViolation("Terdeteksi mencoba membuka Inspect Element / Developer Tools!");
+        }
+      });
+
+      // Deteksi tambahan via perubahan ukuran jendela (Console Inspector terbuka melayang/docked)
+      let threshold = 160;
+      window.addEventListener("resize", () => {
+        if (!isExamFinished && (window.outerWidth - window.innerWidth > threshold || window.outerHeight - window.innerHeight > threshold)) {
+          triggerSecurityViolation("Terdeteksi membuka Developer Tools / Inspect Element!");
+        }
+      });
     }
 
-    function handleViolation(reason) {
-      violationCount++;
-      if (violationCount >= MAX_VIOLATIONS) {
-        alert(`⚠️ PELANGGARAN BERULANG (${violationCount}x): ${reason}\nUjian Anda akan diserahkan otomatis.`);
-        calculateAndFinish(true); // Auto-submit
-      } else {
-        alert(`⚠️ PERINGATAN (${violationCount}/${MAX_VIOLATIONS}): ${reason}\nJangan keluar dari aplikasi ujian, atau ujian akan otomatis dikumpulkan!`);
-      }
+    function triggerSecurityViolation(reason) {
+      if (isExamFinished) return;
+      alert(`🚨 PELANGGARAN TERDETEKSI: ${reason}\nUjian Anda langsung dihentikan dan dinilai otomatis!`);
+      calculateAndFinish(true); // Langsung auto-submit dan kunci ujian
     }
 
     function renderCurrentQuestion() {
@@ -556,11 +568,13 @@
     }
 
     window.saveAnswer = function(val) {
+      if (isExamFinished) return;
       userAnswers[currentIndex] = val;
       renderGridNumbers();
     };
 
     window.saveAnswerCheckbox = function() {
+      if (isExamFinished) return;
       const checked = [...document.querySelectorAll('input[name="opt_chk"]:checked')].map(x => parseInt(x.value));
       if (checked.length > 0) {
         userAnswers[currentIndex] = checked;
@@ -571,6 +585,7 @@
     };
 
     window.saveAnswerMatrix = function(rIdx, cIdx) {
+      if (isExamFinished) return;
       if (!userAnswers[currentIndex] || typeof userAnswers[currentIndex] !== "object") {
         userAnswers[currentIndex] = {};
       }
@@ -595,6 +610,7 @@
     }
 
     function toggleDoubt() {
+      if (isExamFinished) return;
       doubtStatus[currentIndex] = !doubtStatus[currentIndex];
       renderCurrentQuestion();
     }
@@ -644,6 +660,7 @@
         }
 
         btn.onclick = () => {
+          if (isExamFinished) return;
           currentIndex = idx;
           renderCurrentQuestion();
           toggleNavDrawer();
@@ -678,6 +695,9 @@
     }
 
     async function calculateAndFinish(isAutoSubmit) {
+      if (isExamFinished) return; // Mencegah eksekusi ganda
+      isExamFinished = true;
+
       clearInterval(timerInterval);
 
       let totalCorrect = 0;
@@ -725,7 +745,7 @@
           studentName: studentProfile.name,
           studentSchool: studentProfile.school,
           simulationId: simulationId,
-            simulationTitle: simulationData.title || "Simulasi Ujian",
+          simulationTitle: simulationData.title || "Simulasi Ujian",
           subject: simulationData.subject || "-",
           score: finalScore,
           correctAnswers: totalCorrect,
@@ -737,6 +757,9 @@
       } catch (err) {
         console.error("Gagal mengirim hasil ke database sekunder:", err);
       }
+
+      // Kunci layar / sembunyikan area ujian agar tidak bisa diubah-ubah lagi
+      document.getElementById("cbtEngineArea").style.display = "none";
 
       document.getElementById("finalScore").innerText = finalScore;
       document.getElementById("resultStudentMeta").innerText = `${studentProfile.name} • ${studentProfile.school}`;
