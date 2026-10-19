@@ -286,6 +286,10 @@
     let timerInterval = null;
     let timeRemaining = 0; 
 
+    // --- VARIABEL KEAMANAN ANTI-MENYONTEK ---
+    let violationCount = 0;
+    const MAX_VIOLATIONS = 2; // Toleransi pelanggaran maksimal sebelum auto-submit
+
     function decodeHTML(html) {
       if (!html) return "";
       const parser = new DOMParser();
@@ -308,7 +312,6 @@
 
     async function loadStudentAndSimulationData(user) {
       try {
-        // 1. Ambil Data Siswa & Sekolahnya
         const userDocRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userDocRef);
         
@@ -336,7 +339,6 @@
           school: schoolName
         };
 
-        // 2. Ambil Data Simulasi Ujian
         const simSnap = await getDoc(doc(db, "simulations", simulationId));
         if (!simSnap.exists()) {
           alert("Data simulasi ujian tidak ditemukan.");
@@ -345,7 +347,6 @@
         simulationData = simSnap.data();
         simulationData.id = simulationId;
 
-        // 3. Render ke Halaman Setup Awal (Nama Simulasi diletakkan di Banner Atas)
         document.getElementById("setupStudentName").value = studentProfile.name;
         document.getElementById("setupStudentSchool").value = studentProfile.school;
         document.getElementById("setupSchoolNameTxt").innerText = schoolName;
@@ -383,6 +384,9 @@
         el.webkitRequestFullscreen();
       }
 
+      // Inisialisasi Fitur Pengaman Ujian
+      initSecurityListeners();
+
       // Sembunyikan setup dan tampilkan CBT Engine
       document.getElementById("setupViewport").style.display = "none";
       document.getElementById("cbtEngineArea").classList.remove("slide-hidden");
@@ -401,7 +405,54 @@
       document.getElementById("btnConfirmFinish").onclick = confirmFinish;
 
       renderCurrentQuestion();
-      startTimer(); // Hitung mundur langsung dimulai di sini
+      startTimer();
+    }
+
+    // --- FUNGSI KEAMANAN & PENCEGAHAN CURANG ---
+    function initSecurityListeners() {
+      // 1. Deteksi ganti tab / minimize browser (Visibility API)
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && !document.getElementById("resultModal").style.display) {
+          handleViolation("Anda terdeteksi meninggalkan halaman ujian (Pindah Tab / Minimize)!");
+        }
+      });
+
+      // 2. Deteksi jendela kehilangan fokus (Blur)
+      window.addEventListener("blur", () => {
+        if (!document.getElementById("resultModal").style.display) {
+          handleViolation("Jendela ujian kehilangan fokus!");
+        }
+      });
+
+      // 3. Deteksi keluar dari Full Screen
+      document.addEventListener("fullscreenchange", () => {
+        if (!document.fullscreenElement && !document.getElementById("resultModal").style.display) {
+          handleViolation("Anda keluar dari mode Full Screen!");
+          // Coba paksa masuk kembali ke fullscreen
+          const el = document.documentElement;
+          if (el.requestFullscreen) {
+            el.requestFullscreen().catch(() => {});
+          }
+        }
+      });
+
+      // 4. Blokir klik kanan, copy, cut, dan paste
+      document.addEventListener("contextmenu", e => e.preventDefault());
+      document.addEventListener("copy", e => {
+        e.preventDefault();
+        alert("Menyalin soal tidak diizinkan selama ujian!");
+      });
+      document.addEventListener("cut", e => e.preventDefault());
+    }
+
+    function handleViolation(reason) {
+      violationCount++;
+      if (violationCount >= MAX_VIOLATIONS) {
+        alert(`⚠️ PELANGGARAN BERULANG (${violationCount}x): ${reason}\nUjian Anda akan diserahkan otomatis.`);
+        calculateAndFinish(true); // Auto-submit
+      } else {
+        alert(`⚠️ PERINGATAN (${violationCount}/${MAX_VIOLATIONS}): ${reason}\nJangan keluar dari aplikasi ujian, atau ujian akan otomatis dikumpulkan!`);
+      }
     }
 
     function renderCurrentQuestion() {
@@ -414,7 +465,6 @@
       const container = document.getElementById("answerOptionsArea");
       container.innerHTML = "";
 
-      // 1. Pilihan Ganda (pg)
       if (q.type === "pg" && q.options) {
         let html = `<div class="options-wrapper">`;
         q.options.forEach((opt, idx) => {
@@ -429,7 +479,6 @@
         html += `</div>`;
         container.innerHTML = html;
       }
-      // 2. Checkbox Kompleks
       else if (q.type === "checkbox" && q.options) {
         let html = `<div class="options-wrapper">`;
         const currentAns = userAnswers[currentIndex] || [];
@@ -445,7 +494,6 @@
         html += `</div>`;
         container.innerHTML = html;
       }
-      // 3. Isian Singkat
       else if (q.type === "isian") {
         const val = userAnswers[currentIndex] !== undefined ? userAnswers[currentIndex] : "";
         container.innerHTML = `
@@ -454,7 +502,6 @@
             style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px;">
         `;
       }
-      // 4. Soal Matriks
       else if (q.type === "matrix" && q.columns && q.rows) {
         const currentAns = userAnswers[currentIndex] || {};
         const statementHeader = q.statementTitle || "Pernyataan / Argumen";
@@ -678,7 +725,7 @@
           studentName: studentProfile.name,
           studentSchool: studentProfile.school,
           simulationId: simulationId,
-          simulationTitle: simulationData.title || "Simulasi Ujian",
+            simulationTitle: simulationData.title || "Simulasi Ujian",
           subject: simulationData.subject || "-",
           score: finalScore,
           correctAnswers: totalCorrect,
