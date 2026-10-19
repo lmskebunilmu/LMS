@@ -409,12 +409,12 @@ function renderAdminSimulationTable(dataList) {
     html += `
       <tr>
         <td>${index + 1}</td>
-        <td><b> ${item.studentName}</b></td>
-        <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 500;"> ${item.chapter}</span></td>
-        <td><span style="color: #2563eb; font-weight: 500;"> ${item.simulationTitle}</span></td>
-        <td><span style="background: #f8fafc; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; border: 1px solid #cbd5e1;"> ${item.score}</span></td>
+        <td><b>👤 ${item.studentName}</b></td>
+        <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 500;">📚 ${item.chapter}</span></td>
+        <td><span style="color: #2563eb; font-weight: 500;">🎯 ${item.simulationTitle}</span></td>
+        <td><span style="background: #f8fafc; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; border: 1px solid #cbd5e1;">⭐ ${item.score}</span></td>
         <td><span style="background: ${cat.bg}; color: ${cat.color}; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">${cat.label}</span></td>
-        <td><span style="background: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid #bfdbfe;"> ${overallAvg}</span></td>
+        <td><span style="background: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid #bfdbfe;">📊 ${overallAvg}</span></td>
         <td style="font-size: 12px; color: #64748b;">${timeText}</td>
         <td>
           <button onclick="deleteAdminSimulationSubmission('${item.submissionId}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">🗑️ Hapus</button>
@@ -518,18 +518,27 @@ window.exportSimSimulationPDF = async () => {
     day: 'numeric'
   });
 
+  // Ambil nilai filter yang sedang aktif agar judul di atas sama persis dengan tabel
   const simFilterVal = document.getElementById("filterSimulationName")?.value;
   const chapterFilterVal = document.getElementById("filterChapter")?.value;
+  
   let titleTO = "Semua Simulasi & Try Out";
   if (simFilterVal) {
     titleTO = simFilterVal;
   } else if (chapterFilterVal) {
-    titleTO = `Simulasi Mapel / Bab: ${chapterFilterVal}`;
+    titleTO = `Bab / Mapel: ${chapterFilterVal}`;
   }
 
+  // Filter data berdasarkan filter aktif saat ini
+  const activeFilteredData = globalAdminSimData.filter(item => {
+    const matchChapter = chapterFilterVal ? item.chapter === chapterFilterVal : true;
+    const matchSimName = simFilterVal ? item.simulationTitle === simFilterVal : true;
+    return matchChapter && matchSimName;
+  });
+
   let totalSum = 0;
-  globalAdminSimData.forEach(item => totalSum += (item.score || 0));
-  const avgVal = globalAdminSimData.length > 0 ? (totalSum / globalAdminSimData.length).toFixed(1) : "0";
+  activeFilteredData.forEach(item => totalSum += (item.score || 0));
+  const avgVal = activeFilteredData.length > 0 ? (totalSum / activeFilteredData.length).toFixed(1) : "0";
 
   let logoBase64 = null;
   if (currentSchoolLogo && !currentSchoolLogo.includes("default-logo.png")) {
@@ -549,6 +558,7 @@ window.exportSimSimulationPDF = async () => {
     }
   }
 
+  // Header Kop Surat
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(30, 41, 59);
@@ -563,6 +573,7 @@ window.exportSimSimulationPDF = async () => {
   doc.setLineWidth(0.8);
   doc.line(14, 34, 196, 34);
 
+  // Kotak Metadata Ringkasan
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(14, 38, 182, 20, 2, 2, "FD");
@@ -584,35 +595,25 @@ window.exportSimSimulationPDF = async () => {
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(51, 65, 85);
-  doc.text(`Total Siswa: ${globalAdminSimData.length}`, 145, 44);
+  doc.text(`Total Siswa: ${activeFilteredData.length}`, 145, 44);
   doc.text(`Rata-rata TO: ${avgVal}`, 145, 51);
 
-  const tableData = globalAdminSimData.map((item, i) => {
+  // Menyusun Data Tabel (Bab, Judul TO, dan Tanggal dibuang sesuai permintaan)
+  const tableData = activeFilteredData.map((item, i) => {
     const cat = getStudentCategoryVsAverage(item.score || 0, Number(avgVal));
-    let timeText = "-";
-    if (item.submittedAt?.toDate) {
-      timeText = item.submittedAt.toDate().toLocaleDateString("id-ID", {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      });
-    }
-
     return [
       i + 1,
       item.studentName,
-      item.chapter,
-      item.simulationTitle,
       item.score,
       cat.label,
-      avgVal,
-      timeText
+      avgVal
     ];
   });
 
+  // Render Tabel PDF
   doc.autoTable({
     startY: 63,
-    head: [["No", "Nama Siswa", "Bab / Mapel", "Judul TO", "Skor", "Kategori", "Rata2", "Tanggal"]],
+    head: [["No", "Nama Siswa", "Skor", "Kategori", "Rata-rata"]],
     body: tableData,
     theme: "striped",
     headStyles: {
@@ -623,22 +624,19 @@ window.exportSimSimulationPDF = async () => {
       halign: "left"
     },
     bodyStyles: {
-      fontSize: 8.5,
+      fontSize: 9,
       textColor: 50,
-      cellPadding: 3
+      cellPadding: 4
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252]
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: "center" },
-      1: { cellWidth: 38, fontStyle: "bold" },
-      2: { cellWidth: 28 },
+      0: { cellWidth: 15, halign: "center" },
+      1: { cellWidth: 85, fontStyle: "bold" },
+      2: { cellWidth: 25, halign: "center", fontStyle: "bold" },
       3: { cellWidth: 35 },
-      4: { cellWidth: 14, halign: "center", fontStyle: "bold" },
-      5: { cellWidth: 24 },
-      6: { cellWidth: 15, halign: "center" },
-      7: { cellWidth: 18, halign: "center" }
+      4: { cellWidth: 22, halign: "center" }
     },
     didDrawPage: (data) => {
       const pageCount = doc.internal.getNumberOfPages();
