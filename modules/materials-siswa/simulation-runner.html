@@ -694,7 +694,7 @@
       }
     }
 
-    async function calculateAndFinish(isAutoSubmit) {
+   async function calculateAndFinish(isAutoSubmit) {
       if (isExamFinished) return; // Mencegah eksekusi ganda
       isExamFinished = true;
 
@@ -734,7 +734,11 @@
 
       if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
 
-      const finalScore = Math.round((totalCorrect / questions.length) * 100) || 0;
+      // --- UBAH BAGIAN INI MENJADI 2 DESIMAL ---
+      const rawScore = (totalCorrect / questions.length) * 100;
+      const finalScore = Number(rawScore.toFixed(2)) || 0;
+      // ----------------------------------------
+
       const passingGrade = simulationData.passingGrade || 75;
       const isPassed = finalScore >= passingGrade;
 
