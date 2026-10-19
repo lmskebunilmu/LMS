@@ -34,6 +34,10 @@
       color: #1e293b;
       font-weight: 600;
     }
+    .report-table tfoot td {
+      border-top: 2px solid #cbd5e1;
+      padding: 12px;
+    }
     .table-responsive {
       width: 100%;
       overflow-x: auto;
@@ -99,7 +103,7 @@
       <h1>Dashboard Admin Sekolah</h1>
       <hr>
 
-      <!-- Statistik -->
+      <!-- Statistik (Kartu Skor Rata-rata Sudah Dibuang) -->
       <h3>Statistik</h3>
       <div class="stats" style="display:flex; gap:20px; flex-wrap: wrap;">
         <div class="card" style="flex:1; text-align:center; min-width: 150px;">
@@ -113,12 +117,6 @@
         <div class="card" style="flex:1; text-align:center; min-width: 150px;">
           <h2 id="totalClasses">0</h2>
           <p>Kelas</p>
-        </div>
-        <!-- CARD SKOR RATA-RATA SISWA -->
-        <div class="card" style="flex:1; text-align:center; min-width: 180px; background: #eff6ff; border-color: #bfdbfe;">
-          <h2 id="overallAverageScore" style="color: #1d4ed8;">0</h2>
-          <p style="color: #1e40af; font-weight: 600;">Skor Rata-rata Siswa</p>
-          <span id="overallCategoryBadge" style="display:inline-block; margin-top:4px; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:bold; background:#dbeafe; color:#1e40af;">-</span>
         </div>
       </div>
 
@@ -173,6 +171,13 @@
               <td colspan="8" style="text-align: center; color: #94a3b8;">Memuat rekap simulasi...</td>
             </tr>
           </tbody>
+          <!-- FOOTER TABEL UNTUK MENAMPILKAN RATA-RATA NILAI -->
+          <tfoot>
+            <tr style="background-color: #f8fafc; font-weight: bold;">
+              <td colspan="4" style="text-align: right; color: #334155;">Skor Rata-rata Keseluruhan:</td>
+              <td colspan="4" id="tableOverallAverageCell" style="color: #1d4ed8;">-</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
 
