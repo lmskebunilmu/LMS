@@ -376,8 +376,7 @@ window.filterAdminSimulationReports = () => {
 // ==========================
 function renderAdminSimulationTable(dataList) {
   const tbody = document.getElementById("adminSimReportTableBody");
-  const elOverallAvg = document.getElementById("overallAverageScore");
-  const elOverallBadge = document.getElementById("overallCategoryBadge");
+  const elAvgCell = document.getElementById("tableOverallAverageCell");
   if (!tbody) return;
 
   let totalScoreSum = 0;
@@ -385,12 +384,7 @@ function renderAdminSimulationTable(dataList) {
 
   if (count === 0) {
     tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data rekap simulasi yang ditemukan.</td></tr>`;
-    if (elOverallAvg) elOverallAvg.innerText = "0";
-    if (elOverallBadge) {
-      elOverallBadge.innerText = "Skor Rata-rata: 0";
-      elOverallBadge.style.background = "#dbeafe";
-      elOverallBadge.style.color = "#1e40af";
-    }
+    if (elAvgCell) elAvgCell.innerHTML = `<span style="color: #64748b;">0</span>`;
     return;
   }
 
@@ -399,12 +393,10 @@ function renderAdminSimulationTable(dataList) {
   });
 
   const overallAvg = Number((totalScoreSum / count).toFixed(1));
-  if (elOverallAvg) elOverallAvg.innerText = overallAvg;
-
-  if (elOverallBadge) {
-    elOverallBadge.innerText = `Skor Rata-rata: ${overallAvg}`;
-    elOverallBadge.style.background = "#dbeafe";
-    elOverallBadge.style.color = "#1e40af";
+  
+  // Tampilkan Nilai Rata-rata di Footer Tabel
+  if (elAvgCell) {
+    elAvgCell.innerHTML = `<span style="background: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 13px; font-weight: bold;">⭐ ${overallAvg}</span>`;
   }
 
   dataList.sort((a, b) => (b.submittedAt?.toMillis?.() || 0) - (a.submittedAt?.toMillis?.() || 0));
