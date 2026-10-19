@@ -1,6 +1,6 @@
 import { auth, db, dbSecondary } from "../firebase/firebase-config.js";
 import { signOut, onAuthStateChanged, updateEmail, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, getDocs, getDoc, doc, updateDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, getDocs, getDoc, doc, updateDoc, deleteDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { loadLayout } from "../assets/js/components.js";
 
 let isSchoolActive = true;
@@ -257,7 +257,8 @@ async function loadDashboard() {
   document.getElementById("totalTeachers").innerText = teacherSnap.size;
   document.getElementById("totalClasses").innerText = classSnap.size;
 
-  await loadSimulationReports(studentSnap);
+  // Menggunakan Real-time Listener (onSnapshot)
+  initRealtimeSimulationReports(studentSnap);
 
   renderTimeline([
     { time: new Date(), desc: "Admin masuk dashboard" },
@@ -285,24 +286,23 @@ function getStudentCategoryVsAverage(studentScore, overallAvg) {
 }
 
 // ==========================
-// LOAD SIMULATION REPORTS
+// REAL-TIME SIMULATION REPORTS (ON SNAPSHOT)
 // ==========================
-async function loadSimulationReports(studentSnap) {
+function initRealtimeSimulationReports(studentSnap) {
   const tbody = document.getElementById("adminSimReportTableBody");
   if (!tbody) return;
 
-  try {
-    const studentUids = [];
-    studentSnap.forEach(sDoc => {
-      studentUids.push(sDoc.id);
-    });
+  const studentUids = [];
+  studentSnap.forEach(sDoc => {
+    studentUids.push(sDoc.id);
+  });
 
-    if (studentUids.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
-      return;
-    }
+  if (studentUids.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
+    return;
+  }
 
-    const subSimSnap = await getDocs(collection(dbSecondary, "student_simulation_submissions"));
+  onSnapshot(collection(dbSecondary, "student_simulation_submissions"), (subSimSnap) => {
     globalAdminSimData = [];
 
     const chapterSet = new Set();
@@ -331,26 +331,29 @@ async function loadSimulationReports(studentSnap) {
     const filterChapter = document.getElementById("filterChapter");
     const filterSimName = document.getElementById("filterSimulationName");
 
+    const currentChapterVal = filterChapter?.value || "";
+    const currentSimVal = filterSimName?.value || "";
+
     if (filterChapter) {
       filterChapter.innerHTML = `<option value="">-- Semua Bab / Mapel --</option>`;
       chapterSet.forEach(ch => {
-        filterChapter.innerHTML += `<option value="${ch}">${ch}</option>`;
+        filterChapter.innerHTML += `<option value="${ch}" ${ch === currentChapterVal ? 'selected' : ''}>${ch}</option>`;
       });
     }
 
     if (filterSimName) {
       filterSimName.innerHTML = `<option value="">-- Semua Simulasi --</option>`;
       simNameSet.forEach(sName => {
-        filterSimName.innerHTML += `<option value="${sName}">${sName}</option>`;
+        filterSimName.innerHTML += `<option value="${sName}" ${sName === currentSimVal ? 'selected' : ''}>${sName}</option>`;
       });
     }
 
     filterAdminSimulationReports();
 
-  } catch (err) {
-    console.error("Gagal memuat rekap simulasi admin:", err);
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Gagal memuat rekap simulasi.</td></tr>`;
-  }
+  }, (err) => {
+    console.error("Gagal memuat rekap simulasi secara real-time:", err);
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">Gagal memuat rekap simulasi secara real-time.</td></tr>`;
+  });
 }
 
 // ==========================
@@ -394,7 +397,6 @@ function renderAdminSimulationTable(dataList) {
 
   const overallAvg = Number((totalScoreSum / count).toFixed(1));
   
-  // Tampilkan Nilai Rata-rata di Footer Tabel
   if (elAvgCell) {
     elAvgCell.innerHTML = `<span style="background: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe; font-size: 13px; font-weight: bold;">⭐ ${overallAvg}</span>`;
   }
@@ -438,9 +440,6 @@ window.deleteAdminSimulationSubmission = async (subId) => {
   try {
     await deleteDoc(doc(dbSecondary, "student_simulation_submissions", subId));
     showToast("Data simulasi berhasil dihapus");
-    
-    const studentSnap = await getDocs(query(collection(db, "students"), where("schoolId", "==", currentSchoolId)));
-    await loadSimulationReports(studentSnap);
   } catch (err) {
     console.error("Gagal menghapus:", err);
     showToast("Gagal menghapus data simulasi", "error");
