@@ -229,7 +229,7 @@
     <div class="header-card">
       <div class="header-title">
         <h1>📊 Rekapitulasi Hasil Ujian CBT</h1>
-        <p>Daftar seluruh nilai siswa yang tersimpan di sistem</p>
+        <p>Daftar seluruh nilai siswa yang tersimpan di sistem (Real-Time)</p>
       </div>
       <div class="header-buttons">
         <button class="btn btn-excel" id="btnExportExcel">
@@ -333,49 +333,57 @@
   <!-- SCRIPT UTAMA FIREBASE FIRESTORE -->
   <script type="module">
     import { auth, db } from "./firebase/firebase-config.js";
-    import { collection, getDocs, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { collection, onSnapshot, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     let allResults = [];
     let currentFilteredResults = [];
+    let unsubscribe = null; // Menyimpan fungsi unsubscribe dari onSnapshot
 
     // CEK AUTH
-    onAuthStateChanged(auth, async user => {
+    onAuthStateChanged(auth, user => {
       if (!user) {
         alert("Silakan login sebagai admin/guru terlebih dahulu.");
         window.location = "../../login.html";
         return;
       }
-      await loadResultsData();
+      listenToResultsRealtime();
     });
 
-    // LOAD DATA FIRESTORE
-    async function loadResultsData() {
-      try {
-        const snap = await getDocs(collection(db, "simulation_results"));
-        
+    // LISTENER DATA REAL-TIME DARI FIRESTORE
+    function listenToResultsRealtime() {
+      // Menggunakan onSnapshot agar data otomatis update saat ada data baru/perubahan
+      unsubscribe = onSnapshot(collection(db, "simulation_results"), (snap) => {
         document.getElementById("loadingState").style.display = "none";
 
         if (snap.empty) {
+          allResults = [];
           document.getElementById("emptyState").style.display = "block";
           document.getElementById("tableWrapper").style.display = "none";
+          document.getElementById("filterStats").innerText = "Menampilkan: 0 dari 0 data";
           return;
         }
+
+        document.getElementById("emptyState").style.display = "none";
+        document.getElementById("tableWrapper").style.display = "block";
 
         allResults = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
         populateFilterDropdowns();
         applyFilters();
-        document.getElementById("tableWrapper").style.display = "block";
-
-      } catch (err) {
-        console.error("Gagal mengambil data:", err);
+      }, (err) => {
+        console.error("Gagal mengambil data real-time:", err);
         document.getElementById("loadingState").innerHTML = `<b style="color:red;">Gagal memuat data: ${err.message}</b>`;
-      }
+      });
     }
 
     // MEMUAT PILIHAN ISI DROPDOWN FILTER OLEH DATA YANG ADA
     function populateFilterDropdowns() {
+      // Simpan nilai dropdown yang sedang dipilih agar tidak reset saat update real-time
+      const currentSchool = document.getElementById("filterSchool").value;
+      const currentClass = document.getElementById("filterClass").value;
+      const currentTitle = document.getElementById("filterTitle").value;
+
       const schools = [...new Set(allResults.map(i => i.studentSchool).filter(Boolean))].sort();
       const classes = [...new Set(allResults.map(i => i.studentClass).filter(Boolean))].sort();
       const titles = [...new Set(allResults.map(i => i.simulationTitle).filter(Boolean))].sort();
@@ -386,12 +394,15 @@
 
       schoolSel.innerHTML = '<option value="">-- Semua Sekolah --</option>';
       schools.forEach(s => schoolSel.innerHTML += `<option value="${s}">${s}</option>`);
+      schoolSel.value = currentSchool;
 
       classSel.innerHTML = '<option value="">-- Semua Kelas --</option>';
       classes.forEach(c => classSel.innerHTML += `<option value="${c}">${c}</option>`);
+      classSel.value = currentClass;
 
       titleSel.innerHTML = '<option value="">-- Semua Judul Ujian --</option>';
       titles.forEach(t => titleSel.innerHTML += `<option value="${t}">${t}</option>`);
+      titleSel.value = currentTitle;
     }
 
     // MENERAPKAN FILTER & SORTING KOORDINATIF
@@ -533,7 +544,7 @@
         try {
           await deleteDoc(doc(db, "simulation_results", docId));
           alert("Data berhasil dihapus.");
-          await loadResultsData();
+          // Tidak perlu panggil loadResultsData() lagi karena onSnapshot otomatis mengupdate tampilan
         } catch (err) {
           alert("Gagal menghapus data: " + err.message);
         }
@@ -556,7 +567,7 @@
 
           await batch.commit();
           alert("Seluruh hasil ujian berhasil dibersihkan!");
-          await loadResultsData();
+          // Tidak perlu panggil loadResultsData() lagi karena onSnapshot otomatis mengupdate tampilan
         } catch (err) {
           alert("Gagal menghapus seluruh data: " + err.message);
         }
