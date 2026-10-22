@@ -280,23 +280,15 @@ function renderMaterials(matData, exData) {
           const item = document.createElement("div");
           item.className = "item-row exercise-item";
 
-          let isExpired = false;
           let deadlineString = "Waktu fleksibel";
 
           if (ex.deadlineDate && ex.deadlineTime) {
-            const deadlineTarget = new Date(`${ex.deadlineDate}T${ex.deadlineTime}:00`);
-            const sekarang = new Date();
-            
-            if (sekarang > deadlineTarget) {
-              isExpired = true;
-            }
-            
             const opsiFormat = { year: 'numeric', month: 'short', day: 'numeric' };
             const tanggalRapi = new Date(ex.deadlineDate).toLocaleDateString('id-ID', opsiFormat);
             deadlineString = `${tanggalRapi} - ${ex.deadlineTime} WIB`;
           }
 
-          if (ex.isAssigned && !isExpired) {
+          if (ex.isAssigned) {
             item.classList.add("status-active");
             item.innerHTML = `
               <div class="item-icon-box">📝</div>
@@ -308,19 +300,6 @@ function renderMaterials(matData, exData) {
             item.onclick = (e) => {
               e.stopPropagation();
               openExercise(ex.exerciseId);
-            };
-          } else if (ex.isAssigned && isExpired) {
-            item.classList.add("status-expired");
-            item.innerHTML = `
-              <div class="item-icon-box">🔒</div>
-              <div class="item-info">
-                <div class="item-title"><s>${ex.title}</s></div>
-                <div class="item-meta text-danger">❌ Waktu Habis (${deadlineString})</div>
-              </div>
-            `;
-            item.onclick = (e) => {
-              e.stopPropagation();
-              alert("Maaf, waktu pengerjaan latihan ini sudah berakhir.");
             };
           } else {
             item.classList.add("status-locked");
