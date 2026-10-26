@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jadwal Try Out TKA - Admin Sekolah</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
+  
+  <!-- jsPDF & AutoTable untuk Cetak PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 13px;
+    }
+    .report-table th, .report-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+    }
+    .report-table th {
+      background-color: #f8fafc;
+      color: #1e293b;
+      font-weight: 600;
+    }
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+    .filter-grid select, .filter-grid input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+      background: #f8fafc;
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <!-- SIDEBAR -->
+  <div id="sidebar-container"></div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+    <!-- HEADER -->
+    <div id="header-container"></div>
+
+    <!-- MAIN CARD -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+        <div>
+          <h1 style="margin: 0; font-size: 22px; color: #1e293b;">📅 Kelola Jadwal Try Out TKA</h1>
+          <p style="font-size: 13px; color: #64748b; margin-top: 4px;">Atur agenda dan cetak jadwal resmi Tes Kemampuan Akademik (TKA) sekolah.</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button onclick="openTkaScheduleModal()" style="background: #2563eb; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">➕ Tambah Jadwal Baru</button>
+          <button onclick="exportTkaSchedulePDF()" style="background: #ef4444; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">🖨️ Cetak / Print PDF</button>
+        </div>
+      </div>
+      <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 20px;">
+
+      <!-- FILTER & PENCARIAN -->
+      <div class="filter-grid">
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filter Status:</label>
+          <select id="filterStatus" onchange="filterTkaSchedules()">
+            <option value="">-- Semua Status --</option>
+            <option value="Akan Datang">Akan Datang</option>
+            <option value="Berlangsung">Berlangsung</option>
+            <option value="Selesai">Selesai</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Cari Nama / Mapel:</label>
+          <input type="text" id="searchTkaInput" placeholder="Ketik kata kunci..." oninput="filterTkaSchedules()">
+        </div>
+      </div>
+
+      <!-- TABEL JADWAL TO TKA -->
+      <div class="table-responsive">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama Try Out</th>
+              <th>Mata Pelajaran / Sesi</th>
+              <th>Tanggal</th>
+              <th>Waktu</th>
+              <th>Ruang / CBT</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tkaScheduleTableBody">
+            <tr>
+              <td colspan="8" style="text-align: center; color: #94a3b8; padding: 20px;">Memuat jadwal TO TKA...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH / EDIT JADWAL TO TKA -->
+<div id="tkaScheduleModal" class="modal">
+  <div class="modal-content" style="max-width: 480px;">
+    <h3 id="tkaModalTitle" style="margin-top: 0;">Tambah Jadwal Try Out TKA</h3>
+    <input type="hidden" id="tkaScheduleId">
+    
+    <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-top: 12px;">Nama Try Out:</label>
+    <input type="text" id="tkaTitle" placeholder="Contoh: TO TKA Saintek Gelombang 1" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
+    
+    <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-top: 12px;">Mata Pelajaran / Sesi:</label>
+    <input type="text" id="tkaSubject" placeholder="Contoh: Matematika & Fisika" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
+    
+    <div style="display: flex; gap: 10px; margin-top: 12px;">
+      <div style="flex: 1;">
+        <label style="font-size: 12px; font-weight: 600; color: #475569; display: block;">Tanggal:</label>
+        <input type="date" id="tkaDate" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
+      </div>
+      <div style="flex: 1;">
+        <label style="font-size: 12px; font-weight: 600; color: #475569; display: block;">Status:</label>
+        <select id="tkaStatus" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; background: #f8fafc; box-sizing: border-box;">
+          <option value="Akan Datang">Akan Datang</option>
+          <option value="Berlangsung">Berlangsung</option>
+          <option value="Selesai">Selesai</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: 12px;">
+      <div style="flex: 1;">
+        <label style="font-size: 12px; font-weight: 600; color: #475569; display: block;">Waktu Mulai:</label>
+        <input type="time" id="tkaStartTime" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
+      </div>
+      <div style="flex: 1;">
+        <label style="font-size: 12px; font-weight: 600; color: #475569; display: block;">Waktu Selesai:</label>
+        <input type="time" id="tkaEndTime" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
+      </div>
+    </div>
+
+    <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-top: 12px;">Ruangan / Mode CBT:</label>
+    <input type="text" id="tkaRoom" placeholder="Contoh: Lab Komputer 1 / Online CBT" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
+
+    <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+      <button class="danger" onclick="closeTkaScheduleModal()" style="padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer;">Batal</button>
+      <button class="primary" onclick="saveTkaSchedule()" style="padding: 9px 16px; border-radius: 8px; background: #2563eb; color: white; border: none; cursor: pointer;">Simpan Jadwal</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">
+  <span id="toastMessage">Berhasil</span>
+</div>
+
+<script type="module" src="./jadwalTka.js"></script>
+</body>
+</html>
