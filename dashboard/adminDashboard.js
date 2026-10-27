@@ -377,12 +377,33 @@ window.filterAdminSimulationReports = () => {
   const chapterVal = document.getElementById("filterChapter")?.value || "";
   const simNameVal = document.getElementById("filterSimulationName")?.value || "";
   const keyword = document.getElementById("searchAdminStudent")?.value.toLowerCase().trim() || "";
+  const sortOrder = document.getElementById("filterSortOrder")?.value || "newest";
 
+  // 1. Filter Data
   const filtered = globalAdminSimData.filter(item => {
     const matchChapter = chapterVal ? item.chapter === chapterVal : true;
     const matchSimName = simNameVal ? item.simulationTitle === simNameVal : true;
     const matchName = (item.studentName || "").toLowerCase().includes(keyword);
     return matchChapter && matchSimName && matchName;
+  });
+
+  // 2. Sorting Data (Terbesar/Terkecil & Baru/Lama)
+  filtered.sort((a, b) => {
+    const timeA = a.submittedAt?.toMillis?.() || 0;
+    const timeB = b.submittedAt?.toMillis?.() || 0;
+    const scoreA = Number(a.score) || 0;
+    const scoreB = Number(b.score) || 0;
+
+    if (sortOrder === "newest") {
+      return timeB - timeA; // Waktu terbaru di atas
+    } else if (sortOrder === "oldest") {
+      return timeA - timeB; // Waktu terlama di atas
+    } else if (sortOrder === "highest_score") {
+      return scoreB - scoreA; // Skor terbesar di atas
+    } else if (sortOrder === "lowest_score") {
+      return scoreA - scoreB; // Skor terkecil di atas
+    }
+    return 0;
   });
 
   renderAdminSimulationTable(filtered);
@@ -399,7 +420,7 @@ function renderAdminSimulationTable(dataList) {
   const count = dataList.length;
 
   if (count === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data rekap simulasi yang ditemukan.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data rekap simulasi yang ditemukan.</td></tr>`;
     return;
   }
 
@@ -409,7 +430,8 @@ function renderAdminSimulationTable(dataList) {
 
   const overallAvg = Number((totalScoreSum / count).toFixed(2));
 
-  dataList.sort((a, b) => (b.submittedAt?.toMillis?.() || 0) - (a.submittedAt?.toMillis?.() || 0));
+  // Catatan: Sorting sudah dilakukan di fungsi filterAdminSimulationReports() di atas, 
+  // jadi di sini data tinggal dirender langsung sesuai urutannya.
 
   let html = "";
   dataList.forEach((item, index) => {
@@ -420,24 +442,22 @@ function renderAdminSimulationTable(dataList) {
       timeText = item.submittedAt.toDate().toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
-    // Di dalam renderAdminSimulationTable()
-html += `
-  <tr>
-    <td>${index + 1}</td>
-    <td><b>${item.studentName}</b></td>
-    <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 500;">${item.chapter}</span></td>
-    <td><span style="color: #2563eb; font-weight: 500;">${item.simulationTitle}</span></td>
-    <!-- Tambahkan baris cell ini -->
-    <td style="text-align: center; font-weight: 500;">${item.totalQuestions}</td> 
-    <td><span style="background: #f8fafc; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; border: 1px solid #cbd5e1;">${item.score}</span></td>
-    <td><span style="background: ${cat.bg}; color: ${cat.color}; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">${cat.label}</span></td>
-    <td><span style="background: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid #bfdbfe;">${overallAvg}</span></td>
-    <td style="font-size: 12px; color: #64748b;">${timeText}</td>
-    <td>
-      <button onclick="deleteAdminSimulationSubmission('${item.submissionId}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Hapus</button>
-    </td>
-  </tr>
-`;
+    html += `
+      <tr>
+        <td>${index + 1}</td>
+        <td><b>${item.studentName}</b></td>
+        <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 500;">${item.chapter}</span></td>
+        <td><span style="color: #2563eb; font-weight: 500;">${item.simulationTitle}</span></td>
+        <td style="text-align: center; font-weight: 500;">${item.totalQuestions}</td> 
+        <td><span style="background: #f8fafc; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; border: 1px solid #cbd5e1;">${item.score}</span></td>
+        <td><span style="background: ${cat.bg}; color: ${cat.color}; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">${cat.label}</span></td>
+        <td><span style="background: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid #bfdbfe;">${overallAvg}</span></td>
+        <td style="font-size: 12px; color: #64748b;">${timeText}</td>
+        <td>
+          <button onclick="deleteAdminSimulationSubmission('${item.submissionId}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Hapus</button>
+        </td>
+      </tr>
+    `;
   });
 
   tbody.innerHTML = html;
