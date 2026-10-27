@@ -128,7 +128,7 @@
         </div>
       </div>
 
-      <!-- Filter Berdasarkan Bab & Nama Simulasi -->
+     <!-- Filter Berdasarkan Bab & Nama Simulasi -->
       <div class="filter-grid" style="margin-top: 15px;">
         <div>
           <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Filter Bab / Mata Pelajaran:</label>
@@ -145,6 +145,17 @@
         <div>
           <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Cari Nama Siswa:</label>
           <input type="text" id="searchAdminStudent" placeholder="Ketik nama siswa..." oninput="filterAdminSimulationReports()">
+        </div>
+        
+        <!-- Tambahan Filter Urutan Baru (Terbesar/Terkecil & Baru/Lama) -->
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Urutkan Berdasarkan:</label>
+          <select id="filterSortOrder" onchange="filterAdminSimulationReports()">
+            <option value="newest">🕒 Terbaru (Default)</option>
+            <option value="oldest">⏳ Terlama</option>
+            <option value="highest_score">📈 Skor Tertinggi (Terbesar)</option>
+            <option value="lowest_score">📉 Skor Terendah (Terkecil)</option>
+          </select>
         </div>
       </div>
 
