@@ -532,7 +532,7 @@ function getBase64ImageFromUrl(url) {
 }
 
 // ==========================
-// EXPORT SIMULATION PDF (MODERN DESIGN)
+// EXPORT SIMULATION PDF (DIPERBARUI)
 // ==========================
 window.exportSimSimulationPDF = async () => {
   if (globalAdminSimData.length === 0) {
@@ -555,9 +555,10 @@ window.exportSimSimulationPDF = async () => {
     day: 'numeric'
   });
 
-  // Ambil nilai filter yang sedang aktif agar judul di atas sama persis dengan tabel
+  // Ambil nilai filter dan sorting yang sedang aktif di layar
   const simFilterVal = document.getElementById("filterSimulationName")?.value;
   const chapterFilterVal = document.getElementById("filterChapter")?.value;
+  const sortOrder = document.getElementById("filterSortOrder")?.value || "newest"; // <--- TAMBAHAN INI
   
   let titleTO = "Semua Simulasi & Try Out";
   if (simFilterVal) {
@@ -566,11 +567,30 @@ window.exportSimSimulationPDF = async () => {
     titleTO = `Bab / Mapel: ${chapterFilterVal}`;
   }
 
-  // Filter data berdasarkan filter aktif saat ini
+  // 1. Filter data berdasarkan filter aktif saat ini
   const activeFilteredData = globalAdminSimData.filter(item => {
     const matchChapter = chapterFilterVal ? item.chapter === chapterFilterVal : true;
     const matchSimName = simFilterVal ? item.simulationTitle === simFilterVal : true;
     return matchChapter && matchSimName;
+  });
+
+  // 2. URUTKAN DATA SESUAI DENGAN PILIHAN SORTING DI LAYAR (TAMBAHAN INI)
+  activeFilteredData.sort((a, b) => {
+    const timeA = a.submittedAt?.toMillis?.() || 0;
+    const timeB = b.submittedAt?.toMillis?.() || 0;
+    const scoreA = Number(a.score) || 0;
+    const scoreB = Number(b.score) || 0;
+
+    if (sortOrder === "newest") {
+      return timeB - timeA;
+    } else if (sortOrder === "oldest") {
+      return timeA - timeB;
+    } else if (sortOrder === "highest_score") {
+      return scoreB - scoreA;
+    } else if (sortOrder === "lowest_score") {
+      return scoreA - scoreB;
+    }
+    return 0;
   });
 
   let totalSum = 0;
@@ -625,7 +645,7 @@ window.exportSimSimulationPDF = async () => {
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(51, 65, 85);
-  doc.text("Tanggal Cetak          :", 18, 51);
+  doc.text("Tanggal Cetak         :", 18, 51);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(71, 85, 105);
   doc.text(printDate, 55, 51);
@@ -635,7 +655,7 @@ window.exportSimSimulationPDF = async () => {
   doc.text(`Total Siswa: ${activeFilteredData.length}`, 145, 44);
   doc.text(`Rata-rata TO: ${avgVal}`, 145, 51);
 
-  // Menyusun Data Tabel (Bab, Judul TO, dan Tanggal dibuang sesuai permintaan)
+  // Menyusun Data Tabel
   const tableData = activeFilteredData.map((item, i) => {
     const cat = getStudentCategoryVsAverage(item.score || 0, Number(avgVal));
     return [
