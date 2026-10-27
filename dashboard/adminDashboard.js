@@ -282,8 +282,8 @@ function getStudentCategoryVsAverage(studentScore, overallAvg) {
   if (diffPercent < 0) {
     // Di bawah rata-rata
     return { label: "Kurang", bg: "#fef2f2", color: "#dc2626" };
-  } else if (diffPercent >= 0 && diffPercent <= 10) {
-    // 0% s/d 10% di atas rata-rata
+  } else if (diffPercent >= 0 && diffPercent <= 20) {
+    // 0% s/d 20% di atas rata-rata
     return { label: "Cukup", bg: "#fffbeb", color: "#d97706" };
   } else if (diffPercent > 20 && diffPercent <= 60) {
     // Di atas 20% s/d 60% di atas rata-rata
