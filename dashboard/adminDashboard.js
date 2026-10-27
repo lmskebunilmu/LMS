@@ -269,19 +269,31 @@ async function loadDashboard() {
 }
 
 // ==========================
-// KATEGORI BERDASARKAN POSISI NILAI TERHADAP RATA-RATA
+// KATEGORI BERDASARKAN PERSENTASE BULAT TERHADAP RATA-RATA
 // ==========================
 function getStudentCategoryVsAverage(studentScore, overallAvg) {
-  const selisih = studentScore - overallAvg;
-
-  if (selisih >= 1.5) {
-    return { label: "Sangat Memuaskan", bg: "#ecfdf5", color: "#059669" };
-  } else if (selisih > 0) {
-    return { label: "Memuaskan", bg: "#eff6ff", color: "#1d4ed8" };
-  } else if (selisih === 0 || (selisih >= -0.5 && selisih < 0)) {
+  if (!overallAvg || overallAvg === 0) {
     return { label: "Cukup", bg: "#fffbeb", color: "#d97706" };
-  } else {
+  }
+
+  // Hitung persentase selisih skor terhadap rata-rata
+  const diffPercent = ((studentScore - overallAvg) / overallAvg) * 100;
+
+  if (diffPercent < 0) {
+    // Di bawah rata-rata
     return { label: "Kurang", bg: "#fef2f2", color: "#dc2626" };
+  } else if (diffPercent >= 0 && diffPercent <= 10) {
+    // 0% s/d 10% di atas rata-rata
+    return { label: "Cukup", bg: "#fffbeb", color: "#d97706" };
+  } else if (diffPercent > 20 && diffPercent <= 60) {
+    // Di atas 20% s/d 60% di atas rata-rata
+    return { label: "Memuaskan", bg: "#eff6ff", color: "#1d4ed8" };
+  } else if (diffPercent > 60) {
+    // Di atas 60% dari rata-rata
+    return { label: "Istimewa", bg: "#f0fdf4", color: "#15803d" };
+  } else {
+    // Zona transisi antara 10% sampai 20% masuk ke Cukup/Memuaskan (opsional masuk Cukup)
+    return { label: "Cukup", bg: "#fffbeb", color: "#d97706" };
   }
 }
 
