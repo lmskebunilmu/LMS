@@ -148,28 +148,31 @@
         </div>
       </div>
 
-      <div class="table-responsive">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>No</th>
-              <th>Nama Siswa</th>
-              <th>Bab / Mapel</th>
-              <th>Judul Simulasi</th>
-              <th>Skor</th>
-              <th>Kategori</th>
-              <th>Rata-rata</th>
-              <th>Waktu Kumpul</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody id="adminSimReportTableBody">
-            <tr>
-              <td colspan="9" style="text-align: center; color: #94a3b8;">Memuat rekap simulasi...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- admin (1).html -->
+<div class="table-responsive">
+  <table class="report-table">
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>Nama Siswa</th>
+        <th>Bab / Mapel</th>
+        <th>Judul Simulasi</th>
+        <th>Jumlah Soal</th> <!-- Tambahkan Header Kolom Ini -->
+        <th>Skor</th>
+        <th>Kategori</th>
+        <th>Rata-rata</th>
+        <th>Waktu Kumpul</th>
+        <th>Aksi</th>
+      </tr>
+    </thead>
+    <tbody id="adminSimReportTableBody">
+      <tr>
+        <!-- Sesuaikan colspan menjadi 10 karena kolom bertambah 1 -->
+        <td colspan="10" style="text-align: center; color: #94a3b8;">Memuat rekap simulasi...</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
       <!-- Aktivitas Terbaru -->
       <h3 style="margin-top:28px;">Aktivitas Terbaru</h3>
