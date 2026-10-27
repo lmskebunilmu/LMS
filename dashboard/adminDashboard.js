@@ -308,25 +308,27 @@ function initRealtimeSimulationReports(studentSnap) {
     const chapterSet = new Set();
     const simNameSet = new Set();
 
-    subSimSnap.forEach(docSnap => {
-      const sub = docSnap.data();
-      if (sub.submittedAt && studentUids.includes(sub.studentUid)) {
-        const chapter = sub.chapter || sub.subject || "Umum";
-        const simTitle = sub.simulationTitle || "Simulasi Ujian";
-        
-        chapterSet.add(chapter);
-        simNameSet.add(simTitle);
+    // Di dalam initRealtimeSimulationReports()
+subSimSnap.forEach(docSnap => {
+  const sub = docSnap.data();
+  if (sub.submittedAt && studentUids.includes(sub.studentUid)) {
+    const chapter = sub.chapter || sub.subject || "Umum";
+    const simTitle = sub.simulationTitle || "Simulasi Ujian";
+    
+    chapterSet.add(chapter);
+    simNameSet.add(simTitle);
 
-        globalAdminSimData.push({
-          submissionId: docSnap.id,
-          studentName: sub.studentName || "Siswa",
-          chapter: chapter,
-          simulationTitle: simTitle,
-          score: sub.score || 0,
-          submittedAt: sub.submittedAt
-        });
-      }
+    globalAdminSimData.push({
+      submissionId: docSnap.id,
+      studentName: sub.studentName || "Siswa",
+      chapter: chapter,
+      simulationTitle: simTitle,
+      totalQuestions: sub.totalQuestions || sub.totalSoal || "-", // <--- Tambahkan ini
+      score: sub.score || 0,
+      submittedAt: sub.submittedAt
     });
+  }
+});
 
     const filterChapter = document.getElementById("filterChapter");
     const filterSimName = document.getElementById("filterSimulationName");
@@ -406,21 +408,24 @@ function renderAdminSimulationTable(dataList) {
       timeText = item.submittedAt.toDate().toLocaleDateString("id-ID", { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
-    html += `
-      <tr>
-        <td>${index + 1}</td>
-        <td><b> ${item.studentName}</b></td>
-        <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 500;"> ${item.chapter}</span></td>
-        <td><span style="color: #2563eb; font-weight: 500;"> ${item.simulationTitle}</span></td>
-        <td><span style="background: #f8fafc; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; border: 1px solid #cbd5e1;"> ${item.score}</span></td>
-        <td><span style="background: ${cat.bg}; color: ${cat.color}; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">${cat.label}</span></td>
-        <td><span style="background: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid #bfdbfe;"> ${overallAvg}</span></td>
-        <td style="font-size: 12px; color: #64748b;">${timeText}</td>
-        <td>
-          <button onclick="deleteAdminSimulationSubmission('${item.submissionId}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">🗑️ Hapus</button>
-        </td>
-      </tr>
-    `;
+    // Di dalam renderAdminSimulationTable()
+html += `
+  <tr>
+    <td>${index + 1}</td>
+    <td><b>${item.studentName}</b></td>
+    <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 500;">${item.chapter}</span></td>
+    <td><span style="color: #2563eb; font-weight: 500;">${item.simulationTitle}</span></td>
+    <!-- Tambahkan baris cell ini -->
+    <td style="text-align: center; font-weight: 500;">${item.totalQuestions}</td> 
+    <td><span style="background: #f8fafc; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; border: 1px solid #cbd5e1;">${item.score}</span></td>
+    <td><span style="background: ${cat.bg}; color: ${cat.color}; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">${cat.label}</span></td>
+    <td><span style="background: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid #bfdbfe;">${overallAvg}</span></td>
+    <td style="font-size: 12px; color: #64748b;">${timeText}</td>
+    <td>
+      <button onclick="deleteAdminSimulationSubmission('${item.submissionId}')" style="background: #fee2e2; color: #dc2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Hapus</button>
+    </td>
+  </tr>
+`;
   });
 
   tbody.innerHTML = html;
