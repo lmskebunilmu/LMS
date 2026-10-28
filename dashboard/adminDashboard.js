@@ -269,32 +269,26 @@ async function loadDashboard() {
 }
 
 // ==========================
-// KATEGORI BERDASARKAN PERSENTASE BULAT TERHADAP RATA-RATA
+// KATEGORI BERDASARKAN NILAI ABSOLUT & PREDIKAT ISTIMEWA
 // ==========================
-function getStudentCategoryVsAverage(studentScore, overallAvg) {
-  if (!overallAvg || overallAvg === 0) {
-    return { label: "Cukup", bg: "#fffbeb", color: "#d97706" };
-  }
-
-  // Hitung persentase selisih skor terhadap rata-rata
-  const diffPercent = ((studentScore - overallAvg) / overallAvg) * 100;
-
-  if (diffPercent < 0) {
-    // Di bawah rata-rata
-    return { label: "Kurang", bg: "#fef2f2", color: "#dc2626" };
-  } else if (diffPercent >= 0 && diffPercent <= 20) {
-    // 0% s/d 20% di atas rata-rata
-    return { label: "Cukup", bg: "#fffbeb", color: "#d97706" };
-  } else if (diffPercent > 20 && diffPercent <= 60) {
-    // Di atas 20% s/d 60% di atas rata-rata
-    return { label: "Memuaskan", bg: "#eff6ff", color: "#1d4ed8" };
-  } else if (diffPercent > 60) {
-    // Di atas 60% dari rata-rata
+function getStudentCategoryByScore(studentScore) {
+  // Cek predikat istimewa terlebih dahulu (Nilai minimal 95,00)
+  if (studentScore >= 95.00) {
     return { label: "Istimewa", bg: "#f0fdf4", color: "#15803d" };
-  } else {
-    // Zona transisi antara 10% sampai 20% masuk ke Cukup/Memuaskan (opsional masuk Cukup)
-    return { label: "Cukup", bg: "#fffbeb", color: "#d97706" };
   }
+  
+  // Kategori Baik (Nilai >= 76,67)
+  if (studentScore >= 76.67) {
+    return { label: "Baik", bg: "#f0fdf4", color: "#16a34a" };
+  }
+  
+  // Kategori Memadai (Nilai 50 sampai < 76,67)
+  if (studentScore >= 50.00) {
+    return { label: "Memadai", bg: "#fffbeb", color: "#d97706" };
+  }
+  
+  // Kategori Kurang (Nilai < 50)
+  return { label: "Kurang", bg: "#fef2f2", color: "#dc2626" };
 }
 
 // ==========================
