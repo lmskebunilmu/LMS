@@ -276,17 +276,17 @@ function getStudentCategoryByScore(studentScore) {
   if (studentScore >= 95.00) {
     return { label: "Istimewa", bg: "#f0fdf4", color: "#15803d" };
   }
-  
+
   // Kategori Baik (Nilai >= 76,67)
   if (studentScore >= 76.67) {
     return { label: "Baik", bg: "#f0fdf4", color: "#16a34a" };
   }
-  
+
   // Kategori Memadai (Nilai 50 sampai < 76,67)
   if (studentScore >= 50.00) {
     return { label: "Memadai", bg: "#fffbeb", color: "#d97706" };
   }
-  
+
   // Kategori Kurang (Nilai < 50)
   return { label: "Kurang", bg: "#fef2f2", color: "#dc2626" };
 }
@@ -304,7 +304,7 @@ function initRealtimeSimulationReports(studentSnap) {
   });
 
   if (studentUids.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
     return;
   }
 
@@ -314,27 +314,26 @@ function initRealtimeSimulationReports(studentSnap) {
     const chapterSet = new Set();
     const simNameSet = new Set();
 
-    // Di dalam initRealtimeSimulationReports()
-subSimSnap.forEach(docSnap => {
-  const sub = docSnap.data();
-  if (sub.submittedAt && studentUids.includes(sub.studentUid)) {
-    const chapter = sub.chapter || sub.subject || "Umum";
-    const simTitle = sub.simulationTitle || "Simulasi Ujian";
-    
-    chapterSet.add(chapter);
-    simNameSet.add(simTitle);
+    subSimSnap.forEach(docSnap => {
+      const sub = docSnap.data();
+      if (sub.submittedAt && studentUids.includes(sub.studentUid)) {
+        const chapter = sub.chapter || sub.subject || "Umum";
+        const simTitle = sub.simulationTitle || "Simulasi Ujian";
 
-    globalAdminSimData.push({
-      submissionId: docSnap.id,
-      studentName: sub.studentName || "Siswa",
-      chapter: chapter,
-      simulationTitle: simTitle,
-      totalQuestions: sub.totalQuestions || sub.totalSoal || "-", // <--- Tambahkan ini
-      score: sub.score || 0,
-      submittedAt: sub.submittedAt
+        chapterSet.add(chapter);
+        simNameSet.add(simTitle);
+
+        globalAdminSimData.push({
+          submissionId: docSnap.id,
+          studentName: sub.studentName || "Siswa",
+          chapter: chapter,
+          simulationTitle: simTitle,
+          totalQuestions: sub.totalQuestions || sub.totalSoal || "-",
+          score: sub.score || 0,
+          submittedAt: sub.submittedAt
+        });
+      }
     });
-  }
-});
 
     const filterChapter = document.getElementById("filterChapter");
     const filterSimName = document.getElementById("filterSimulationName");
@@ -360,7 +359,7 @@ subSimSnap.forEach(docSnap => {
 
   }, (err) => {
     console.error("Gagal memuat rekap simulasi secara real-time:", err);
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: red;">Gagal memuat rekap simulasi secara real-time.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: red;">Gagal memuat rekap simulasi secara real-time.</td></tr>`;
   });
 }
 
@@ -381,7 +380,7 @@ window.filterAdminSimulationReports = () => {
     return matchChapter && matchSimName && matchName;
   });
 
-  // 2. Sorting Data (Terbesar/Terkecil & Baru/Lama)
+  // 2. Sorting Data
   filtered.sort((a, b) => {
     const timeA = a.submittedAt?.toMillis?.() || 0;
     const timeB = b.submittedAt?.toMillis?.() || 0;
@@ -389,13 +388,13 @@ window.filterAdminSimulationReports = () => {
     const scoreB = Number(b.score) || 0;
 
     if (sortOrder === "newest") {
-      return timeB - timeA; // Waktu terbaru di atas
+      return timeB - timeA;
     } else if (sortOrder === "oldest") {
-      return timeA - timeB; // Waktu terlama di atas
+      return timeA - timeB;
     } else if (sortOrder === "highest_score") {
-      return scoreB - scoreA; // Skor terbesar di atas
+      return scoreB - scoreA;
     } else if (sortOrder === "lowest_score") {
-      return scoreA - scoreB; // Skor terkecil di atas
+      return scoreA - scoreB;
     }
     return 0;
   });
@@ -424,12 +423,10 @@ function renderAdminSimulationTable(dataList) {
 
   const overallAvg = Number((totalScoreSum / count).toFixed(2));
 
-  // Catatan: Sorting sudah dilakukan di fungsi filterAdminSimulationReports() di atas, 
-  // jadi di sini data tinggal dirender langsung sesuai urutannya.
-
   let html = "";
   dataList.forEach((item, index) => {
-    const cat = getStudentCategoryVsAverage(item.score || 0, overallAvg);
+    // Memperbaiki pemanggilan kategori menggunakan getStudentCategoryByScore
+    const cat = getStudentCategoryByScore(item.score || 0);
 
     let timeText = "-";
     if (item.submittedAt?.toDate) {
@@ -442,7 +439,7 @@ function renderAdminSimulationTable(dataList) {
         <td><b>${item.studentName}</b></td>
         <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 500;">${item.chapter}</span></td>
         <td><span style="color: #2563eb; font-weight: 500;">${item.simulationTitle}</span></td>
-        <td style="text-align: center; font-weight: 500;">${item.totalQuestions}</td> 
+        <td style="text-align: center; font-weight: 500;">${item.totalQuestions}</td>
         <td><span style="background: #f8fafc; color: #0f172a; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; border: 1px solid #cbd5e1;">${item.score}</span></td>
         <td><span style="background: ${cat.bg}; color: ${cat.color}; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">${cat.label}</span></td>
         <td><span style="background: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 1px solid #bfdbfe;">${overallAvg}</span></td>
@@ -482,7 +479,7 @@ window.exportSimSimulationCSV = () => {
   }
 
   let csv = "No,Nama Siswa,Bab/Mapel,Judul Simulasi,Skor,Rata-rata Keseluruhan,Waktu Kumpul\n";
-  
+
   let totalSum = 0;
   globalAdminSimData.forEach(item => totalSum += (item.score || 0));
   const avgVal = globalAdminSimData.length > 0 ? (totalSum / globalAdminSimData.length).toFixed(1) : 0;
@@ -526,7 +523,7 @@ function getBase64ImageFromUrl(url) {
 }
 
 // ==========================
-// EXPORT SIMULATION PDF (DIPERBARUI)
+// EXPORT SIMULATION PDF
 // ==========================
 window.exportSimSimulationPDF = async () => {
   if (globalAdminSimData.length === 0) {
@@ -549,11 +546,10 @@ window.exportSimSimulationPDF = async () => {
     day: 'numeric'
   });
 
-  // Ambil nilai filter dan sorting yang sedang aktif di layar
   const simFilterVal = document.getElementById("filterSimulationName")?.value;
   const chapterFilterVal = document.getElementById("filterChapter")?.value;
-  const sortOrder = document.getElementById("filterSortOrder")?.value || "newest"; // <--- TAMBAHAN INI
-  
+  const sortOrder = document.getElementById("filterSortOrder")?.value || "newest";
+
   let titleTO = "Semua Simulasi & Try Out";
   if (simFilterVal) {
     titleTO = simFilterVal;
@@ -561,14 +557,12 @@ window.exportSimSimulationPDF = async () => {
     titleTO = `Bab / Mapel: ${chapterFilterVal}`;
   }
 
-  // 1. Filter data berdasarkan filter aktif saat ini
   const activeFilteredData = globalAdminSimData.filter(item => {
     const matchChapter = chapterFilterVal ? item.chapter === chapterFilterVal : true;
     const matchSimName = simFilterVal ? item.simulationTitle === simFilterVal : true;
     return matchChapter && matchSimName;
   });
 
-  // 2. URUTKAN DATA SESUAI DENGAN PILIHAN SORTING DI LAYAR (TAMBAHAN INI)
   activeFilteredData.sort((a, b) => {
     const timeA = a.submittedAt?.toMillis?.() || 0;
     const timeB = b.submittedAt?.toMillis?.() || 0;
@@ -609,7 +603,6 @@ window.exportSimSimulationPDF = async () => {
     }
   }
 
-  // Header Kop Surat
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
   doc.setTextColor(30, 41, 59);
@@ -624,7 +617,6 @@ window.exportSimSimulationPDF = async () => {
   doc.setLineWidth(0.8);
   doc.line(14, 34, 196, 34);
 
-  // Kotak Metadata Ringkasan
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
   doc.roundedRect(14, 38, 182, 20, 2, 2, "FD");
@@ -649,9 +641,9 @@ window.exportSimSimulationPDF = async () => {
   doc.text(`Total Siswa: ${activeFilteredData.length}`, 145, 44);
   doc.text(`Rata-rata TO: ${avgVal}`, 145, 51);
 
-  // Menyusun Data Tabel
   const tableData = activeFilteredData.map((item, i) => {
-    const cat = getStudentCategoryVsAverage(item.score || 0, Number(avgVal));
+    // Memperbaiki pemanggilan kategori pada PDF menggunakan getStudentCategoryByScore
+    const cat = getStudentCategoryByScore(item.score || 0);
     return [
       i + 1,
       item.studentName,
@@ -661,7 +653,6 @@ window.exportSimSimulationPDF = async () => {
     ];
   });
 
-  // Render Tabel PDF
   doc.autoTable({
     startY: 63,
     head: [["No", "Nama Siswa", "Skor", "Kategori", "Rata-rata"]],
