@@ -10,6 +10,7 @@ let currentSchoolName = "";
 let currentSchoolLogo = "../assets/images/default-logo.png";
 
 let globalAdminSimData = [];
+let studentClassMap = {}; // Peta untuk menyimpan relasi studentUid -> className
 
 // ==========================
 // AUTH STATE
@@ -272,22 +273,15 @@ async function loadDashboard() {
 // KATEGORI BERDASARKAN NILAI ABSOLUT & PREDIKAT ISTIMEWA
 // ==========================
 function getStudentCategoryByScore(studentScore) {
-  // Cek predikat istimewa terlebih dahulu (Nilai minimal 95,00)
   if (studentScore >= 95.00) {
     return { label: "Istimewa", bg: "#f0fdf4", color: "#15803d" };
   }
-
-  // Kategori Baik (Nilai >= 76,67)
   if (studentScore >= 76.67) {
     return { label: "Baik", bg: "#f0fdf4", color: "#16a34a" };
   }
-
-  // Kategori Memadai (Nilai 50 sampai < 76,67)
   if (studentScore >= 50.00) {
     return { label: "Memadai", bg: "#fffbeb", color: "#d97706" };
   }
-
-  // Kategori Kurang (Nilai < 50)
   return { label: "Kurang", bg: "#fef2f2", color: "#dc2626" };
 }
 
@@ -299,12 +293,16 @@ function initRealtimeSimulationReports(studentSnap) {
   if (!tbody) return;
 
   const studentUids = [];
+  studentClassMap = {}; // Reset map
+
   studentSnap.forEach(sDoc => {
+    const sData = sDoc.data();
     studentUids.push(sDoc.id);
+    studentClassMap[sDoc.id] = sData.className || sData.kelas || "-";
   });
 
   if (studentUids.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #94a3b8;">Belum ada siswa terdaftar.</td></tr>`;
     return;
   }
 
@@ -319,6 +317,7 @@ function initRealtimeSimulationReports(studentSnap) {
       if (sub.submittedAt && studentUids.includes(sub.studentUid)) {
         const chapter = sub.chapter || sub.subject || "Umum";
         const simTitle = sub.simulationTitle || "Simulasi Ujian";
+        const studentClass = studentClassMap[sub.studentUid] || sub.className || "-";
 
         chapterSet.add(chapter);
         simNameSet.add(simTitle);
@@ -326,6 +325,7 @@ function initRealtimeSimulationReports(studentSnap) {
         globalAdminSimData.push({
           submissionId: docSnap.id,
           studentName: sub.studentName || "Siswa",
+          className: studentClass,
           chapter: chapter,
           simulationTitle: simTitle,
           totalQuestions: sub.totalQuestions || sub.totalSoal || "-",
@@ -359,7 +359,7 @@ function initRealtimeSimulationReports(studentSnap) {
 
   }, (err) => {
     console.error("Gagal memuat rekap simulasi secara real-time:", err);
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: red;">Gagal memuat rekap simulasi secara real-time.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: red;">Gagal memuat rekap simulasi secara real-time.</td></tr>`;
   });
 }
 
@@ -372,7 +372,6 @@ window.filterAdminSimulationReports = () => {
   const keyword = document.getElementById("searchAdminStudent")?.value.toLowerCase().trim() || "";
   const sortOrder = document.getElementById("filterSortOrder")?.value || "newest";
 
-  // 1. Filter Data
   const filtered = globalAdminSimData.filter(item => {
     const matchChapter = chapterVal ? item.chapter === chapterVal : true;
     const matchSimName = simNameVal ? item.simulationTitle === simNameVal : true;
@@ -380,7 +379,6 @@ window.filterAdminSimulationReports = () => {
     return matchChapter && matchSimName && matchName;
   });
 
-  // 2. Sorting Data
   filtered.sort((a, b) => {
     const timeA = a.submittedAt?.toMillis?.() || 0;
     const timeB = b.submittedAt?.toMillis?.() || 0;
@@ -413,7 +411,7 @@ function renderAdminSimulationTable(dataList) {
   const count = dataList.length;
 
   if (count === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data rekap simulasi yang ditemukan.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #94a3b8; padding: 20px;">📭 Tidak ada data rekap simulasi yang ditemukan.</td></tr>`;
     return;
   }
 
@@ -425,7 +423,6 @@ function renderAdminSimulationTable(dataList) {
 
   let html = "";
   dataList.forEach((item, index) => {
-    // Memperbaiki pemanggilan kategori menggunakan getStudentCategoryByScore
     const cat = getStudentCategoryByScore(item.score || 0);
 
     let timeText = "-";
@@ -437,6 +434,7 @@ function renderAdminSimulationTable(dataList) {
       <tr>
         <td>${index + 1}</td>
         <td><b>${item.studentName}</b></td>
+        <td><span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 11px;">${item.className}</span></td>
         <td><span style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 500;">${item.chapter}</span></td>
         <td><span style="color: #2563eb; font-weight: 500;">${item.simulationTitle}</span></td>
         <td style="text-align: center; font-weight: 500;">${item.totalQuestions}</td>
@@ -478,7 +476,7 @@ window.exportSimSimulationCSV = () => {
     return;
   }
 
-  let csv = "No,Nama Siswa,Bab/Mapel,Judul Simulasi,Skor,Rata-rata Keseluruhan,Waktu Kumpul\n";
+  let csv = "No,Nama Siswa,Kelas,Bab/Mapel,Judul Simulasi,Skor,Rata-rata Keseluruhan,Waktu Kumpul\n";
 
   let totalSum = 0;
   globalAdminSimData.forEach(item => totalSum += (item.score || 0));
@@ -489,7 +487,7 @@ window.exportSimSimulationCSV = () => {
     if (item.submittedAt?.toDate) {
       timeText = item.submittedAt.toDate().toLocaleString("id-ID");
     }
-    csv += `${index + 1},"${item.studentName}","${item.chapter}","${item.simulationTitle}",${item.score},${avgVal},"${timeText}"\n`;
+    csv += `${index + 1},"${item.studentName}","${item.className}","${item.chapter}","${item.simulationTitle}",${item.score},${avgVal},"${timeText}"\n`;
   });
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -642,11 +640,11 @@ window.exportSimSimulationPDF = async () => {
   doc.text(`Rata-rata TO: ${avgVal}`, 145, 51);
 
   const tableData = activeFilteredData.map((item, i) => {
-    // Memperbaiki pemanggilan kategori pada PDF menggunakan getStudentCategoryByScore
     const cat = getStudentCategoryByScore(item.score || 0);
     return [
       i + 1,
       item.studentName,
+      item.className, // <--- Kolom Kelas dimasukkan ke PDF
       item.score,
       cat.label,
       avgVal
@@ -655,7 +653,7 @@ window.exportSimSimulationPDF = async () => {
 
   doc.autoTable({
     startY: 63,
-    head: [["No", "Nama Siswa", "Skor", "Kategori", "Rata-rata"]],
+    head: [["No", "Nama Siswa", "Kelas", "Skor", "Kategori", "Rata-rata"]],
     body: tableData,
     theme: "striped",
     headStyles: {
@@ -674,11 +672,12 @@ window.exportSimSimulationPDF = async () => {
       fillColor: [248, 250, 252]
     },
     columnStyles: {
-      0: { cellWidth: 15, halign: "center" },
-      1: { cellWidth: 85, fontStyle: "bold" },
-      2: { cellWidth: 25, halign: "center", fontStyle: "bold" },
-      3: { cellWidth: 35 },
-      4: { cellWidth: 22, halign: "center" }
+      0: { cellWidth: 12, halign: "center" },
+      1: { cellWidth: 65, fontStyle: "bold" },
+      2: { cellWidth: 25, halign: "center" },
+      3: { cellWidth: 20, halign: "center", fontStyle: "bold" },
+      4: { cellWidth: 35 },
+      5: { cellWidth: 25, halign: "center" }
     },
     didDrawPage: (data) => {
       const pageCount = doc.internal.getNumberOfPages();
