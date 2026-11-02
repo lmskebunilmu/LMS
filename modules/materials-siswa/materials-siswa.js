@@ -97,6 +97,7 @@ async function findStudentClass(studentUid) {
     console.error("Gagal memuat kelas siswa:", err);
   }
 }
+
 // FUNGSI: Memuat daftar try out / simulasi yang sudah diselesaikan lengkap dengan tombol Kerjakan Lagi
 async function loadCompletedSimulationsForCard(studentUid) {
   const container = document.getElementById("completedSimulationsList");
@@ -200,13 +201,13 @@ window.retrySimulation = async (simulationId) => {
     const snap = await getDocs(qCheck);
 
     if (snap.empty) {
-      // Jika admin belum mengizinkan / menekan tombol tampilkan di panel admin
+      // Jika admin belum mengizinkan / memberikan tombol izinkan kerjakan
       alert("⚠️ Maaf, Anda belum diizinkan oleh admin/guru untuk mengerjakan ulang simulasi ini.");
       return;
     }
 
     // Jika sudah diizinkan, izinkan siswa membuka halaman simulasi di tab baru
-    if (confirm("Apakah Anda ingin mengerjakan ulang try out ini?")) {
+    if (confirm("Apakah Anda ingin mengerjakan ulang try out / simulasi ini?")) {
       const targetUrl = `https://lmskebunilmu.github.io/LMS/dashboard/simulation.html?id=${simulationId}`;
       const win = window.open(targetUrl, "_blank");
       if (!win) {
@@ -219,6 +220,7 @@ window.retrySimulation = async (simulationId) => {
     alert("Terjadi kesalahan saat memeriksa izin.");
   }
 };
+
 async function loadMaterials(schoolId, classId) {
   const q = query(
     collection(db, "materialGuru"),
