@@ -219,6 +219,11 @@ function renderSimulationsTable() {
       actionButton = `<button onclick="togglePublishSimulation('${sim.id}', true)" style="background:#4f46e5; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Tampilkan ke siswa">🚀 Tampilkan</button>`;
     }
 
+    // Penambahan Tombol Baru: Izinkan Kerjakan / Cabut Izin Pengerjaan Ulang di Material Siswa
+    let permitButton = isAssigned 
+      ? `<button onclick="togglePermitRetry('${sim.id}', false)" style="background:#b45309; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Cabut izin pengerjaan ulang">🚫 Cabut Izin</button>`
+      : `<button onclick="togglePermitRetry('${sim.id}', true)" style="background:#059669; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Izinkan siswa mengerjakan soal simulasi">✅ Izinkan Kerjakan</button>`;
+
     tr.innerHTML = `
       <td>${idx + 1}</td>
       <td><strong>${sim.title || "Tanpa Judul"}</strong></td>
@@ -230,6 +235,7 @@ function renderSimulationsTable() {
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
           <button onclick="previewSimulation('${sim.id}')" style="background:#10b981; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Lihat Soal">👁️ Lihat</button>
           ${actionButton}
+          ${permitButton}
         </div>
       </td>
     `;
@@ -302,6 +308,79 @@ window.togglePublishSimulation = async (simId, shouldPublish) => {
     } catch (err) {
       console.error("Gagal menyembunyikan simulasi:", err);
       showToast("Gagal menyembunyikan simulasi.", "error");
+    }
+  }
+};
+
+// ==========================
+// TOGGLE PERMIT RETRY (IZINKAN / CABUT IZIN MENGERJAKAN DI MATERIAL SISWA)
+// ==========================
+window.togglePermitRetry = async (simId, shouldPermit) => {
+  const sim = allSchoolSimulations.find(s => s.id === simId);
+  if (!sim) return;
+
+  if (shouldPermit) {
+    if (!confirm(`Berikan izin kepada siswa untuk mengerjakan simulasi "${sim.title}" di halaman Material Siswa?`)) return;
+
+    try {
+      const classesSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
+      if (classesSnap.empty) {
+        showToast("Tidak ada data kelas di sekolah ini!", "error");
+        return;
+      }
+
+      let count = 0;
+      for (const classDoc of classesSnap.docs) {
+        const checkQuery = query(
+          collection(db, "simulationGuru"),
+          where("schoolId", "==", currentSchoolId),
+          where("classId", "==", classDoc.id),
+          where("simulationId", "==", simId)
+        );
+        const checkSnap = await getDocs(checkQuery);
+
+        if (checkSnap.empty) {
+          await addDoc(collection(db, "simulationGuru"), {
+            schoolId: currentSchoolId,
+            classId: classDoc.id,
+            simulationId: simId,
+            isAssigned: true,
+            assignedAt: new Date()
+          });
+        } else {
+          for (const dSnap of checkSnap.docs) {
+            await updateDoc(doc(db, "simulationGuru", dSnap.id), { isAssigned: true });
+          }
+        }
+        count++;
+      }
+
+      showToast(`Berhasil memberikan izin pengerjaan simulasi!`);
+      await loadSchoolSimulations();
+    } catch (err) {
+      console.error("Gagal memberi izin:", err);
+      showToast("Gagal memberikan izin.", "error");
+    }
+  } else {
+    if (!confirm(`Cabut izin pengerjaan simulasi "${sim.title}" dari siswa?`)) return;
+
+    try {
+      const qCheck = query(
+        collection(db, "simulationGuru"),
+        where("schoolId", "==", currentSchoolId),
+        where("simulationId", "==", simId)
+      );
+      const snap = await getDocs(qCheck);
+      
+      for (const docSnap of snap.docs) {
+        await updateDoc(doc(db, "simulationGuru", docSnap.id), { isAssigned: false });
+      }
+
+      showToast("Izin pengerjaan simulasi berhasil dicabut.");
+      await loadSchoolSimulations();
+    } catch (err) {
+      console.error("Gagal mencabut izin:", err);
+      showToast("Gagal mencabut izin.", "error");
     }
   }
 };
