@@ -97,8 +97,7 @@ async function findStudentClass(studentUid) {
     console.error("Gagal memuat kelas siswa:", err);
   }
 }
-
-// FUNGSI BARU: Memuat daftar try out / simulasi yang sudah diselesaikan ke dalam card khusus
+// FUNGSI: Memuat daftar try out / simulasi yang sudah diselesaikan lengkap dengan tombol Kerjakan Lagi
 async function loadCompletedSimulationsForCard(studentUid) {
   const container = document.getElementById("completedSimulationsList");
   if (!container) return;
@@ -120,15 +119,22 @@ async function loadCompletedSimulationsForCard(studentUid) {
         const title = sub.simulationTitle || "Simulasi Ujian";
         const subject = sub.subject || "-";
         const score = sub.score || 0;
+        const simulationId = sub.simulationId; // Ambil ID simulasi agar tombol tahu dokumen mana yang dibuka
         
         let dateStr = "-";
         if (sub.submittedAt?.toDate) {
-          dateStr = sub.submittedAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          dateStr = sub.submittedAt.toDate().toLocaleDateString('id-ID', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
         }
 
         html += `
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; margin-bottom: 10px;">
-            <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+            <div style="flex: 1; min-width: 200px;">
               <div style="font-weight: 700; font-size: 14px; color: #065f46; margin-bottom: 4px;">✅ ${title}</div>
               <div style="font-size: 12px; color: #4b5563; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 <span style="background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-weight: 600;">${subject}</span>
@@ -138,8 +144,18 @@ async function loadCompletedSimulationsForCard(studentUid) {
                 <span>Benar: <strong>${sub.correctAnswers || 0}/${sub.totalQuestions || 0}</strong></span>
               </div>
             </div>
-            <div style="background: #059669; color: white; padding: 6px 14px; border-radius: 10px; font-weight: 800; font-size: 14px; white-space: nowrap;">
-              ⭐ ${score}
+            
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="background: #059669; color: white; padding: 6px 14px; border-radius: 10px; font-weight: 800; font-size: 14px; white-space: nowrap;">
+                ⭐ ${score}
+              </div>
+              <button 
+                onclick="retrySimulation('${simulationId}')" 
+                style="background: #4f46e5; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s;"
+                onmouseover="this.style.background='#4338ca'"
+                onmouseout="this.style.background='#4f46e5'">
+                🔄 Kerjakan Lagi
+              </button>
             </div>
           </div>
         `;
@@ -156,6 +172,18 @@ async function loadCompletedSimulationsForCard(studentUid) {
     container.innerHTML = `<div class="empty-state" style="color: red; text-align: center;">Gagal memuat riwayat try out.</div>`;
   }
 }
+
+// FUNGSI PENDUKUNG: Untuk mengarahkan kembali ke halaman pengerjaan simulasi saat tombol diklik
+window.retrySimulation = (simulationId) => {
+  if (!simulationId) return alert("ID Simulasi tidak ditemukan!");
+  
+  if (confirm("Apakah Anda ingin mengerjakan ulang try out ini?")) {
+    const win = window.open(`simulation-runner.html?id=${simulationId}`, "_blank");
+    if (!win) {
+      alert("Pop-up diblokir browser! Harap izinkan pop-up untuk membuka simulasi.");
+    }
+  }
+};
 
 async function loadMaterials(schoolId, classId) {
   const q = query(
