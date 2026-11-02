@@ -1,0 +1,760 @@
+import { auth, db } from "../firebase/firebase-config.js";
+import {
+  doc, getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const id = new URLSearchParams(location.search).get("id");
+
+// State Simulasi
+let simulationData = null;
+let questions = [];
+let currentIndex = 0;
+let userAnswers = {}; // { 0: answerValue, 1: answerValue }
+let doubtStatus = {};  // { 0: true/false }
+let timerInterval = null;
+let timeRemaining = 0; // dalam detik
+let studentData = null;
+let activeMatchLeft = null; // State untuk klik menjodohkan interaktif
+
+// ================= HELPER DECODER =================
+function decodeHTML(html) {
+  if (!html) return "";
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  return doc.body.innerHTML;
+}
+
+// ================= AUTH & INIT =================
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    window.location = "../../login.html";
+    return;
+  }
+
+  try {
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    if (userSnap.exists()) {
+      studentData = userSnap.data();
+    }
+    await loadSimulation();
+  } catch (err) {
+    console.error("Error loading user data:", err);
+  }
+});
+
+// ================= LOAD SIMULATION DATA =================
+async function loadSimulation() {
+  if (!id) {
+    alert("ID Simulasi tidak ditemukan!");
+    return;
+  }
+
+  try {
+    const simRef = doc(db, "simulations", id);
+    const simSnap = await getDoc(simRef);
+
+    if (!simSnap.exists()) {
+      alert("Data simulasi tidak ditemukan!");
+      return;
+    }
+
+    simulationData = simSnap.data();
+    questions = simulationData.questions || [];
+
+    if (questions.length === 0) {
+      alert("Simulasi ini belum memiliki soal!");
+      return;
+    }
+
+    if (simulationData.randomizeQuestions) {
+      questions = questions.sort(() => Math.random() - 0.5);
+    }
+
+    document.getElementById("startSimTitle").innerText = simulationData.title || "Simulasi Ujian";
+    document.getElementById("startSimMeta").innerText = `${questions.length} Soal | ${simulationData.durationMinutes || 60} Menit`;
+
+    document.getElementById("simTitle").innerText = simulationData.title || "Simulasi Ujian";
+    document.getElementById("simMeta").innerText = `${questions.length} Soal | Passing Grade: ${simulationData.passingGrade || 75}%`;
+
+    // Pastikan timeRemaining di-set dengan aman
+    const durationMins = simulationData.durationMinutes ? parseInt(simulationData.durationMinutes) : 60;
+    timeRemaining = durationMins * 60;
+    
+    // Render soal pertama di latar belakang agar langsung siap saat ujian dimulai
+    renderCurrentQuestion();
+    renderGridNumbers();
+  } catch (err) {
+    console.error("Error fetching simulation:", err);
+    alert("Gagal memuat data simulasi.");
+  }
+}
+
+// ================= RENDER CURRENT QUESTION =================
+function renderCurrentQuestion() {
+  const q = questions[currentIndex];
+  if (!q) return;
+
+  activeMatchLeft = null; // Reset pemilihan match tiap ganti soal
+
+  const qNumHeader = document.getElementById("questionNumberHeader");
+  if (qNumHeader) qNumHeader.innerText = `Soal No. ${currentIndex + 1} dari ${questions.length}`;
+  
+  const qText = document.getElementById("questionText");
+  if (qText) qText.innerHTML = decodeHTML(q.question);
+
+  const container = document.getElementById("answerOptionsArea");
+  if (!container) return;
+  container.innerHTML = "";
+
+  // 1. PILIHAN GANDA (PG)
+  if (q.type === "pg" && q.options) {
+    let html = `<div class="options-wrapper">`;
+    q.options.forEach((opt, idx) => {
+      const isChecked = userAnswers[currentIndex] === idx ? "checked" : "";
+      html += `
+        <label class="opt-label">
+          <input type="radio" name="opt_pg" value="${idx}" ${isChecked} onchange="saveAnswer(${idx})">
+          <span><b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(opt)}</span>
+        </label>
+      `;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+  }
+
+  // 2. CHECKBOX
+  else if (q.type === "checkbox" && q.options) {
+    let html = `<div class="options-wrapper">`;
+    const currentAns = userAnswers[currentIndex] || [];
+    q.options.forEach((opt, idx) => {
+      const isChecked = currentAns.includes(idx) ? "checked" : "";
+      html += `
+        <label class="opt-label">
+          <input type="checkbox" name="opt_chk" value="${idx}" ${isChecked} onchange="saveAnswerCheckbox()">
+          <span><b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(opt)}</span>
+        </label>
+      `;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+  }
+
+  // 3. ISIAN SINGKAT
+  else if (q.type === "isian") {
+    const val = userAnswers[currentIndex] !== undefined ? userAnswers[currentIndex] : "";
+    container.innerHTML = `
+      <input type="text" value="${val}" placeholder="Ketik jawaban Anda di sini..." 
+        oninput="saveAnswer(this.value)"
+        style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; box-sizing:border-box;">
+    `;
+  }
+
+  // 4. MULTI ISIAN
+  else if (q.type === "multi_isian") {
+    const expectedAns = q.answers || [];
+    const currentAns = userAnswers[currentIndex] || {};
+    let html = `<div style="display:flex; flex-direction:column; gap:12px;">`;
+    expectedAns.forEach((_, idx) => {
+      const val = currentAns[idx] || "";
+      html += `
+        <div>
+          <label style="font-size:13px; font-weight:700; margin-bottom:4px; display:block;">Isian [${idx + 1}]</label>
+          <input type="text" value="${val}" placeholder="Jawaban..." 
+            oninput="saveAnswerMultiIsian(${idx}, this.value)"
+            style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; box-sizing:border-box;">
+        </div>
+      `;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+  }
+
+  // 5. MATRIX
+  else if (q.type === "matrix" && q.columns && q.rows) {
+    const currentAns = userAnswers[currentIndex] || {};
+    let html = `
+      <div class="cbt-table-wrapper">
+        <table class="cbt-table">
+          <thead>
+            <tr>
+              <th>${decodeHTML(q.statementTitle || "Pernyataan")}</th>
+              ${q.columns.map(col => `<th>${decodeHTML(col)}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    q.rows.forEach((row, rIdx) => {
+      html += `
+        <tr>
+          <td>${decodeHTML(row.statement)}</td>
+          ${q.columns.map((_, cIdx) => {
+            const isChecked = currentAns[rIdx] === cIdx ? "checked" : "";
+            return `
+              <td style="text-align:center;">
+                <input type="radio" name="matrix_row_${rIdx}" value="${cIdx}" ${isChecked} onchange="saveAnswerMatrix(${rIdx},${cIdx})">
+              </td>
+            `;
+          }).join('')}
+        </tr>
+      `;
+    });
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
+  }
+
+  // 6. MATCHING / MENJODOHKAN
+  else if (q.type === "match" && q.pairs) {
+    const currentAns = userAnswers[currentIndex] || {};
+    let html = `
+      <div style="font-size: 13px; color: #64748b; margin-bottom: 10px;">
+        💡 <b>Cara Menjawab:</b> Klik pernyataan di sebelah kiri, lalu klik pasangan yang sesuai di sebelah kanan.
+      </div>
+      <div class="match-container" id="matchContainer">
+        <div class="match-column" id="matchLeftCol">
+          <div style="font-weight: 700; font-size: 13px; color: #1e293b; margin-bottom: 4px;">Pernyataan (Kiri)</div>
+    `;
+
+    q.pairs.forEach((p, idx) => {
+      const isConnected = currentAns[idx] !== undefined;
+      html += `
+        <div class="match-item ${isConnected ? 'connected' : ''}" data-left-idx="${idx}" onclick="selectMatchLeft(${idx})">
+          <span><b>${idx + 1}.</b> ${decodeHTML(p.left)}</span>
+          <div class="match-badge">${isConnected ? '✓' : idx + 1}</div>
+        </div>
+      `;
+    });
+
+    html += `
+        </div>
+        <div class="match-column" id="matchRightCol">
+          <div style="font-weight: 700; font-size: 13px; color: #1e293b; margin-bottom: 4px;">Pasangan Jawaban (Kanan)</div>
+    `;
+
+    q.pairs.forEach((p, idx) => {
+      let matchedLeft = Object.keys(currentAns).find(lKey => currentAns[lKey] === idx);
+      const isConnected = matchedLeft !== undefined;
+      const letterCode = String.fromCharCode(65 + idx);
+
+      html += `
+        <div class="match-item ${isConnected ? 'connected' : ''}" data-right-idx="${idx}" onclick="selectMatchRight(${idx})">
+          <span><b>${letterCode}.</b> ${decodeHTML(p.right)}</span>
+          <div class="match-badge">${isConnected ? '✓' : letterCode}</div>
+        </div>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+      <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div id="matchStatusText" style="font-size: 13px; color: #2563eb; font-weight: 600;"></div>
+        <button onclick="resetMatchAnswer()" style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; color: #475569;">🔄 Reset Pasangan</button>
+      </div>
+    `;
+    container.innerHTML = html;
+    updateMatchUIState();
+  }
+
+  const btnDoubt = document.getElementById("btnDoubt");
+  if (btnDoubt) {
+    if (doubtStatus[currentIndex]) {
+      btnDoubt.style.background = "#d97706";
+      btnDoubt.innerText = "🟧 Ragu-Ragu (Aktif)";
+    } else {
+      btnDoubt.style.background = "#eab308";
+      btnDoubt.innerText = "🟧 Ragu-Ragu";
+    }
+  }
+
+  const btnPrev = document.getElementById("btnPrev");
+  if (btnPrev) btnPrev.disabled = currentIndex === 0;
+
+  const btnNext = document.getElementById("btnNext");
+  if (btnNext) btnNext.innerText = currentIndex === questions.length - 1 ? "Selesai 🏁" : "Selanjutnya ▶";
+
+  if (window.MathJax && window.MathJax.typesetPromise) {
+    MathJax.typesetPromise([document.getElementById("cbtMainContainer")]);
+  }
+
+  renderGridNumbers();
+}
+
+// ================= SAVE ANSWERS HELPERS =================
+window.saveAnswer = function(val) {
+  userAnswers[currentIndex] = val;
+  renderGridNumbers();
+};
+
+window.saveAnswerCheckbox = function() {
+  const checked = [...document.querySelectorAll('input[name="opt_chk"]:checked')].map(x => parseInt(x.value));
+  if (checked.length > 0) {
+    userAnswers[currentIndex] = checked;
+  } else {
+    delete userAnswers[currentIndex];
+  }
+  renderGridNumbers();
+};
+
+window.saveAnswerMultiIsian = function(subIdx, val) {
+  if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
+  if (val.trim() === "") {
+    delete userAnswers[currentIndex][subIdx];
+  } else {
+    userAnswers[currentIndex][subIdx] = val;
+  }
+  renderGridNumbers();
+};
+
+window.saveAnswerMatrix = function(rowIdx, colIdx) {
+  if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
+  userAnswers[currentIndex][rowIdx] = colIdx;
+  renderGridNumbers();
+};
+
+// ================= MATCHING INTERACTIVE HELPERS =================
+window.selectMatchLeft = function(leftIdx) {
+  const q = questions[currentIndex];
+  if (!q || q.type !== "match") return;
+
+  activeMatchLeft = leftIdx;
+  updateMatchUIState();
+  const statusEl = document.getElementById("matchStatusText");
+  if (statusEl) {
+    statusEl.innerText = `Pernyataan #${leftIdx + 1} dipilih. Klik pasangan di sebelah kanan.`;
+  }
+};
+
+window.selectMatchRight = function(rightIdx) {
+  const q = questions[currentIndex];
+  if (!q || q.type !== "match") return;
+
+  if (activeMatchLeft === null) {
+    alert("Silakan klik Pernyataan di sebelah kiri terlebih dahulu!");
+    return;
+  }
+
+  if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
+  
+  userAnswers[currentIndex][activeMatchLeft] = rightIdx;
+  activeMatchLeft = null; 
+  
+  renderCurrentQuestion();
+  renderGridNumbers();
+};
+
+window.resetMatchAnswer = function() {
+  if (!userAnswers[currentIndex]) return;
+  delete userAnswers[currentIndex];
+  activeMatchLeft = null;
+  renderCurrentQuestion();
+  renderGridNumbers();
+};
+
+function updateMatchUIState() {
+  const currentAns = userAnswers[currentIndex] || {};
+  
+  document.querySelectorAll('#matchLeftCol .match-item').forEach(el => {
+    const lIdx = parseInt(el.getAttribute('data-left-idx'));
+    el.classList.remove('selected', 'connected');
+    if (lIdx === activeMatchLeft) {
+      el.classList.add('selected');
+    } else if (currentAns[lIdx] !== undefined) {
+      el.classList.add('connected');
+    }
+  });
+
+  document.querySelectorAll('#matchRightCol .match-item').forEach(el => {
+    const rIdx = parseInt(el.getAttribute('data-right-idx'));
+    el.classList.remove('connected');
+    let isMatched = Object.values(currentAns).includes(rIdx);
+    if (isMatched) {
+      el.classList.add('connected');
+    }
+  });
+}
+
+// ================= NAVIGATION =================
+window.prevQuestion = function() {
+  if (currentIndex > 0) {
+    currentIndex--;
+    renderCurrentQuestion();
+  }
+};
+
+window.nextQuestion = function() {
+  if (currentIndex < questions.length - 1) {
+    currentIndex++;
+    renderCurrentQuestion();
+  } else {
+    window.toggleNavDrawer();
+  }
+};
+
+window.toggleDoubt = function() {
+  doubtStatus[currentIndex] = !doubtStatus[currentIndex];
+  renderCurrentQuestion();
+};
+
+window.goToQuestion = function(idx) {
+  currentIndex = idx;
+  renderCurrentQuestion();
+  window.toggleNavDrawer();
+};
+
+window.toggleNavDrawer = function() {
+  const overlay = document.getElementById("navDrawerOverlay");
+  if (overlay) {
+    overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
+  }
+};
+
+// ================= CHECKING TERJAWAB =================
+function isQuestionAnswered(idx) {
+  const ans = userAnswers[idx];
+  if (ans === undefined || ans === null) return false;
+  if (typeof ans === "string") return ans.trim() !== "";
+  if (typeof ans === "number") return true; 
+  if (Array.isArray(ans)) return ans.length > 0;
+  if (typeof ans === "object") return Object.keys(ans).length > 0;
+  return false;
+}
+
+// ================= RENDER GRID NUMBERS =================
+function renderGridNumbers() {
+  const grid = document.getElementById("gridNumbers");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  questions.forEach((_, idx) => {
+    const btn = document.createElement("div");
+    btn.className = "num-box";
+    btn.innerText = idx + 1;
+
+    const isAnswered = isQuestionAnswered(idx);
+    const isDoubt = doubtStatus[idx];
+
+    if (idx === currentIndex) btn.classList.add("active");
+    
+    if (isDoubt) {
+      btn.classList.add("doubt");
+    } else if (isAnswered) {
+      btn.classList.add("answered");
+    }
+
+    btn.onclick = () => window.goToQuestion(idx);
+    grid.appendChild(btn);
+  });
+}
+
+// ================= TIMER LOGIC =================
+function startTimer() {
+  if (!timeRemaining || timeRemaining <= 0) {
+    const durationMins = simulationData && simulationData.durationMinutes ? parseInt(simulationData.durationMinutes) : 60;
+    timeRemaining = durationMins * 60;
+  }
+
+  if (timerInterval) clearInterval(timerInterval);
+
+  timerInterval = setInterval(() => {
+    if (timeRemaining <= 0) {
+      clearInterval(timerInterval);
+      alert("Waktu pengerjaan telah habis!");
+      calculateAndFinish();
+      return;
+    }
+
+    timeRemaining--;
+    const h = Math.floor(timeRemaining / 3600).toString().padStart(2, '0');
+    const m = Math.floor((timeRemaining % 3600) / 60).toString().padStart(2, '0');
+    const s = (timeRemaining % 60).toString().padStart(2, '0');
+
+    const timerEl = document.getElementById("timerDisplay");
+    if (timerEl) {
+      timerEl.innerText = `${h}:${m}:${s}`;
+    }
+  }, 1000);
+}
+
+// ================= START EXAM =================
+window.startExamWithFullscreen = function() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) {
+    el.requestFullscreen().catch(() => {});
+  }
+
+  const startModal = document.getElementById("startModal");
+  if (startModal) startModal.style.display = "none";
+  
+  const cbtHeader = document.getElementById("cbtHeader");
+  if (cbtHeader) cbtHeader.classList.remove("blur-content");
+  
+  const cbtMainContainer = document.getElementById("cbtMainContainer");
+  if (cbtMainContainer) cbtMainContainer.classList.remove("blur-content");
+
+  renderCurrentQuestion();
+  startTimer();
+};
+
+// ================= FINISH SIMULATION =================
+window.confirmFinish = function() {
+  if (confirm("Apakah Anda yakin ingin menyelesaikan simulasi ujian ini?")) {
+    window.toggleNavDrawer();
+    calculateAndFinish();
+  }
+};
+
+function calculateAndFinish() {
+  if (timerInterval) clearInterval(timerInterval);
+
+  let totalCorrect = 0;
+  const resultsDetail = [];
+
+  questions.forEach((q, idx) => {
+    const ans = userAnswers[idx];
+    let isCorrect = false;
+
+    if (ans !== undefined && ans !== null) {
+      // 1. PG
+      if (q.type === "pg" && ans === q.answer) {
+        isCorrect = true;
+      }
+      // 2. CHECKBOX
+      else if (q.type === "checkbox") {
+        const expected = (Array.isArray(q.answer) ? q.answer : []).slice().sort();
+        const userSel = (Array.isArray(ans) ? ans : []).slice().sort();
+        if (JSON.stringify(expected) === JSON.stringify(userSel)) isCorrect = true;
+      }
+      // 3. ISIAN
+      else if (q.type === "isian") {
+        if (String(ans).trim().toLowerCase() === String(q.answer).trim().toLowerCase()) isCorrect = true;
+      }
+      // 4. MULTI ISIAN
+      else if (q.type === "multi_isian") {
+        const expectedArr = q.answers || [];
+        let isAllCorrect = true;
+        expectedArr.forEach((exp, subIdx) => {
+          if (!ans[subIdx] || String(ans[subIdx]).trim().toLowerCase() !== String(exp).trim().toLowerCase()) {
+            isAllCorrect = false;
+          }
+        });
+        if (isAllCorrect && expectedArr.length > 0) isCorrect = true;
+      }
+      // 5. MATRIX
+      else if (q.type === "matrix") {
+        let isAllCorrect = true;
+        q.rows.forEach((row, rIdx) => {
+          if (ans[rIdx] !== row.answer) isAllCorrect = false;
+        });
+        if (isAllCorrect) isCorrect = true;
+      }
+      // 6. MATCH
+      else if (q.type === "match") {
+        let isAllCorrect = true;
+        if (Object.keys(ans).length !== q.pairs.length) {
+          isAllCorrect = false;
+        } else {
+          q.pairs.forEach((_, pIdx) => {
+            if (ans[pIdx] !== pIdx) isAllCorrect = false;
+          });
+        }
+        if (isAllCorrect) isCorrect = true;
+      }
+    }
+
+    if (isCorrect) totalCorrect++;
+    resultsDetail.push({ question: q, isCorrect, userAnswer: ans });
+  });
+
+  const finalScore = Math.round((totalCorrect / questions.length) * 100) || 0;
+  const passingGrade = simulationData.passingGrade || 75;
+  const isPassed = finalScore >= passingGrade;
+
+  const finalScoreEl = document.getElementById("finalScore");
+  if (finalScoreEl) finalScoreEl.innerText = finalScore;
+
+  const statusEl = document.getElementById("passingStatus");
+  if (statusEl) {
+    statusEl.innerText = isPassed ? "LULUS (MEMENUHI PASSING GRADE)" : "TIDAK LULUS";
+    statusEl.style.color = isPassed ? "#16a34a" : "#dc2626";
+  }
+
+  renderReviewDetail(resultsDetail);
+  
+  const resultModal = document.getElementById("resultModal");
+  if (resultModal) resultModal.style.display = "flex";
+}
+
+// ================= FORMATTING TEXT JAWABAN =================
+function formatUserAnswerText(q, ans) {
+  if (ans === undefined || ans === null || ans === "" || (typeof ans === "object" && Object.keys(ans).length === 0)) {
+    return `<i style="color:#94a3b8;">Tidak Dijawab</i>`;
+  }
+
+  if (q.type === "pg" && q.options) {
+    const optText = q.options[ans] ? decodeHTML(q.options[ans]) : "-";
+    return `<b>${String.fromCharCode(65 + ans)}.</b> ${optText}`;
+  }
+
+  if (q.type === "checkbox" && q.options && Array.isArray(ans)) {
+    return ans.map(idx => `<b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(q.options[idx])}`).join("<br>");
+  }
+
+  if (q.type === "isian") {
+    return `<b>${ans}</b>`;
+  }
+
+  if (q.type === "multi_isian") {
+    let textArr = [];
+    (q.answers || []).forEach((_, idx) => {
+      textArr.push(`Isian [${idx + 1}]: <b>${ans[idx] || "-"}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  if (q.type === "matrix" && q.rows && q.columns) {
+    let textArr = [];
+    q.rows.forEach((row, rIdx) => {
+      const colIdx = ans[rIdx];
+      const selectedColName = colIdx !== undefined ? decodeHTML(q.columns[colIdx]) : "-";
+      textArr.push(`${decodeHTML(row.statement)} ➔ <b>${selectedColName}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  if (q.type === "match" && q.pairs) {
+    let textArr = [];
+    q.pairs.forEach((pair, pIdx) => {
+      const rightIdx = ans[pIdx];
+      const selectedRightText = rightIdx !== undefined ? decodeHTML(q.pairs[rightIdx].right) : "<i style='color:#94a3b8;'>Belum dipasangkan</i>";
+      const letterCode = rightIdx !== undefined ? String.fromCharCode(65 + rightIdx) : "-";
+      textArr.push(`<b>${pIdx + 1}. ${decodeHTML(pair.left)}</b> ➔ [${letterCode}] ${selectedRightText}`);
+    });
+    return textArr.join("<br>");
+  }
+
+  return JSON.stringify(ans);
+}
+
+function formatCorrectAnswerText(q) {
+  if (q.type === "pg" && q.options) {
+    const optText = q.options[q.answer] ? decodeHTML(q.options[q.answer]) : "-";
+    return `<b>${String.fromCharCode(65 + q.answer)}.</b> ${optText}`;
+  }
+
+  if (q.type === "checkbox" && q.options && Array.isArray(q.answer)) {
+    return q.answer.map(idx => `<b>${String.fromCharCode(65 + idx)}.</b> ${decodeHTML(q.options[idx])}`).join("<br>");
+  }
+
+  if (q.type === "isian") {
+    return `<b>${q.answer}</b>`;
+  }
+
+  if (q.type === "multi_isian") {
+    let textArr = [];
+    (q.answers || []).forEach((exp, idx) => {
+      textArr.push(`Isian [${idx + 1}]: <b>${exp}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  if (q.type === "matrix" && q.rows && q.columns) {
+    let textArr = [];
+    q.rows.forEach((row) => {
+      const colName = decodeHTML(q.columns[row.answer]);
+      textArr.push(`${decodeHTML(row.statement)} ➔ <b>${colName}</b>`);
+    });
+    return textArr.join("<br>");
+  }
+
+  if (q.type === "match" && q.pairs) {
+    let textArr = [];
+    q.pairs.forEach((pair, pIdx) => {
+      const letterCode = String.fromCharCode(65 + pIdx);
+      textArr.push(`<b>${pIdx + 1}. ${decodeHTML(pair.left)}</b> ➔ [${letterCode}] ${decodeHTML(pair.right)}`);
+    });
+    return textArr.join("<br>");
+  }
+
+  return "-";
+}
+
+// ================= RENDER REVIEW DETAIL =================
+function renderReviewDetail(resultsDetail) {
+  const container = document.getElementById("reviewDetailArea");
+  if (!container) return;
+  let html = "";
+
+  resultsDetail.forEach((item, idx) => {
+    const q = item.question;
+    const isCorrect = item.isCorrect;
+    const statusClass = isCorrect ? "status-correct" : "status-wrong";
+    const statusText = isCorrect ? "✓ BENAR" : "✕ SALAH / BELUM DIISI";
+
+    const userAnsText = formatUserAnswerText(q, item.userAnswer);
+    const correctAnsText = formatCorrectAnswerText(q);
+    const discussionText = q.explanation || q.discussion || q.pembahasan || "Tidak ada pembahasan khusus untuk soal ini.";
+
+    html += `
+      <div class="review-item" style="border-left: 5px solid ${isCorrect ? '#16a34a' : '#dc2626'};">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-weight:800; color:#1e293b;">Soal No. ${idx + 1}</span>
+          <span class="review-status ${statusClass}">${statusText}</span>
+        </div>
+
+        <div style="margin-bottom: 12px; font-size:15px; color:#0f172a;">
+          ${decodeHTML(q.question)}
+        </div>
+
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 13px; margin-bottom: 10px;">
+          <div style="margin-bottom: 6px;">
+            <span style="color:#64748b; font-size:12px; display:block;">Jawaban Anda:</span>
+            <div style="color: ${isCorrect ? '#166534' : '#991b1b'}; font-size: 14px;">
+              ${userAnsText}
+            </div>
+          </div>
+          
+          <div style="border-top: 1px dashed #e2e8f0; padding-top: 6px; margin-top: 6px;">
+            <span style="color:#64748b; font-size:12px; display:block;">Kunci Jawaban Benar:</span>
+            <div style="color: #166534; font-size: 14px;">
+              ${correctAnsText}
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px; font-size: 13px; color: #1e40af;">
+          💡 <b>Pembahasan:</b><br>
+          <div style="margin-top: 4px; color: #1e3a8a;">
+            ${decodeHTML(discussionText)}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  
+  if (window.MathJax && window.MathJax.typesetPromise) {
+    MathJax.typesetPromise([container]);
+  }
+}
+
+window.toggleReviewDetail = function() {
+  const area = document.getElementById("reviewDetailArea");
+  const btn = document.getElementById("btnToggleDetail");
+  if (!area || !btn) return;
+  if (area.style.display === "none") {
+    area.style.display = "block";
+    btn.innerText = "🙈 Sembunyikan Detail Pembahasan";
+  } else {
+    area.style.display = "none";
+    btn.innerText = "🔍 Lihat Detail Pembahasan";
+  }
+};
+
+window.backToClass = function() {
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.location.href = "materials.html";
+  }
+};
