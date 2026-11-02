@@ -173,19 +173,52 @@ async function loadCompletedSimulationsForCard(studentUid) {
   }
 }
 
-// FUNGSI PENDUKUNG: Mengarahkan langsung ke halaman simulasi ujian dengan URL tujuan
-window.retrySimulation = (simulationId) => {
+// FUNGSI: Mengecek izin admin sebelum siswa bisa mengerjakan ulang simulasi
+window.retrySimulation = async (simulationId) => {
   if (!simulationId) return alert("ID Simulasi tidak ditemukan!");
   
-  if (confirm("Apakah Anda ingin mengerjakan ulang try out ini?")) {
-    const targetUrl = `https://lmskebunilmu.github.io/LMS/dashboard/simulation.html?id=${simulationId}`;
-    const win = window.open(targetUrl, "_blank");
-    if (!win) {
-      alert("Pop-up diblokir browser! Harap izinkan pop-up untuk membuka simulasi.");
+  try {
+    const user = auth.currentUser;
+    if (!user) return alert("Silakan login kembali.");
+
+    // Ambil data student untuk tahu schoolId dan classId-nya
+    const studentDocSnap = await getDoc(doc(db, "students", user.uid));
+    if (!studentDocSnap.exists()) {
+      return alert("Data siswa tidak ditemukan.");
     }
+    const studentData = studentDocSnap.data();
+
+    // Cek apakah admin sudah memberikan izin (isAssigned: true) untuk kelas ini
+    const qCheck = query(
+      collection(db, "simulationGuru"),
+      where("schoolId", "==", studentData.schoolId),
+      where("classId", "==", studentData.classId),
+      where("simulationId", "==", simulationId),
+      where("isAssigned", "==", true)
+    );
+    
+    const snap = await getDocs(qCheck);
+
+    if (snap.empty) {
+      // Jika admin belum mengizinkan / menekan tombol tampilkan di panel admin
+      alert("⚠️ Maaf, Anda belum diizinkan oleh admin/guru untuk mengerjakan ulang simulasi ini.");
+      return;
+    }
+
+    // Jika sudah diizinkan, izinkan siswa membuka halaman simulasi di tab baru
+    if (confirm("Apakah Anda ingin mengerjakan ulang try out ini?")) {
+      const targetUrl = `https://lmskebunilmu.github.io/LMS/dashboard/simulation.html?id=${simulationId}`;
+      const win = window.open(targetUrl, "_blank");
+      if (!win) {
+        alert("Pop-up diblokir browser! Harap izinkan pop-up untuk membuka simulasi.");
+      }
+    }
+
+  } catch (err) {
+    console.error("Gagal memeriksa izin pengerjaan:", err);
+    alert("Terjadi kesalahan saat memeriksa izin.");
   }
 };
-
 async function loadMaterials(schoolId, classId) {
   const q = query(
     collection(db, "materialGuru"),
