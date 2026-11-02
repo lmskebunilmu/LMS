@@ -1,4 +1,4 @@
-import { auth, db } from "../../firebase/firebase-config.js";
+import { auth, db, dbSecondary } from "../../firebase/firebase-config.js";
 import {
   collection,
   getDocs,
@@ -21,7 +21,7 @@ let studentClassId = null;
 onAuthStateChanged(auth, async (user) => {
   if (!user) return window.location = "../../login.html";
 
-  // OPTIMASI: Ambil data user dan layout secara paralel agar tidak menunggu satu per satu
+  // OPTIMASI: Ambil data user dan layout secara paralel
   const [userSnap] = await Promise.all([
     getDoc(doc(db, "users", user.uid)),
     loadLayout("siswa")
@@ -36,14 +36,15 @@ onAuthStateChanged(auth, async (user) => {
     return window.location = "../../login.html";
   }
 
-  // Jalankan pemuatan komponen header, data sekolah, dan kelas siswa secara paralel
+  // Jalankan pemuatan komponen header, data sekolah, kelas siswa, dan riwayat try out secara paralel
   await Promise.all([
     waitForHeader().then(() => loadProfileHeader(user, userData)),
     loadSchoolData(userData.schoolId),
-    findStudentClass(user.uid)
+    findStudentClass(user.uid),
+    loadCompletedSimulationsForCard(user.uid) // <-- Memuat card riwayat try out selesai
   ]);
   
-  // Jika kelas siswa sudah ada, muat materi dan latihan secara paralel (bersamaan)
+  // Jika kelas siswa sudah ada, muat materi dan latihan secara paralel
   if (studentClassId) {
     await Promise.all([
       loadMaterials(userData.schoolId, studentClassId),
@@ -97,6 +98,65 @@ async function findStudentClass(studentUid) {
   }
 }
 
+// FUNGSI BARU: Memuat daftar try out / simulasi yang sudah diselesaikan ke dalam card khusus
+async function loadCompletedSimulationsForCard(studentUid) {
+  const container = document.getElementById("completedSimulationsList");
+  if (!container) return;
+
+  try {
+    const q = query(
+      collection(dbSecondary, "student_simulation_submissions"),
+      where("studentUid", "==", studentUid)
+    );
+    const snap = await getDocs(q);
+
+    let html = "";
+    let count = 0;
+
+    snap.forEach(docSnap => {
+      const sub = docSnap.data();
+      if (sub.submittedAt) {
+        count++;
+        const title = sub.simulationTitle || "Simulasi Ujian";
+        const subject = sub.subject || "-";
+        const score = sub.score || 0;
+        
+        let dateStr = "-";
+        if (sub.submittedAt?.toDate) {
+          dateStr = sub.submittedAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        html += `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; margin-bottom: 10px;">
+            <div>
+              <div style="font-weight: 700; font-size: 14px; color: #065f46; margin-bottom: 4px;">✅ ${title}</div>
+              <div style="font-size: 12px; color: #4b5563; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <span style="background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-weight: 600;">${subject}</span>
+                <span>•</span>
+                <span>📅 ${dateStr}</span>
+                <span>•</span>
+                <span>Benar: <strong>${sub.correctAnswers || 0}/${sub.totalQuestions || 0}</strong></span>
+              </div>
+            </div>
+            <div style="background: #059669; color: white; padding: 6px 14px; border-radius: 10px; font-weight: 800; font-size: 14px; white-space: nowrap;">
+              ⭐ ${score}
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    if (count === 0) {
+      container.innerHTML = `<div class="empty-state" style="color: var(--text-muted); text-align: center; padding: 20px;">Belum ada try out atau simulasi yang diselesaikan.</div>`;
+    } else {
+      container.innerHTML = html;
+    }
+  } catch (err) {
+    console.error("Gagal memuat riwayat try out:", err);
+    container.innerHTML = `<div class="empty-state" style="color: red; text-align: center;">Gagal memuat riwayat try out.</div>`;
+  }
+}
+
 async function loadMaterials(schoolId, classId) {
   const q = query(
     collection(db, "materialGuru"),
@@ -106,7 +166,6 @@ async function loadMaterials(schoolId, classId) {
 
   const snap = await getDocs(q);
   
-  // OPTIMASI: Gunakan Promise.all untuk mengambil semua detail materi secara paralel (serentak)
   const promises = snap.docs.map(async (d) => {
     const assign = d.data();
     const matSnap = await getDoc(doc(db, "materials", assign.materialId));
@@ -143,7 +202,6 @@ async function loadExercises(schoolId, classId) {
 
   const snap = await getDocs(q);
   
-  // OPTIMASI: Gunakan Promise.all untuk mengambil semua detail latihan secara paralel (serentak)
   const promises = snap.docs.map(async (d) => {
     const assign = d.data();
     const exSnap = await getDoc(doc(db, "exercises", assign.exerciseId));
