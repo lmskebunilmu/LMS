@@ -174,7 +174,7 @@ async function loadCompletedSimulationsForCard(studentUid) {
   }
 }
 
-// FUNGSI: Mengecek izin admin sebelum siswa bisa mengerjakan ulang simulasi
+// FUNGSI: Mengecek izin admin (isAllowedRetry) sebelum siswa bisa mengerjakan ulang simulasi di material siswa
 window.retrySimulation = async (simulationId) => {
   if (!simulationId) return alert("ID Simulasi tidak ditemukan!");
   
@@ -189,20 +189,20 @@ window.retrySimulation = async (simulationId) => {
     }
     const studentData = studentDocSnap.data();
 
-    // Cek apakah admin sudah memberikan izin (isAssigned: true) untuk kelas ini
+    // Cek apakah admin sudah memberikan izin khusus (isAllowedRetry: true) untuk kelas ini
     const qCheck = query(
       collection(db, "simulationGuru"),
       where("schoolId", "==", studentData.schoolId),
       where("classId", "==", studentData.classId),
       where("simulationId", "==", simulationId),
-      where("isAssigned", "==", true)
+      where("isAllowedRetry", "==", true)
     );
     
     const snap = await getDocs(qCheck);
 
     if (snap.empty) {
-      // Jika admin belum mengizinkan / memberikan tombol izinkan kerjakan
-      alert("⚠️ Maaf, Anda belum diizinkan oleh admin/guru untuk mengerjakan ulang simulasi ini.");
+      // Jika admin belum mengizinkan / tombol izinkan kerjakan belum aktif di admin
+      alert("⚠️ Maaf, Anda belum diizinkan oleh admin/guru untuk mengerjakan ulang simulasi ini di halaman material.");
       return;
     }
 
