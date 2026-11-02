@@ -672,7 +672,7 @@ window.exportSimSimulationPDF = async () => {
       fillColor: [248, 250, 252]
     },
     columnStyles: {
-      0: { cellWidth: 12, halign: "center" },
+      0: { cellWidth: 15, halign: "center" },
       1: { cellWidth: 65, fontStyle: "bold" },
       2: { cellWidth: 25, halign: "center" },
       3: { cellWidth: 20, halign: "center", fontStyle: "bold" },
