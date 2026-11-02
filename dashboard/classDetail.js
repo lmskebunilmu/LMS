@@ -368,5 +368,6 @@ window.openMaterial = function (id) {
 };
 
 window.startSimulation = function (id) {
-  window.location.href = `/LMS/dashboard/simulation.html?id=${encodeURIComponent(id)}`;
+  // Membuka halaman simulasi di tab baru
+  window.open(`/LMS/dashboard/simulation.html?id=${encodeURIComponent(id)}`, "_blank");
 };
