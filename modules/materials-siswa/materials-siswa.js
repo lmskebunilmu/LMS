@@ -178,7 +178,7 @@ window.retrySimulation = (simulationId) => {
   if (!simulationId) return alert("ID Simulasi tidak ditemukan!");
   
   if (confirm("Apakah Anda ingin mengerjakan ulang try out ini?")) {
-    const targetUrl = `https://lmskebunilmu.github.io/LMS/dashboard/simulation.html?id=${simulationId}`;
+    const targetUrl = `https://lmskebunilmu.github.io/LMS/modules/materials-siswa/simulation.html?id=${simulationId}`;
     const win = window.open(targetUrl, "_blank");
     if (!win) {
       alert("Pop-up diblokir browser! Harap izinkan pop-up untuk membuka simulasi.");
