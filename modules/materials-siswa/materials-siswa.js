@@ -173,12 +173,13 @@ async function loadCompletedSimulationsForCard(studentUid) {
   }
 }
 
-// FUNGSI PENDUKUNG: Untuk mengarahkan kembali ke halaman pengerjaan simulasi saat tombol diklik
+// FUNGSI PENDUKUNG: Mengarahkan langsung ke halaman simulasi ujian dengan URL tujuan
 window.retrySimulation = (simulationId) => {
   if (!simulationId) return alert("ID Simulasi tidak ditemukan!");
   
   if (confirm("Apakah Anda ingin mengerjakan ulang try out ini?")) {
-    const win = window.open(`simulation-runner.html?id=${simulationId}`, "_blank");
+    const targetUrl = `https://lmskebunilmu.github.io/LMS/dashboard/simulation.html?id=${simulationId}`;
+    const win = window.open(targetUrl, "_blank");
     if (!win) {
       alert("Pop-up diblokir browser! Harap izinkan pop-up untuk membuka simulasi.");
     }
