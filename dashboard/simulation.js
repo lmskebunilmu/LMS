@@ -751,10 +751,14 @@ window.toggleReviewDetail = function() {
   }
 };
 
+// ================= BACK TO CLASS / TUTUP TAB =================
 window.backToClass = function() {
-  if (window.history.length > 1) {
-    window.history.back();
-  } else {
+  // Coba tutup tab saat ini (karena dibuka via tab baru / window.open)
+  window.close();
+  
+  // Cadangan (Fallback): Jika browser memblokir penutupan tab otomatis, 
+  // arahkan kembali ke halaman materials.html
+  setTimeout(() => {
     window.location.href = "materials.html";
-  }
+  }, 300);
 };
