@@ -21,6 +21,7 @@ let schoolData = null;
 let allSchoolSimulations = [];
 let filteredSchoolSimulations = [];
 let assignedSimulationMap = {};
+let allowedRetrySimulationMap = {}; // Map baru untuk status izin tombol material siswa
 
 // ==========================
 // AUTH
@@ -154,22 +155,28 @@ async function loadSchoolSimulations() {
       allSchoolSimulations = [];
       filteredSchoolSimulations = [];
       assignedSimulationMap = {};
+      allowedRetrySimulationMap = {};
       renderSimulationsTable();
       return;
     }
 
-    // Ambil data penugasan aktif dari simulationGuru untuk sekolah ini
+    // Ambil data penugasan dari simulationGuru untuk sekolah ini
     assignedSimulationMap = {};
+    allowedRetrySimulationMap = {};
     const simGuruSnap = await getDocs(query(
       collection(db, "simulationGuru"), 
-      where("schoolId", "==", currentSchoolId),
-      where("isAssigned", "==", true)
+      where("schoolId", "==", currentSchoolId)
     ));
     
     simGuruSnap.forEach(docSnap => {
       const data = docSnap.data();
       if (data.simulationId) {
-        assignedSimulationMap[data.simulationId] = true;
+        if (data.isAssigned === true) {
+          assignedSimulationMap[data.simulationId] = true;
+        }
+        if (data.isAllowedRetry === true) {
+          allowedRetrySimulationMap[data.simulationId] = true;
+        }
       }
     });
 
@@ -206,11 +213,13 @@ function renderSimulationsTable() {
   filteredSchoolSimulations.forEach((sim, idx) => {
     const tr = document.createElement("tr");
     const isAssigned = !!assignedSimulationMap[sim.id];
+    const isAllowedRetry = !!allowedRetrySimulationMap[sim.id];
     const questionCount = (sim.questions || []).length;
 
     let statusBadge = '';
     let actionButton = '';
 
+    // Tombol Tampilkan / Sembunyikan Dashboard (Terpisah)
     if (isAssigned) {
       statusBadge = `<span style="background:#dcfce7; color:#166534; padding:3px 8px; border-radius:12px; font-weight:bold; font-size:11px;">🟢 Tampil (Aktif)</span>`;
       actionButton = `<button onclick="togglePublishSimulation('${sim.id}', false)" style="background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Sembunyikan dari siswa">🛑 Sembunyikan</button>`;
@@ -219,10 +228,10 @@ function renderSimulationsTable() {
       actionButton = `<button onclick="togglePublishSimulation('${sim.id}', true)" style="background:#4f46e5; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Tampilkan ke siswa">🚀 Tampilkan</button>`;
     }
 
-    // Penambahan Tombol Baru: Izinkan Kerjakan / Cabut Izin Pengerjaan Ulang di Material Siswa
-    let permitButton = isAssigned 
-      ? `<button onclick="togglePermitRetry('${sim.id}', false)" style="background:#b45309; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Cabut izin pengerjaan ulang">🚫 Cabut Izin</button>`
-      : `<button onclick="togglePermitRetry('${sim.id}', true)" style="background:#059669; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Izinkan siswa mengerjakan soal simulasi">✅ Izinkan Kerjakan</button>`;
+    // Tombol Izinkan Kerjakan di Material Siswa (Terpisah menggunakan isAllowedRetry)
+    let permitButton = isAllowedRetry 
+      ? `<button onclick="togglePermitRetry('${sim.id}', false)" style="background:#b45309; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Cabut izin pengerjaan di material">🚫 Cabut Izin</button>`
+      : `<button onclick="togglePermitRetry('${sim.id}', true)" style="background:#059669; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:12px;" title="Izinkan kerjakan di material siswa">✅ Izinkan Kerjakan</button>`;
 
     tr.innerHTML = `
       <td>${idx + 1}</td>
@@ -253,14 +262,14 @@ window.filterSimulationsList = () => {
 };
 
 // ==========================
-// TOGGLE PUBLISH (Tampilkan / Sembunyikan)
+// TOGGLE PUBLISH (Tampilkan / Sembunyikan Dashboard)
 // ==========================
 window.togglePublishSimulation = async (simId, shouldPublish) => {
   const sim = allSchoolSimulations.find(s => s.id === simId);
   if (!sim) return;
 
   if (shouldPublish) {
-    if (!confirm(`Tampilkan simulasi "${sim.title}" untuk dikerjakan siswa di sekolah ini?`)) return;
+    if (!confirm(`Tampilkan simulasi "${sim.title}" di dashboard siswa?`)) return;
 
     try {
       const classesSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
@@ -270,26 +279,41 @@ window.togglePublishSimulation = async (simId, shouldPublish) => {
         return;
       }
 
-      let batchCount = 0;
+      let count = 0;
       for (const classDoc of classesSnap.docs) {
-        await addDoc(collection(db, "simulationGuru"), {
-          schoolId: currentSchoolId,
-          classId: classDoc.id,
-          simulationId: simId,
-          isAssigned: true,
-          assignedAt: new Date()
-        });
-        batchCount++;
+        const checkQuery = query(
+          collection(db, "simulationGuru"),
+          where("schoolId", "==", currentSchoolId),
+          where("classId", "==", classDoc.id),
+          where("simulationId", "==", simId)
+        );
+        const checkSnap = await getDocs(checkQuery);
+
+        if (checkSnap.empty) {
+          await addDoc(collection(db, "simulationGuru"), {
+            schoolId: currentSchoolId,
+            classId: classDoc.id,
+            simulationId: simId,
+            isAssigned: true,
+            isAllowedRetry: false,
+            assignedAt: new Date()
+          });
+        } else {
+          for (const dSnap of checkSnap.docs) {
+            await updateDoc(doc(db, "simulationGuru", dSnap.id), { isAssigned: true });
+          }
+        }
+        count++;
       }
 
-      showToast(`Berhasil! Simulasi ditampilkan ke ${batchCount} kelas.`);
+      showToast(`Berhasil! Simulasi ditampilkan ke ${count} kelas.`);
       await loadSchoolSimulations();
     } catch (err) {
       console.error("Gagal menampilkan simulasi:", err);
       showToast("Gagal menampilkan simulasi.", "error");
     }
   } else {
-    if (!confirm(`Sembunyikan simulasi "${sim.title}" dari siswa?`)) return;
+    if (!confirm(`Sembunyikan simulasi "${sim.title}" dari dashboard siswa?`)) return;
 
     try {
       const qCheck = query(
@@ -300,7 +324,13 @@ window.togglePublishSimulation = async (simId, shouldPublish) => {
       const snap = await getDocs(qCheck);
       
       for (const docSnap of snap.docs) {
-        await deleteDoc(doc(db, "simulationGuru", docSnap.id));
+        const data = docSnap.data();
+        // Jika isAllowedRetry juga mati, hapus dokumen. Jika tidak, cukup set isAssigned false.
+        if (!data.isAllowedRetry) {
+          await deleteDoc(doc(db, "simulationGuru", docSnap.id));
+        } else {
+          await updateDoc(doc(db, "simulationGuru", docSnap.id), { isAssigned: false });
+        }
       }
 
       showToast("Simulasi berhasil disembunyikan.");
@@ -313,14 +343,14 @@ window.togglePublishSimulation = async (simId, shouldPublish) => {
 };
 
 // ==========================
-// TOGGLE PERMIT RETRY (IZINKAN / CABUT IZIN MENGERJAKAN DI MATERIAL SISWA)
+// TOGGLE PERMIT RETRY (Izinkan Kerjakan di Material Siswa)
 // ==========================
 window.togglePermitRetry = async (simId, shouldPermit) => {
   const sim = allSchoolSimulations.find(s => s.id === simId);
   if (!sim) return;
 
   if (shouldPermit) {
-    if (!confirm(`Berikan izin kepada siswa untuk mengerjakan simulasi "${sim.title}" di halaman Material Siswa?`)) return;
+    if (!confirm(`Aktifkan tombol kerjakan untuk simulasi "${sim.title}" di halaman material siswa?`)) return;
 
     try {
       const classesSnap = await getDocs(query(collection(db, "classes"), where("schoolId", "==", currentSchoolId)));
@@ -344,25 +374,26 @@ window.togglePermitRetry = async (simId, shouldPermit) => {
             schoolId: currentSchoolId,
             classId: classDoc.id,
             simulationId: simId,
-            isAssigned: true,
+            isAssigned: false,
+            isAllowedRetry: true,
             assignedAt: new Date()
           });
         } else {
           for (const dSnap of checkSnap.docs) {
-            await updateDoc(doc(db, "simulationGuru", dSnap.id), { isAssigned: true });
+            await updateDoc(doc(db, "simulationGuru", dSnap.id), { isAllowedRetry: true });
           }
         }
         count++;
       }
 
-      showToast(`Berhasil memberikan izin pengerjaan simulasi!`);
+      showToast(`Berhasil mengaktifkan tombol kerjakan di material siswa!`);
       await loadSchoolSimulations();
     } catch (err) {
       console.error("Gagal memberi izin:", err);
       showToast("Gagal memberikan izin.", "error");
     }
   } else {
-    if (!confirm(`Cabut izin pengerjaan simulasi "${sim.title}" dari siswa?`)) return;
+    if (!confirm(`Matikan tombol kerjakan untuk simulasi "${sim.title}" di material siswa?`)) return;
 
     try {
       const qCheck = query(
@@ -373,10 +404,15 @@ window.togglePermitRetry = async (simId, shouldPermit) => {
       const snap = await getDocs(qCheck);
       
       for (const docSnap of snap.docs) {
-        await updateDoc(doc(db, "simulationGuru", docSnap.id), { isAssigned: false });
+        const data = docSnap.data();
+        if (!data.isAssigned) {
+          await deleteDoc(doc(db, "simulationGuru", docSnap.id));
+        } else {
+          await updateDoc(doc(db, "simulationGuru", docSnap.id), { isAllowedRetry: false });
+        }
       }
 
-      showToast("Izin pengerjaan simulasi berhasil dicabut.");
+      showToast("Tombol kerjakan di material siswa berhasil dimatikan.");
       await loadSchoolSimulations();
     } catch (err) {
       console.error("Gagal mencabut izin:", err);
