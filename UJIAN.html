@@ -399,8 +399,8 @@
 
     async function fetchAllSimulations() {
       try {
-        const qRef = query(collection(db, "simulations"), limit(50));
-        const snap = await getDocs(qRef);
+        // Mengambil seluruh dokumen dari koleksi simulations tanpa batasan limit(50)
+        const snap = await getDocs(collection(db, "simulations"));
         
         if (snap.empty) {
           document.getElementById("loadingState").innerHTML = "<b style='color:red;'>Tidak ada data simulasi.</b>";
