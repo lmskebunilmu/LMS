@@ -139,8 +139,27 @@
 
     .cbt-table-wrapper { overflow-x: auto; margin-top: 10px; border-radius: 8px; border: 1px solid #cbd5e1; }
     .cbt-table { width: 100%; border-collapse: collapse; min-width: 500px; }
-    .cbt-table th, .cbt-table td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; font-size: 14px; }
+    .cbt-table th, .cbt-table td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; font-size: 14px; vertical-align: middle; }
     .cbt-table th { background: #f1f5f9; text-align: center; font-weight: 700; }
+
+    /* Custom Dropdown untuk soal match agar bisa MathJax */
+    .custom-select-wrapper { position: relative; width: 100%; }
+    .custom-select-btn {
+      width: 100%; padding: 10px 14px; background: #ffffff; border: 1.5px solid var(--border-color);
+      border-radius: 8px; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+      font-size: 14px; color: var(--text-main); font-family: inherit; transition: all 0.2s;
+    }
+    .custom-select-btn:hover { border-color: var(--primary); background: var(--primary-light); }
+    .custom-dropdown-menu {
+      position: absolute; top: 100%; left: 0; right: 0; background: #ffffff; border: 1.5px solid var(--border-color);
+      border-radius: 10px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); margin-top: 4px; display: none; z-index: 100;
+      max-height: 220px; overflow-y: auto;
+    }
+    .custom-dropdown-item {
+      padding: 10px 14px; cursor: pointer; font-size: 14px; transition: background 0.15s; border-bottom: 1px solid #f1f5f9;
+    }
+    .custom-dropdown-item:last-child { border-bottom: none; }
+    .custom-dropdown-item:hover { background: var(--primary-light); color: var(--primary); }
 
     .cbt-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; gap: 10px; flex-wrap: wrap; }
     .btn-nav { padding: 12px 20px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer; transition: background 0.2s; }
@@ -149,32 +168,44 @@
     .btn-doubt { background: #eab308; color: white; }
     .btn-finish { background: #16a34a; color: white; }
 
-    .nav-drawer-overlay {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); display: none;
-      justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); padding: 16px;
+    /* Modern Popup / Modal Overlays */
+    .nav-drawer-overlay, .modal-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); display: none;
+      justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(8px); padding: 16px;
+      animation: fadeIn 0.25s ease forwards;
     }
     .nav-drawer {
-      background: white; width: 100%; max-width: 420px; max-height: 85vh; padding: 24px;
-      border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      background: white; width: 100%; max-width: 440px; max-height: 85vh; padding: 28px;
+      border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
       display: flex; flex-direction: column; justify-content: space-between;
+      border: 1px solid var(--border-color);
+      animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     .grid-numbers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 15px; max-height: 60vh; overflow-y: auto; }
     .num-box {
       aspect-ratio: 1; border-radius: 8px; border: 1px solid #cbd5e1; display: flex;
       align-items: center; justify-content: center; font-weight: 700; font-size: 14px;
-      cursor: pointer; background: #ffffff; color: #0f172a;
+      cursor: pointer; background: #ffffff; color: #0f172a; transition: all 0.2s;
     }
+    .num-box:hover { border-color: var(--primary); background: var(--primary-light); }
     .num-box.active { border: 2px solid #2563eb !important; }
     .num-box.answered { background: #2563eb !important; color: white !important; border-color: #2563eb !important; }
     .num-box.doubt { background: #eab308 !important; color: white !important; border-color: #eab308 !important; }
 
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); display: flex;
-      align-items: center; justify-content: center; z-index: 999; padding: 16px; backdrop-filter: blur(4px);
-    }
     .modal-card { 
-      background: white; padding: 36px 32px; border-radius: 24px; max-width: 480px; width: 100%;
-      text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      background: white; padding: 40px 32px; border-radius: 28px; max-width: 480px; width: 100%;
+      text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-color);
+      animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes scaleUp {
+      from { opacity: 0; transform: scale(0.92) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
     }
 
     #loadingState { text-align: center; padding: 40px; color: var(--text-muted); font-weight: 600; }
@@ -237,11 +268,11 @@
 
       <form id="studentDataForm">
         <div class="form-group">
-  <label>Nama Lengkap</label>
-  <input type="text" id="studentName" class="form-control" placeholder="Contoh: BUDI SANTOSO" 
-         style="text-transform: uppercase;" 
-         oninput="this.value = this.value.toUpperCase()" required>
-</div>
+          <label>Nama Lengkap</label>
+          <input type="text" id="studentName" class="form-control" placeholder="Contoh: BUDI SANTOSO" 
+                 style="text-transform: uppercase;" 
+                 oninput="this.value = this.value.toUpperCase()" required>
+        </div>
 
         <div class="grid-2">
           <div class="form-group">
@@ -326,10 +357,10 @@
     <div class="nav-drawer" onclick="event.stopPropagation()">
       <div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h3 style="margin: 0; font-size: 16px;">Daftar Soal</h3>
-          <button id="btnCloseDrawer" style="border:none; background:none; font-size:18px; cursor:pointer;">✖</button>
+          <h3 style="margin: 0; font-size: 18px; font-weight: 800;">Daftar Soal</h3>
+          <button id="btnCloseDrawer" style="border:none; background:none; font-size:18px; cursor:pointer; color: var(--text-muted);">✖</button>
         </div>
-        <div style="font-size: 12px; margin: 12px 0; display:flex; gap:10px;">
+        <div style="font-size: 12px; margin: 16px 0; display:flex; gap:12px; font-weight: 600;">
           <span>⚪ Belum</span>
           <span style="color:#2563eb;">🔵 Sudah</span>
           <span style="color:#eab308;">🟡 Ragu</span>
@@ -337,7 +368,7 @@
         <div class="grid-numbers" id="gridNumbers"></div>
       </div>
 
-      <button class="btn-nav btn-finish" id="btnConfirmFinish" style="width: 100%; margin-top: 20px;">
+      <button class="btn-nav btn-finish" id="btnConfirmFinish" style="width: 100%; margin-top: 24px; padding: 14px;">
         🏁 Selesaikan Simulasi
       </button>
     </div>
@@ -346,11 +377,11 @@
   <div class="modal-overlay" id="resultModal" style="display: none;">
     <div class="modal-card">
       <h1 style="font-size: 48px; margin: 0 0 10px;">🎉</h1>
-      <h2 style="margin: 0 0 5px; color: #0f172a;">Simulasi Selesai!</h2>
+      <h2 style="margin: 0 0 5px; color: #0f172a; font-weight: 800; font-size: 22px;">Simulasi Selesai!</h2>
       <p style="color: #64748b; font-size: 14px; margin-bottom: 24px;" id="resultStudentMeta">-</p>
       
-      <div style="background: #f1f5f9; padding: 24px; border-radius: 16px; margin-bottom: 24px;">
-        <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase;">NILAI AKHIR ANDA</div>
+      <div style="background: #f1f5f9; padding: 24px; border-radius: 20px; margin-bottom: 24px;">
+        <div style="font-size: 12px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">NILAI AKHIR ANDA</div>
         <div id="finalScore" style="font-size: 56px; font-weight: 800; color: #2563eb; line-height: 1.2;">0</div>
         <div id="passingStatus" style="font-size: 14px; font-weight: 700; margin-top: 6px;">-</div>
       </div>
@@ -376,7 +407,6 @@
     let timeRemaining = 0; 
     let studentProfile = {};
     
-    // Menyimpan cache urutan acak soal match per sesi/soal agar tidak berubah-ubah saat navigasi bolak-balik
     let matchShuffledCache = {};
 
     function decodeHTML(html) {
@@ -401,7 +431,6 @@
 
     async function fetchAllSimulations() {
       try {
-        // Mengambil seluruh dokumen dari koleksi simulations tanpa batasan limit(50)
         const snap = await getDocs(collection(db, "simulations"));
         
         if (snap.empty) {
@@ -441,7 +470,6 @@
 
     function populateCurriculums() {
       const select = document.getElementById("curriculumSelect");
-      // Menggunakan trim() agar spasi di awal/akhir tidak memicu kategori ganda
       const curriculums = sortAlphabetically([...new Set(rawSimulations.map(s => (s.curriculum || "Lainnya").trim()))]);
 
       select.innerHTML = '<option value="">-- Pilih Kurikulum --</option>';
@@ -542,7 +570,7 @@
         questions = questions.sort(() => Math.random() - 0.5);
       }
 
-      matchShuffledCache = {}; // Reset cache acak match setiap ujian baru dimulai
+      matchShuffledCache = {};
 
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
@@ -667,7 +695,6 @@
       else if (q.type === "match" && q.pairs) {
         const currentAns = userAnswers[currentIndex] || {};
         
-        // Buat atau ambil cache urutan acak sisi kiri (left) agar stabil saat navigasi
         if (!matchShuffledCache[currentIndex]) {
           let shuffledPairs = q.pairs.map((p, idx) => ({ ...p, originalIndex: idx }));
           for (let i = shuffledPairs.length - 1; i > 0; i--) {
@@ -691,22 +718,38 @@
               <tbody>
         `;
         
-        activePairs.forEach((p) => {
-          const origIdx = p.originalIndex; // Menggunakan indeks asli database untuk menyimpan jawaban
-          const selectedVal = currentAns[origIdx] !== undefined ? currentAns[origIdx] : "";
+        activePairs.forEach((p, idxRow) => {
+          const origIdx = p.originalIndex;
+          const selectedRightIdx = currentAns[origIdx];
+          let selectedText = "-- Pilih Pasangan --";
           
+          if (selectedRightIdx !== undefined && q.pairs[selectedRightIdx]) {
+            selectedText = decodeHTML(q.pairs[selectedRightIdx].right);
+          }
+
+          const dropdownId = `match_dropdown_${currentIndex}_${idxRow}`;
+          const btnId = `match_btn_${currentIndex}_${idxRow}`;
+
           html += `
             <tr>
               <td>${decodeHTML(p.left)}</td>
               <td>
-                <select style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;" onchange="window.saveAnswerMatch(${origIdx}, this.value)">
-                  <option value="">-- Pilih Pasangan --</option>
-                  ${q.pairs.map((pOpt, optIdx) => `
-                    <option value="${optIdx}" ${selectedVal == optIdx ? 'selected' : ''}>
-                      ${decodeHTML(pOpt.right)}
-                    </option>
-                  `).join('')}
-                </select>
+                <div class="custom-select-wrapper">
+                  <button type="button" class="custom-select-btn" id="${btnId}" onclick="window.toggleCustomDropdown('${dropdownId}')">
+                    <span>${selectedText}</span>
+                    <i class="fa-solid fa-chevron-down" style="font-size: 11px; color: var(--text-muted);"></i>
+                  </button>
+                  <div class="custom-dropdown-menu" id="${dropdownId}">
+                    <div class="custom-dropdown-item" onclick="window.selectMatchOption(${origIdx}, '', '-- Pilih Pasangan --', '${dropdownId}', '${btnId}')">
+                      -- Pilih Pasangan --
+                    </div>
+                    ${q.pairs.map((pOpt, optIdx) => `
+                      <div class="custom-dropdown-item" onclick="window.selectMatchOption(${origIdx}, ${optIdx}, '${encodeURIComponent(pOpt.right)}', '${dropdownId}', '${btnId}')">
+                        ${decodeHTML(pOpt.right)}
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
               </td>
             </tr>
           `;
@@ -733,6 +776,48 @@
 
       renderGridNumbers();
     }
+
+    window.toggleCustomDropdown = function(dropdownId) {
+      document.querySelectorAll('.custom-dropdown-menu').forEach(menu => {
+        if (menu.id !== dropdownId) menu.style.display = 'none';
+      });
+      const menu = document.getElementById(dropdownId);
+      if (menu) {
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+      }
+    };
+
+    window.selectMatchOption = function(leftOrigIdx, rightOptIdx, encodedText, dropdownId, btnId) {
+      if (rightOptIdx === "") {
+        window.saveAnswerMatch(leftOrigIdx, "");
+      } else {
+        window.saveAnswerMatch(leftOrigIdx, rightOptIdx);
+      }
+
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        const span = btn.querySelector('span');
+        if (span) {
+          span.innerHTML = rightOptIdx === "" ? "-- Pilih Pasangan --" : decodeHTML(decodeURIComponent(encodedText));
+        }
+      }
+
+      const menu = document.getElementById(dropdownId);
+      if (menu) menu.style.display = 'none';
+
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        MathJax.typesetPromise([btn]).catch(() => {});
+      }
+    };
+
+    // Tutup dropdown kustom jika diklik di luar
+    window.addEventListener('click', (e) => {
+      if (!e.target.closest('.custom-select-wrapper')) {
+        document.querySelectorAll('.custom-dropdown-menu').forEach(menu => {
+          menu.style.display = 'none';
+        });
+      }
+    });
 
     window.saveAnswer = function(val) {
       userAnswers[currentIndex] = val;
@@ -767,7 +852,7 @@
 
     window.saveAnswerMatch = function(leftIdx, selectedRightIdx) {
       if (!userAnswers[currentIndex]) userAnswers[currentIndex] = {};
-      if (selectedRightIdx === "") {
+      if (selectedRightIdx === "" || selectedRightIdx === undefined) {
         delete userAnswers[currentIndex][leftIdx];
       } else {
         userAnswers[currentIndex][leftIdx] = parseInt(selectedRightIdx);
@@ -912,7 +997,6 @@
           });
         }
         else if (q.type === "match") {
-          // Penghitungan nilai per item kiri-kanan (tiap baris dihitung satu-satu)
           totalMaxPoints += q.pairs.length;
           q.pairs.forEach((_, pIdx) => {
             if (ans && ans[pIdx] === pIdx) {
