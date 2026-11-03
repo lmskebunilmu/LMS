@@ -237,9 +237,11 @@
 
       <form id="studentDataForm">
         <div class="form-group">
-          <label>Nama Lengkap</label>
-          <input type="text" id="studentName" class="form-control" placeholder="Contoh: Budi Santoso" required>
-        </div>
+  <label>Nama Lengkap</label>
+  <input type="text" id="studentName" class="form-control" placeholder="Contoh: BUDI SANTOSO" 
+         style="text-transform: uppercase;" 
+         oninput="this.value = this.value.toUpperCase()" required>
+</div>
 
         <div class="grid-2">
           <div class="form-group">
