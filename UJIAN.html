@@ -391,7 +391,27 @@
       </button>
     </div>
   </div>
+<!-- Modal Konfirmasi Selesai Ujian (Modern) -->
+<div class="modal-overlay" id="confirmModal" style="display: none;">
+  <div class="modal-card">
+    <div style="width: 60px; height: 60px; background: #fef3c7; color: #d97706; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 24px;">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+    </div>
+    <h2 style="margin: 0 0 8px; color: #0f172a; font-weight: 800; font-size: 20px;">Konfirmasi Selesai Ujian</h2>
+    <p style="color: #64748b; font-size: 14px; margin-bottom: 24px; line-height: 1.5;">
+      Apakah Anda yakin ingin menyelesaikan simulasi ujian ini? Pastikan semua jawaban telah Anda periksa kembali.
+    </p>
 
+    <div class="grid-2">
+      <button type="button" class="btn btn-secondary" id="btnCancelFinish" style="padding: 12px;">
+        Batal
+      </button>
+      <button type="button" class="btn" id="btnExecuteFinish" style="background: #16a34a; padding: 12px;">
+        Ya, Selesaikan <i class="fa-solid fa-check"></i>
+      </button>
+    </div>
+  </div>
+</div>
   <script type="module">
     import { auth, db } from "./firebase/firebase-config.js";
     import { collection, getDocs, addDoc, serverTimestamp, query, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -944,12 +964,24 @@
       }, 1000);
     }
 
-    function confirmFinish() {
-      if (confirm("Apakah Anda yakin ingin menyelesaikan simulasi ujian ini?")) {
-        toggleNavDrawer();
-        calculateAndFinish();
-      }
-    }
+    // Buka Modal Konfirmasi Modern
+function confirmFinish() {
+  document.getElementById("confirmModal").style.display = "flex";
+}
+
+// Tutup Modal Konfirmasi (Tombat Batal)
+document.getElementById("btnCancelFinish").addEventListener("click", () => {
+  document.getElementById("confirmModal").style.display = "none";
+});
+
+// Eksekusi Selesai Ujian (Tombol Ya, Selesaikan)
+document.getElementById("btnExecuteFinish").addEventListener("click", () => {
+  document.getElementById("confirmModal").style.display = "none";
+  if (document.getElementById("navDrawerOverlay").style.display === "flex") {
+    toggleNavDrawer();
+  }
+  calculateAndFinish();
+});
 
     async function calculateAndFinish() {
       clearInterval(timerInterval);
