@@ -373,6 +373,9 @@
     let timerInterval = null;
     let timeRemaining = 0; 
     let studentProfile = {};
+    
+    // Menyimpan cache urutan acak soal match per sesi/soal agar tidak berubah-ubah saat navigasi bolak-balik
+    let matchShuffledCache = {};
 
     function decodeHTML(html) {
       if (!html) return "";
@@ -394,7 +397,6 @@
       await fetchAllSimulations();
     });
 
-    // Optimasi Pengambilan Data dengan Limit agar tidak berat saat koneksi jelek
     async function fetchAllSimulations() {
       try {
         const qRef = query(collection(db, "simulations"), limit(50));
@@ -535,6 +537,8 @@
         questions = questions.sort(() => Math.random() - 0.5);
       }
 
+      matchShuffledCache = {}; // Reset cache acak match setiap ujian baru dimulai
+
       const el = document.documentElement;
       if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
       else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
@@ -657,6 +661,19 @@
       }
       else if (q.type === "match" && q.pairs) {
         const currentAns = userAnswers[currentIndex] || {};
+        
+        // Buat atau ambil cache urutan acak sisi kiri (left) agar stabil saat navigasi
+        if (!matchShuffledCache[currentIndex]) {
+          let shuffledPairs = q.pairs.map((p, idx) => ({ ...p, originalIndex: idx }));
+          for (let i = shuffledPairs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledPairs[i], shuffledPairs[j]] = [shuffledPairs[j], shuffledPairs[i]];
+          }
+          matchShuffledCache[currentIndex] = shuffledPairs;
+        }
+
+        const activePairs = matchShuffledCache[currentIndex];
+
         let html = `
           <div class="cbt-table-wrapper">
             <table class="cbt-table">
@@ -668,13 +685,16 @@
               </thead>
               <tbody>
         `;
-        q.pairs.forEach((p, idx) => {
-          const selectedVal = currentAns[idx] !== undefined ? currentAns[idx] : "";
+        
+        activePairs.forEach((p) => {
+          const origIdx = p.originalIndex; // Menggunakan indeks asli database untuk menyimpan jawaban
+          const selectedVal = currentAns[origIdx] !== undefined ? currentAns[origIdx] : "";
+          
           html += `
             <tr>
               <td>${decodeHTML(p.left)}</td>
               <td>
-                <select style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;" onchange="window.saveAnswerMatch(${idx}, this.value)">
+                <select style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;" onchange="window.saveAnswerMatch(${origIdx}, this.value)">
                   <option value="">-- Pilih Pasangan --</option>
                   ${q.pairs.map((pOpt, optIdx) => `
                     <option value="${optIdx}" ${selectedVal == optIdx ? 'selected' : ''}>
@@ -844,60 +864,62 @@
     async function calculateAndFinish() {
       clearInterval(timerInterval);
 
-      let totalCorrect = 0;
+      let totalEarnedPoints = 0;
+      let totalMaxPoints = 0;
 
       questions.forEach((q, idx) => {
         const ans = userAnswers[idx];
-        let isCorrect = false;
 
-        if (ans !== undefined && ans !== null) {
-          if (q.type === "pg" && ans === q.answer) {
-            isCorrect = true;
-          }
-          else if (q.type === "checkbox") {
-            const expected = (Array.isArray(q.answer) ? q.answer : []).slice().sort();
-            const userSel = (Array.isArray(ans) ? ans : []).slice().sort();
-            if (JSON.stringify(expected) === JSON.stringify(userSel)) isCorrect = true;
-          }
-          else if (q.type === "isian") {
-            if (String(ans).trim().toLowerCase() === String(q.answer).trim().toLowerCase()) isCorrect = true;
-          }
-          else if (q.type === "multi_isian") {
-            const expectedArr = q.answers || [];
-            let isAllCorrect = true;
-            expectedArr.forEach((exp, subIdx) => {
-              if (!ans[subIdx] || String(ans[subIdx]).trim().toLowerCase() !== String(exp).trim().toLowerCase()) {
-                isAllCorrect = false;
-              }
-            });
-            if (isAllCorrect && expectedArr.length > 0) isCorrect = true;
-          }
-          else if (q.type === "matrix") {
-            let isAllCorrect = true;
-            q.rows.forEach((row, rIdx) => {
-              if (ans[rIdx] !== row.answer) isAllCorrect = false;
-            });
-            if (isAllCorrect) isCorrect = true;
-          }
-          else if (q.type === "match") {
-            let isAllCorrect = true;
-            if (Object.keys(ans).length !== q.pairs.length) {
-              isAllCorrect = false;
-            } else {
-              q.pairs.forEach((_, pIdx) => {
-                if (ans[pIdx] !== pIdx) isAllCorrect = false;
-              });
+        if (q.type === "pg" || q.type === "checkbox" || q.type === "isian") {
+          totalMaxPoints += 1;
+          let isCorrect = false;
+
+          if (ans !== undefined && ans !== null) {
+            if (q.type === "pg" && ans === q.answer) {
+              isCorrect = true;
             }
-            if (isAllCorrect) isCorrect = true;
+            else if (q.type === "checkbox") {
+              const expected = (Array.isArray(q.answer) ? q.answer : []).slice().sort();
+              const userSel = (Array.isArray(ans) ? ans : []).slice().sort();
+              if (JSON.stringify(expected) === JSON.stringify(userSel)) isCorrect = true;
+            }
+            else if (q.type === "isian") {
+              if (String(ans).trim().toLowerCase() === String(q.answer).trim().toLowerCase()) isCorrect = true;
+            }
           }
+          if (isCorrect) totalEarnedPoints += 1;
         }
-
-        if (isCorrect) totalCorrect++;
+        else if (q.type === "multi_isian") {
+          const expectedArr = q.answers || [];
+          totalMaxPoints += expectedArr.length;
+          expectedArr.forEach((exp, subIdx) => {
+            if (ans && ans[subIdx] && String(ans[subIdx]).trim().toLowerCase() === String(exp).trim().toLowerCase()) {
+              totalEarnedPoints += 1;
+            }
+          });
+        }
+        else if (q.type === "matrix") {
+          totalMaxPoints += q.rows.length;
+          q.rows.forEach((row, rIdx) => {
+            if (ans && ans[rIdx] === row.answer) {
+              totalEarnedPoints += 1;
+            }
+          });
+        }
+        else if (q.type === "match") {
+          // Penghitungan nilai per item kiri-kanan (tiap baris dihitung satu-satu)
+          totalMaxPoints += q.pairs.length;
+          q.pairs.forEach((_, pIdx) => {
+            if (ans && ans[pIdx] === pIdx) {
+              totalEarnedPoints += 1;
+            }
+          });
+        }
       });
 
       if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
 
-      const finalScore = Math.round((totalCorrect / questions.length) * 100) || 0;
+      const finalScore = Math.round((totalEarnedPoints / totalMaxPoints) * 100) || 0;
       const passingGrade = simulationData.passingGrade || 75;
       const isPassed = finalScore >= passingGrade;
 
@@ -910,8 +932,8 @@
           simulationTitle: simulationData.title || "Tanpa Judul",
           subject: simulationData.subject || "-",
           score: finalScore,
-          totalCorrect: totalCorrect,
-          totalQuestions: questions.length,
+          totalCorrect: totalEarnedPoints,
+          totalQuestions: totalMaxPoints,
           isPassed: isPassed,
           submittedAt: serverTimestamp()
         });
