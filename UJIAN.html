@@ -439,7 +439,8 @@
 
     function populateCurriculums() {
       const select = document.getElementById("curriculumSelect");
-      const curriculums = sortAlphabetically([...new Set(rawSimulations.map(s => s.curriculum || "Lainnya"))]);
+      // Menggunakan trim() agar spasi di awal/akhir tidak memicu kategori ganda
+      const curriculums = sortAlphabetically([...new Set(rawSimulations.map(s => (s.curriculum || "Lainnya").trim()))]);
 
       select.innerHTML = '<option value="">-- Pilih Kurikulum --</option>';
       curriculums.forEach(c => select.innerHTML += `<option value="${c}">${c}</option>`);
@@ -450,9 +451,11 @@
       const levelSelect = document.getElementById("levelSelect");
 
       let filtered = rawSimulations;
-      if (curVal) filtered = filtered.filter(s => (s.curriculum || "Lainnya") === curVal);
+      if (curVal) {
+        filtered = filtered.filter(s => (s.curriculum || "Lainnya").trim() === curVal);
+      }
 
-      const levels = sortAlphabetically([...new Set(filtered.map(s => s.level || "Lainnya"))]);
+      const levels = sortAlphabetically([...new Set(filtered.map(s => (s.level || "Lainnya").trim()))]);
 
       levelSelect.innerHTML = '<option value="">-- Pilih Level --</option>';
       levels.forEach(l => levelSelect.innerHTML += `<option value="${l}">${l}</option>`);
@@ -467,10 +470,10 @@
       const subjectSelect = document.getElementById("subjectSelect");
 
       let filtered = rawSimulations;
-      if (curVal) filtered = filtered.filter(s => (s.curriculum || "Lainnya") === curVal);
-      if (levelVal) filtered = filtered.filter(s => (s.level || "Lainnya") === levelVal);
+      if (curVal) filtered = filtered.filter(s => (s.curriculum || "Lainnya").trim() === curVal);
+      if (levelVal) filtered = filtered.filter(s => (s.level || "Lainnya").trim() === levelVal);
 
-      const subjects = sortAlphabetically([...new Set(filtered.map(s => s.subject || "Lainnya"))]);
+      const subjects = sortAlphabetically([...new Set(filtered.map(s => (s.subject || "Lainnya").trim()))]);
 
       subjectSelect.innerHTML = '<option value="">-- Pilih Mapel --</option>';
       subjects.forEach(sub => subjectSelect.innerHTML += `<option value="${sub}">${sub}</option>`);
@@ -486,9 +489,9 @@
       const simSelect = document.getElementById("simulationSelect");
 
       let filtered = rawSimulations;
-      if (curVal) filtered = filtered.filter(s => (s.curriculum || "Lainnya") === curVal);
-      if (levelVal) filtered = filtered.filter(s => (s.level || "Lainnya") === levelVal);
-      if (subVal) filtered = filtered.filter(s => (s.subject || "Lainnya") === subVal);
+      if (curVal) filtered = filtered.filter(s => (s.curriculum || "Lainnya").trim() === curVal);
+      if (levelVal) filtered = filtered.filter(s => (s.level || "Lainnya").trim() === levelVal);
+      if (subVal) filtered = filtered.filter(s => (s.subject || "Lainnya").trim() === subVal);
 
       simSelect.innerHTML = '<option value="">-- Pilih Judul Simulasi --</option>';
       filtered.forEach(sim => {
