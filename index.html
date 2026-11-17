@@ -1,987 +1,1034 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Kebun Ilmu | Bimbingan Belajar Modern</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kebun Ilmu | Bimbingan Belajar Modern & Interaktif</title>
 
-  <!-- GOOGLE FONT -->
+  <!-- GOOGLE FONTS: Poppins & Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FONT AWESOME ICONS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 
-  <!-- ICON -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+  <!-- TAILWIND CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Poppins', 'sans-serif'],
+            display: ['Poppins', 'Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+            }
+          },
+          animation: {
+            'float': 'float 4s ease-in-out infinite',
+            'float-delayed': 'float 4s ease-in-out 2s infinite',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-12px)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
 
   <style>
-
-    *{
-      margin:0;
-      padding:0;
-      box-sizing:border-box;
-      font-family:'Poppins',sans-serif;
+    /* Custom Scroll Reveal & Utility Styles */
+    body {
+      overflow-x: hidden;
     }
 
-    html{
-      scroll-behavior:smooth;
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    body{
-      background:#f8fafc;
-      color:#1e293b;
-      overflow-x:hidden;
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
     }
 
-    a{
-      text-decoration:none;
-      color:inherit;
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+
+    /* Mesh Gradient Background for Hero */
+    .hero-mesh {
+      background-color: #f8fafc;
+      background-image: 
+        radial-gradient(at 85% 15%, rgba(16, 185, 129, 0.16) 0px, transparent 50%),
+        radial-gradient(at 10% 80%, rgba(22, 163, 74, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, rgba(236, 253, 245, 0.8) 0px, transparent 80%);
     }
 
-    img{
-      width:100%;
-      display:block;
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
     }
-
-    .container{
-      width:90%;
-      max-width:1200px;
-      margin:auto;
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
     }
-
-    /* ======================
-       NAVBAR
-    ====================== */
-
-    nav{
-      position:fixed;
-      top:0;
-      left:0;
-      width:100%;
-      z-index:999;
-      background:rgba(255,255,255,0.9);
-      backdrop-filter:blur(12px);
-      box-shadow:0 2px 10px rgba(0,0,0,0.05);
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 5px;
     }
-
-    .nav-wrapper{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:18px 0;
+    ::-webkit-scrollbar-thumb:hover {
+      background: #16a34a;
     }
-
-    .logo{
-      font-size:1.5rem;
-      font-weight:700;
-      color:#16a34a;
-    }
-
-    .menu{
-      display:flex;
-      gap:30px;
-      align-items:center;
-    }
-
-    .menu a{
-      font-weight:500;
-      transition:0.3s;
-    }
-
-    .menu a:hover{
-      color:#16a34a;
-    }
-
-    .btn{
-      background:#16a34a;
-      color:white;
-      padding:12px 22px;
-      border-radius:14px;
-      font-weight:600;
-      transition:0.3s;
-      display:inline-block;
-    }
-
-    .btn:hover{
-      transform:translateY(-3px);
-      background:#15803d;
-    }
-
-    .menu-toggle{
-      display:none;
-      font-size:1.5rem;
-      cursor:pointer;
-    }
-
-    /* ======================
-       HERO
-    ====================== */
-
-    .hero{
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      padding-top:100px;
-      background:
-      linear-gradient(
-        rgba(22,163,74,0.8),
-        rgba(34,197,94,0.8)
-      ),
-      url('https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1600&auto=format&fit=crop');
-      background-size:cover;
-      background-position:center;
-      color:white;
-    }
-
-    .hero-content{
-      max-width:650px;
-    }
-
-    .hero h1{
-      font-size:4rem;
-      line-height:1.1;
-      margin-bottom:20px;
-      font-weight:800;
-    }
-
-    .hero p{
-      font-size:1.1rem;
-      margin-bottom:35px;
-      color:#ecfdf5;
-      line-height:1.8;
-    }
-
-    .hero-buttons{
-      display:flex;
-      gap:16px;
-      flex-wrap:wrap;
-    }
-
-    .btn-outline{
-      border:2px solid white;
-      color:white;
-      padding:12px 22px;
-      border-radius:14px;
-      font-weight:600;
-      transition:0.3s;
-    }
-
-    .btn-outline:hover{
-      background:white;
-      color:#16a34a;
-    }
-
-    /* ======================
-       SECTION
-    ====================== */
-
-    section{
-      padding:100px 0;
-    }
-
-    .section-title{
-      text-align:center;
-      margin-bottom:60px;
-    }
-
-    .section-title h2{
-      font-size:2.5rem;
-      margin-bottom:15px;
-      color:#16a34a;
-    }
-
-    .section-title p{
-      color:#64748b;
-      max-width:700px;
-      margin:auto;
-      line-height:1.8;
-    }
-
-    /* ======================
-       CARDS
-    ====================== */
-
-    .grid{
-      display:grid;
-      gap:30px;
-    }
-
-    .grid-3{
-      grid-template-columns:repeat(3,1fr);
-    }
-
-    .card{
-      background:white;
-      padding:35px;
-      border-radius:24px;
-      box-shadow:0 10px 30px rgba(0,0,0,0.06);
-      transition:0.3s;
-    }
-
-    .card:hover{
-      transform:translateY(-8px);
-    }
-
-    .card i{
-      font-size:3rem;
-      color:#16a34a;
-      margin-bottom:20px;
-    }
-
-    .card h3{
-      margin-bottom:15px;
-      font-size:1.4rem;
-    }
-
-    .card p{
-      color:#64748b;
-      line-height:1.8;
-    }
-
-    /* ======================
-       ABOUT
-    ====================== */
-
-    .about{
-      background:white;
-    }
-
-    .about-wrapper{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:50px;
-      align-items:center;
-    }
-
-    .about img{
-      border-radius:30px;
-      box-shadow:0 15px 40px rgba(0,0,0,0.1);
-    }
-
-    .about-text h2{
-      font-size:2.5rem;
-      margin-bottom:20px;
-      color:#16a34a;
-    }
-
-    .about-text p{
-      line-height:1.9;
-      color:#64748b;
-      margin-bottom:20px;
-    }
-
-    /* ======================
-       STATS
-    ====================== */
-
-    .stats{
-      background:linear-gradient(to right,#16a34a,#22c55e);
-      color:white;
-    }
-
-    .stats-grid{
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:30px;
-      text-align:center;
-    }
-
-    .stat h3{
-      font-size:3rem;
-      margin-bottom:10px;
-    }
-
-    /* ======================
-       TESTIMONI
-    ====================== */
-
-    .testimonial{
-      position:relative;
-    }
-
-    .testimonial::before{
-      content:"“";
-      position:absolute;
-      font-size:8rem;
-      top:-20px;
-      right:20px;
-      color:#dcfce7;
-      font-weight:bold;
-    }
-
-    /* ======================
-       CTA
-    ====================== */
-
-    .cta{
-      background:#16a34a;
-      color:white;
-      text-align:center;
-      border-radius:30px;
-      padding:70px 30px;
-    }
-
-    .cta h2{
-      font-size:2.5rem;
-      margin-bottom:20px;
-    }
-
-    .cta p{
-      max-width:700px;
-      margin:auto;
-      margin-bottom:30px;
-      line-height:1.8;
-      color:#dcfce7;
-    }
-
-    .cta .btn{
-      background:white;
-      color:#16a34a;
-    }
-
-    /* ======================
-       FOOTER
-    ====================== */
-
-    footer{
-      background:#0f172a;
-      color:#cbd5e1;
-      padding:70px 0 30px;
-    }
-
-    .footer-grid{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:40px;
-      margin-bottom:50px;
-    }
-
-    footer h3{
-      color:white;
-      margin-bottom:20px;
-    }
-
-    footer p{
-      line-height:1.8;
-    }
-
-    .socials{
-      display:flex;
-      gap:15px;
-      margin-top:20px;
-    }
-
-    .socials a{
-      width:45px;
-      height:45px;
-      border-radius:12px;
-      background:#1e293b;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      transition:0.3s;
-    }
-
-    .socials a:hover{
-      background:#16a34a;
-    }
-
-    .copyright{
-      text-align:center;
-      border-top:1px solid #334155;
-      padding-top:25px;
-      color:#94a3b8;
-    }
-
-    /* ======================
-       RESPONSIVE
-    ====================== */
-
-    @media(max-width:900px){
-
-      .hero h1{
-        font-size:3rem;
-      }
-
-      .grid-3{
-        grid-template-columns:1fr;
-      }
-
-      .about-wrapper{
-        grid-template-columns:1fr;
-      }
-
-      .stats-grid{
-        grid-template-columns:repeat(2,1fr);
-      }
-
-      .footer-grid{
-        grid-template-columns:1fr;
-      }
-
-    }
-
-    @media(max-width:768px){
-
-      .menu{
-        position:absolute;
-        top:100%;
-        left:0;
-        width:100%;
-        background:white;
-        flex-direction:column;
-        padding:30px;
-        display:none;
-      }
-
-      .menu.active{
-        display:flex;
-      }
-
-      .menu-toggle{
-        display:block;
-      }
-
-      .hero{
-        text-align:center;
-      }
-
-      .hero-buttons{
-        justify-content:center;
-      }
-
-      .hero h1{
-        font-size:2.4rem;
-      }
-
-      .section-title h2{
-        font-size:2rem;
-      }
-
-      .stats-grid{
-        grid-template-columns:1fr;
-      }
-
-    }
-
-    /* ======================
-   NAVBAR FIX
-====================== */
-
-.logo-wrap{
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-
-.logo-img{
-  width:50px;
-  height:50px;
-  object-fit:contain;
-  border-radius:12px;
-  background:white;
-  padding:4px;
-}
-
-.logo-sub{
-  color:#64748b;
-  font-size:0.8rem;
-}
-
-.btn-login{
-  padding:12px 20px;
-  border:2px solid #16a34a;
-  border-radius:14px;
-  font-weight:600;
-  color:#16a34a;
-  transition:0.3s;
-}
-
-.btn-login:hover{
-  background:#16a34a;
-  color:white;
-}
-
-/* ======================
-   MOBILE
-====================== */
-
-@media(max-width:768px){
-
-  nav{
-    padding:0;
-  }
-
-  .nav-wrapper{
-    padding:14px 0;
-  }
-
-  .menu{
-    position:absolute;
-    top:100%;
-    left:0;
-    width:100%;
-    background:white;
-    flex-direction:column;
-    align-items:flex-start;
-    gap:18px;
-    padding:25px;
-    display:none;
-    box-shadow:0 10px 25px rgba(0,0,0,0.08);
-  }
-
-  .menu.active{
-    display:flex;
-  }
-
-  .menu-toggle{
-    display:block;
-    font-size:1.6rem;
-    cursor:pointer;
-  }
-
-  .hero{
-    text-align:center;
-    padding-top:130px;
-  }
-
-  .hero-content{
-    max-width:100%;
-  }
-
-  .hero h1{
-    font-size:2.2rem;
-    line-height:1.3;
-  }
-
-  .hero p{
-    font-size:1rem;
-  }
-
-  .hero-buttons{
-    justify-content:center;
-  }
-
-  .section-title h2{
-    font-size:2rem;
-  }
-
-  .about-text h2{
-    font-size:2rem;
-  }
-
-  .cta h2{
-    font-size:2rem;
-  }
-
-  .card{
-    padding:25px;
-  }
-
-}
-
   </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-brand-600 selection:text-white">
 
-  <!-- GANTI BAGIAN NAVBAR MENJADI INI -->
-
-<!-- NAVBAR -->
-<nav>
-
-  <div class="container nav-wrapper">
-
-    <!-- LOGO -->
-    <div class="logo-wrap">
-
-      <img
-        src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png"
-        alt="Logo Kebun Ilmu"
-        class="logo-img"
-      >
-
-      <div>
-        <div class="logo">
-          Kebun Ilmu
+  <!-- ==========================================
+       NAVBAR (Glassmorphism + Shrink on Scroll)
+  =========================================== -->
+  <nav id="navbar" class="fixed top-0 left-0 w-full z-50 transition-all duration-300 py-4 bg-white/80 backdrop-blur-lg border-b border-slate-200/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="#" class="flex items-center gap-3 group">
+        <div class="relative w-11 h-11 rounded-2xl bg-white shadow-md border border-slate-100 p-1.5 flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform">
+          <img 
+            src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" 
+            alt="Logo Kebun Ilmu" 
+            class="w-full h-full object-contain"
+            onerror="this.src='https://placehold.co/100x100/16a34a/ffffff?text=KI'"
+          />
         </div>
-
-        <small class="logo-sub">
-          Bimbingan Belajar
-        </small>
-      </div>
-
-    </div>
-
-    <!-- MENU -->
-    <div class="menu" id="menu">
-
-      <a href="#">Home</a>
-      <a href="#about">Tentang</a>
-      <a href="#program">Program</a>
-      <a href="#testimoni">Testimoni</a>
-      <a href="#kontak">Kontak</a>
-
-      <a href="login.html" class="btn-login">
-        Login
+        <div>
+          <span class="font-display font-extrabold text-xl tracking-tight text-slate-900 block leading-none group-hover:text-brand-600 transition-colors">
+            Kebun <span class="text-brand-600">Ilmu</span>
+          </span>
+          <span class="text-xs font-medium text-slate-500 tracking-wide">Bimbingan Belajar</span>
+        </div>
       </a>
 
-      <a href="register.html" class="btn">
-        Daftar
-      </a>
-
-    </div>
-
-    <!-- TOGGLE -->
-    <div class="menu-toggle" id="toggle">
-      <i class="fas fa-bars"></i>
-    </div>
-
-  </div>
-
-</nav>
-
-  <!-- HERO -->
-  <section class="hero">
-
-    <div class="container">
-
-      <div class="hero-content">
-
-        <h1>
-          Bimbingan Belajar Modern Untuk Masa Depan Cerah
-        </h1>
-
-        <p>
-          Kebun Ilmu hadir membantu siswa belajar lebih percaya diri,
-          lebih pintar, dan lebih siap menghadapi masa depan dengan
-          metode belajar modern dan menyenangkan.
-        </p>
-
-        <div class="hero-buttons">
-          <a href="#" class="btn">
-            Mulai Belajar
-          </a>
-
-          <a href="#" class="btn-outline">
-            Lihat Program
-          </a>
-        </div>
-
+      <!-- Desktop Navigation -->
+      <div class="hidden md:flex items-center gap-8">
+        <a href="#" class="text-sm font-semibold text-brand-600 transition-colors">Home</a>
+        <a href="#about" class="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors">Tentang</a>
+        <a href="#program" class="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors">Program</a>
+        <a href="#testimoni" class="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors">Testimoni</a>
+        <a href="#faq" class="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors">FAQ</a>
+        <a href="#kontak" class="text-sm font-medium text-slate-600 hover:text-brand-600 transition-colors">Kontak</a>
       </div>
 
+      <!-- Desktop Auth / Action Buttons -->
+      <div class="hidden md:flex items-center gap-3">
+        <a href="login.html" class="px-5 py-2.5 text-sm font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-xl transition-all">
+          Login
+        </a>
+        <a href="register.html" class="px-5 py-2.5 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-lg shadow-brand-600/25 hover:-translate-y-0.5 transition-all flex items-center gap-2">
+          <span>Daftar</span>
+          <i class="fas fa-arrow-right text-xs"></i>
+        </a>
+      </div>
+
+      <!-- Mobile Hamburger Toggle -->
+      <button id="mobile-menu-btn" aria-label="Buka Menu" class="md:hidden p-2.5 rounded-xl text-slate-700 hover:bg-slate-100 focus:outline-none">
+        <i id="menu-icon" class="fas fa-bars text-xl"></i>
+      </button>
     </div>
 
-  </section>
-
-  <!-- ABOUT -->
-  <section class="about" id="about">
-
-    <div class="container">
-
-      <div class="about-wrapper">
-
-        <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1200&auto=format&fit=crop">
-
-        <div class="about-text">
-
-          <h2>Tentang Kebun Ilmu</h2>
-
-          <p>
-            Kebun Ilmu merupakan tempat bimbingan belajar modern yang
-            membantu siswa berkembang secara akademik maupun karakter.
-          </p>
-
-          <p>
-            Dengan guru profesional, metode interaktif, dan suasana
-            belajar yang nyaman, kami membantu siswa mencapai prestasi terbaik.
-          </p>
-
-          <a href="#" class="btn">
-            Pelajari Lebih Lanjut
-          </a>
-
-        </div>
-
+    <!-- Mobile Dropdown Menu -->
+    <div id="mobile-menu" class="hidden md:hidden bg-white border-b border-slate-200 px-6 pt-4 pb-6 space-y-4 shadow-xl">
+      <div class="flex flex-col space-y-3">
+        <a href="#" class="mobile-link text-base font-semibold text-brand-600 py-1">Home</a>
+        <a href="#about" class="mobile-link text-base font-medium text-slate-600 hover:text-brand-600 py-1">Tentang Kami</a>
+        <a href="#program" class="mobile-link text-base font-medium text-slate-600 hover:text-brand-600 py-1">Program Unggulan</a>
+        <a href="#testimoni" class="mobile-link text-base font-medium text-slate-600 hover:text-brand-600 py-1">Testimoni Siswa</a>
+        <a href="#faq" class="mobile-link text-base font-medium text-slate-600 hover:text-brand-600 py-1">Pertanyaan Umum</a>
+        <a href="#kontak" class="mobile-link text-base font-medium text-slate-600 hover:text-brand-600 py-1">Kontak</a>
       </div>
-
-    </div>
-
-  </section>
-
-  <!-- PROGRAM -->
-  <section id="program">
-
-    <div class="container">
-
-      <div class="section-title">
-        <h2>Program Unggulan</h2>
-        <p>
-          Program terbaik yang dirancang untuk membantu siswa lebih siap
-          menghadapi tantangan akademik.
-        </p>
-      </div>
-
-      <div class="grid grid-3">
-
-        <div class="card">
-          <i class="fas fa-book-open"></i>
-          <h3>Kelas Reguler</h3>
-          <p>
-            Pembelajaran rutin dengan materi sekolah yang mudah dipahami.
-          </p>
-        </div>
-
-        <div class="card">
-          <i class="fas fa-laptop"></i>
-          <h3>Kelas Online</h3>
-          <p>
-            Belajar fleksibel dari rumah dengan sistem modern dan interaktif.
-          </p>
-        </div>
-
-        <div class="card">
-          <i class="fas fa-pen"></i>
-          <h3>Persiapan Ujian</h3>
-          <p>
-            Program intensif menghadapi ujian sekolah dan ujian masuk.
-          </p>
-        </div>
-
-      </div>
-
-    </div>
-
-  </section>
-
-  <!-- STATS -->
-  <section class="stats">
-
-    <div class="container">
-
-      <div class="stats-grid">
-
-        <div class="stat">
-          <h3>500+</h3>
-          <p>Siswa Aktif</p>
-        </div>
-
-        <div class="stat">
-          <h3>20+</h3>
-          <p>Guru Profesional</p>
-        </div>
-
-        <div class="stat">
-          <h3>95%</h3>
-          <p>Tingkat Kepuasan</p>
-        </div>
-
-        <div class="stat">
-          <h3>10+</h3>
-          <p>Tahun Pengalaman</p>
-        </div>
-
-      </div>
-
-    </div>
-
-  </section>
-
-  <!-- TESTIMONI -->
-  <section id="testimoni">
-
-    <div class="container">
-
-      <div class="section-title">
-        <h2>Testimoni Siswa</h2>
-        <p>
-          Apa kata mereka tentang Kebun Ilmu.
-        </p>
-      </div>
-
-      <div class="grid grid-3">
-
-        <div class="card testimonial">
-          <p>
-            Belajarnya seru dan mudah dipahami. Nilai saya meningkat drastis.
-          </p>
-          <br>
-          <h3>Aisyah</h3>
-        </div>
-
-        <div class="card testimonial">
-          <p>
-            Gurunya ramah dan sangat membantu memahami pelajaran sulit.
-          </p>
-          <br>
-          <h3>Rizky</h3>
-        </div>
-
-        <div class="card testimonial">
-          <p>
-            Tempatnya nyaman dan membuat saya semakin semangat belajar.
-          </p>
-          <br>
-          <h3>Nabila</h3>
-        </div>
-
-      </div>
-
-    </div>
-
-  </section>
-
-  <!-- CTA -->
-  <section>
-
-    <div class="container">
-
-      <div class="cta">
-
-        <h2>
-          Yuk Bergabung Bersama Kebun Ilmu
-        </h2>
-
-        <p>
-          Tingkatkan prestasi dan semangat belajar bersama guru terbaik.
-        </p>
-
-        <a href="#" class="btn">
+      <div class="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
+        <a href="login.html" class="text-center py-3 text-sm font-semibold text-brand-700 border-2 border-brand-600 rounded-xl hover:bg-brand-50 transition">
+          Login
+        </a>
+        <a href="register.html" class="text-center py-3 text-sm font-semibold text-white bg-brand-600 rounded-xl hover:bg-brand-700 shadow-md transition">
           Daftar Sekarang
         </a>
-
       </div>
-
     </div>
+  </nav>
 
-  </section>
+  <!-- ==========================================
+       HERO SECTION (Split Screen + Floating Cards)
+  =========================================== -->
+  <section class="relative pt-32 pb-20 lg:pt-40 lg:pb-28 hero-mesh overflow-hidden">
+    <!-- Decorative Blobs -->
+    <div class="absolute top-20 right-0 w-72 h-72 bg-brand-400/20 rounded-full blur-3xl -z-10"></div>
+    <div class="absolute bottom-10 left-10 w-80 h-80 bg-emerald-300/20 rounded-full blur-3xl -z-10"></div>
 
-  <!-- FOOTER -->
-  <footer id="kontak">
-
-    <div class="container">
-
-      <div class="footer-grid">
-
-        <div>
-          <h3>Kebun Ilmu</h3>
-          <p>
-            Bimbingan belajar modern untuk membantu siswa meraih masa depan terbaik.
-          </p>
-        </div>
-
-        <div>
-          <h3>Kontak</h3>
-          <p>📍 Perumahan Pruri Permata 1 Blok D Bulakelor Kec. Ketanggungan Kab. Brebes Jawa Tengah</p>
-          <p>📞 0856-4138-7872</p>
-          <p>✉️ info@kebunilmu.com</p>
-        </div>
-
-        <div>
-          <h3>Media Sosial</h3>
-
-          <div class="socials">
-
-            <a href="#">
-              <i class="fab fa-instagram"></i>
-            </a>
-
-            <a href="#">
-              <i class="fab fa-facebook-f"></i>
-            </a>
-
-            <a href="#">
-              <i class="fab fa-youtube"></i>
-            </a>
-
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+        
+        <!-- Left Content -->
+        <div class="lg:col-span-6 text-center lg:text-left space-y-6">
+          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-100/80 border border-brand-200 text-brand-800 text-xs sm:text-sm font-semibold shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-brand-600 animate-ping"></span>
+            <span>Pendaftaran Tahun Ajaran Baru Dibuka!</span>
           </div>
 
+          <h1 class="font-display font-extrabold text-4xl sm:text-5xl lg:text-[3.5rem] text-slate-900 leading-[1.15] tracking-tight">
+            Bimbingan Belajar Modern Untuk <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-emerald-500">Masa Depan Cerah</span>
+          </h1>
+
+          <p class="text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
+            Kebun Ilmu hadir membantu siswa belajar lebih percaya diri, memahami konsep dari akar, dan siap meraih prestasi terbaik dengan metode interaktif yang menyenangkan.
+          </p>
+
+          <div class="hero-buttons flex flex-wrap items-center justify-center lg:justify-start gap-3.5 pt-2">
+            <a href="register.html" class="w-full sm:w-auto px-7 py-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-2xl shadow-xl shadow-brand-600/30 hover:-translate-y-1 transition-all flex items-center justify-center gap-2.5">
+              <span>Mulai Belajar</span>
+              <i class="fas fa-arrow-right text-sm"></i>
+            </a>
+            <a href="login.html" class="w-full sm:w-auto px-7 py-4 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 font-semibold rounded-2xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
+              <i class="fas fa-right-to-bracket text-brand-600"></i>
+              <span>Login</span>
+            </a>
+            <a href="#program" class="w-full sm:w-auto px-7 py-4 bg-white hover:bg-slate-50 text-slate-800 font-semibold rounded-2xl border border-slate-200 shadow-sm hover:border-brand-300 transition-all flex items-center justify-center gap-2">
+              <i class="fas fa-layer-group text-brand-600"></i>
+              <span>Lihat Program</span>
+            </a>
+          </div>
+
+          <!-- Mini Trust Indicators -->
+          <div class="pt-4 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-sm text-slate-500">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-check-circle text-brand-600"></i>
+              <span>Tentor Berpengalaman</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <i class="fas fa-check-circle text-brand-600"></i>
+              <span>Kelas Kecil & Fokus</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <i class="fas fa-check-circle text-brand-600"></i>
+              <span>Modul Terupdate</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Visual + Floating Dynamic Badges -->
+        <div class="lg:col-span-6 relative">
+          <div class="relative mx-auto max-w-lg lg:max-w-none">
+            <!-- Main Image Frame -->
+            <div class="relative rounded-[2.5rem] overflow-hidden shadow-2xl border-8 border-white bg-slate-200 aspect-[4/3]">
+              <img 
+                src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1600&auto=format&fit=crop" 
+                alt="Siswa Belajar di Kebun Ilmu" 
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                onerror="this.src='https://placehold.co/800x600/16a34a/ffffff?text=Kebun+Ilmu+Learning'"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent"></div>
+            </div>
+
+            <!-- Floating Card 1: Top Left -->
+            <div class="hidden sm:flex items-center gap-3.5 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-slate-100 absolute -top-6 -left-6 animate-float">
+              <div class="w-12 h-12 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center text-xl">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500 font-medium">Rata-rata Nilai Siswa</p>
+                <p class="font-display font-bold text-slate-900 text-base">Naik +24.5 Poin</p>
+              </div>
+            </div>
+
+            <!-- Floating Card 2: Bottom Right -->
+            <div class="flex items-center gap-3.5 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-slate-100 absolute -bottom-6 right-2 sm:-right-4 animate-float-delayed">
+              <div class="flex -space-x-2.5">
+                <div class="w-9 h-9 rounded-full bg-brand-600 text-white flex items-center justify-center text-xs font-bold ring-2 ring-white">AI</div>
+                <div class="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold ring-2 ring-white">RZ</div>
+                <div class="w-9 h-9 rounded-full bg-teal-600 text-white flex items-center justify-center text-xs font-bold ring-2 ring-white">NB</div>
+              </div>
+              <div>
+                <div class="flex items-center gap-1 text-amber-400 text-xs">
+                  <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+                  <span class="text-slate-700 font-bold ml-1">4.9/5</span>
+                </div>
+                <p class="text-xs text-slate-500 font-medium">500+ Siswa Bergabung</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       ABOUT SECTION
+  =========================================== -->
+  <section id="about" class="py-20 lg:py-28 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+        
+        <!-- Left Image Collage -->
+        <div class="lg:col-span-6 reveal">
+          <div class="relative">
+            <img 
+              src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1200&auto=format&fit=crop" 
+              alt="Suasana Belajar Kebun Ilmu" 
+              class="rounded-3xl shadow-2xl w-full object-cover aspect-[4/3]"
+              onerror="this.src='https://placehold.co/800x600/ecfdf5/16a34a?text=Tentang+Kebun+Ilmu'"
+            />
+            <div class="mt-6 sm:mt-0 sm:absolute sm:-bottom-6 sm:left-6 bg-brand-600 text-white p-6 rounded-2xl shadow-xl max-w-xs">
+              <div class="flex items-center gap-3 mb-2">
+                <i class="fas fa-seedling text-2xl text-brand-200"></i>
+                <span class="font-display font-bold text-lg">Tumbuh Bersama</span>
+              </div>
+              <p class="text-sm text-brand-50 leading-relaxed">
+                Membimbing setiap potensi siswa layaknya merawat benih hingga tumbuh berprestasi.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Text Content -->
+        <div class="lg:col-span-6 space-y-6 reveal reveal-delay-1">
+          <span class="inline-block px-3.5 py-1.5 rounded-full bg-brand-50 text-brand-700 font-semibold text-xs uppercase tracking-wider">
+            Tentang Kebun Ilmu
+          </span>
+          <h2 class="font-display font-extrabold text-3xl sm:text-4xl text-slate-900 leading-tight">
+            Lebih Dari Sekadar Bimbel, Kami Membangun <span class="text-brand-600">Pola Pikir Juara</span>
+          </h2>
+          <p class="text-slate-600 leading-relaxed text-base">
+            Kebun Ilmu merupakan lembaga bimbingan belajar modern di Brebes yang memadukan pendekatan personal, teknologi pembelajaran interaktif, dan penguatan karakter siswa.
+          </p>
+          <p class="text-slate-600 leading-relaxed text-base">
+            Kami percaya setiap anak memiliki gaya belajar unik. Dengan tentor ramah dan metode <em>step-by-step</em> yang mudah dicerna, pelajaran sulit seperti Matematika dan IPA terasa jauh lebih menyenangkan.
+          </p>
+
+          <!-- Feature Pillars -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3.5">
+              <div class="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center shrink-0 mt-0.5">
+                <i class="fas fa-lightbulb"></i>
+              </div>
+              <div>
+                <h4 class="font-display font-bold text-slate-900 text-sm">Konsep Dasar Kuat</h4>
+                <p class="text-xs text-slate-500 mt-1">Bukan sekadar hafalan rumus, tapi paham logika penyelesaian.</p>
+              </div>
+            </div>
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3.5">
+              <div class="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center shrink-0 mt-0.5">
+                <i class="fas fa-users"></i>
+              </div>
+              <div>
+                <h4 class="font-display font-bold text-slate-900 text-sm">Konsultasi PR & Ujian</h4>
+                <p class="text-xs text-slate-500 mt-1">Pendampingan tugas sekolah kapan pun siswa membutuhkan.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-3">
+            <a href="#program" class="inline-flex items-center gap-2 px-6 py-3.5 bg-slate-900 hover:bg-brand-600 text-white font-semibold rounded-xl transition-colors">
+              <span>Jelajahi Metode Kami</span>
+              <i class="fas fa-arrow-right text-sm"></i>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       PROGRAM UNGGULAN (Interactive Filter + Cards)
+  =========================================== -->
+  <section id="program" class="py-20 lg:py-28 bg-slate-50 relative">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- Section Header -->
+      <div class="text-center max-w-2xl mx-auto mb-12 reveal">
+        <span class="inline-block px-3.5 py-1.5 rounded-full bg-brand-100 text-brand-700 font-semibold text-xs uppercase tracking-wider mb-3">
+          Pilihan Kelas
+        </span>
+        <h2 class="font-display font-extrabold text-3xl sm:text-4xl text-slate-900 mb-4">
+          Program Unggulan Kebun Ilmu
+        </h2>
+        <p class="text-slate-600">
+          Pilih program belajar yang paling sesuai dengan kebutuhan akademik dan jadwal harian siswa.
+        </p>
+
+        <!-- Interactive Filter Tabs -->
+        <div class="inline-flex flex-wrap justify-center gap-2 p-1.5 bg-white rounded-2xl shadow-sm border border-slate-200/80 mt-8" role="tablist">
+          <button onclick="filterPrograms('all', this)" class="program-tab active px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white transition-all">
+            Semua Program
+          </button>
+          <button onclick="filterPrograms('reguler', this)" class="program-tab px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
+            Tatap Muka
+          </button>
+          <button onclick="filterPrograms('online', this)" class="program-tab px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
+            Kelas Online
+          </button>
+          <button onclick="filterPrograms('intensif', this)" class="program-tab px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:text-brand-600 transition-all">
+            Intensif Ujian
+          </button>
+        </div>
+      </div>
+
+      <!-- Program Cards Grid -->
+      <div id="program-grid" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <!-- Card 1: Kelas Reguler -->
+        <div data-category="reguler" class="program-card reveal bg-white rounded-3xl p-8 border border-slate-200/80 shadow-lg shadow-slate-200/40 hover:shadow-xl hover:border-brand-300 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center text-2xl">
+                <i class="fas fa-book-open"></i>
+              </div>
+              <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Paling Diminati
+              </span>
+            </div>
+            <h3 class="font-display font-bold text-2xl text-slate-900 mb-3">Kelas Reguler</h3>
+            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+              Pembelajaran tatap muka rutin di ruang kelas nyaman dengan materi selaras kurikulum sekolah yang mudah dipahami.
+            </p>
+            <ul class="space-y-3 text-sm text-slate-600 mb-8 border-t border-slate-100 pt-5">
+              <li class="flex items-center gap-2.5">
+                <i class="fas fa-check text-brand-600"></i>
+                <span>Pertemuan 2x - 3x seminggu</span>
+              </li>
+              <li class="flex items-center gap-2.5">
+                <i class="fas fa-check text-brand-600"></i>
+                <span>Maksimal 8 siswa per kelas</span>
+              </li>
+              <li class="flex items-center gap-2.5">
+                <i class="fas fa-check text-brand-600"></i>
+                <span>Modul cetak & evaluasi bulanan</span>
+              </li>
+            </ul>
+          </div>
+          <a href="register.html" class="w-full py-3.5 px-5 rounded-xl bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+            <span>Daftar Kelas Reguler</span>
+            <i class="fas fa-arrow-right text-xs"></i>
+          </a>
+        </div>
+
+        <!-- Card 2: Kelas Online (Featured) -->
+        <div data-category="online" class="program-card reveal reveal-delay-1 bg-gradient-to-b from-slate-900 to-slate-800 text-white rounded-3xl p-8 shadow-2xl hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-brand-500/20 rounded-full blur-2xl"></div>
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-14 h-14 rounded-2xl bg-brand-500/20 text-brand-400 flex items-center justify-center text-2xl border border-brand-500/30">
+                <i class="fas fa-laptop-code"></i>
+              </div>
+              <span class="px-3 py-1 rounded-full text-xs font-semibold bg-brand-600 text-white">
+                Fleksibel
+              </span>
+            </div>
+            <h3 class="font-display font-bold text-2xl text-white mb-3">Kelas Online</h3>
+            <p class="text-slate-300 text-sm leading-relaxed mb-6">
+              Belajar interaktif dari rumah menggunakan papan tulis digital, rekaman materi, dan kuis online real-time.
+            </p>
+            <ul class="space-y-3 text-sm text-slate-300 mb-8 border-t border-slate-700/80 pt-5">
+              <li class="flex items-center gap-2.5">
+                <i class="fas fa-check text-brand-400"></i>
+                <span>Live interaktif via Zoom / Meet</span>
+              </li>
+              <li class="flex items-center gap-2.5">
+                <i class="fas fa-check text-brand-400"></i>
+                <span>Akses bank soal & e-modul 24/7</span>
+              </li>
+              <li class="flex items-center gap-2.5">
+                <i class="fas fa-check text-brand-400"></i>
+                <span>Grup diskusi langsung dengan tentor</span>
+              </li>
+            </ul>
+          </div>
+          <a href="register.html" class="w-full py-3.5 px-5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm shadow-lg shadow-brand-600/30 transition-all flex items-center justify-center gap-2">
+            <span>Daftar Kelas Online</span>
+            <i class="fas fa-arrow-right text-xs"></i>
+          </a>
+        </div>
+
+        <!-- Card 3: Persiapan Ujian -->
+        <div data-category="intensif" class="program-card reveal reveal-delay-2 bg-white rounded-3xl p-8 border border-slate-200/80 shadow-lg shadow-slate-200/40 hover:shadow-xl hover:border-brand-300 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center text-2xl">
+                <i class="fas fa-pen-nib"></i>
+              </div>
+              <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                Fokus Target
+              </span>
+            </div>
+            <h3 class="font-display font-bold text-2xl text-slate-900 mb-3">Persiapan Ujian</h3>
+            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+              Program bedah kisi-kisi dan latihan soal intensif menghadapi PTS, PAS, Ujian Sekolah, maupun seleksi sekolah favorit.
+            </p>
+            <ul class="space-y-3 text-sm text-slate-600 mb-8 border-t border-slate-100 pt-5">
+              <li class="flex items-center gap-2.5">
+                <i class="fas fa-check text-brand-600"></i>
+                <span>Simulasi Try Out berkala</span>
+              </li>
+              <li class="flex items-center gap-2.5">
+                <i class="fas fa-check text-brand-600"></i>
+                <span>Trik cepat & akurat jawab soal</span>
+              </li>
+              <li class="flex items-center gap-2.5">
+                <i class="fas fa-check text-brand-600"></i>
+                <span>Analisis pemetaan nilai siswa</span>
+              </li>
+            </ul>
+          </div>
+          <a href="register.html" class="w-full py-3.5 px-5 rounded-xl bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+            <span>Daftar Persiapan Ujian</span>
+            <i class="fas fa-arrow-right text-xs"></i>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       ANIMATED STATS SECTION
+  =========================================== -->
+  <section id="stats-section" class="py-16 lg:py-20 bg-gradient-to-r from-brand-700 via-brand-600 to-emerald-500 text-white relative overflow-hidden">
+    <!-- Subtle Pattern Overlay -->
+    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#ffffff 1.5px, transparent 1.5px); background-size: 24px 24px;"></div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+        
+        <div class="p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/15">
+          <div class="font-display font-extrabold text-4xl sm:text-5xl mb-2">
+            <span class="counter" data-target="500">0</span>+
+          </div>
+          <p class="text-brand-100 font-medium text-sm sm:text-base">Siswa Aktif</p>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/15">
+          <div class="font-display font-extrabold text-4xl sm:text-5xl mb-2">
+            <span class="counter" data-target="20">0</span>+
+          </div>
+          <p class="text-brand-100 font-medium text-sm sm:text-base">Guru Profesional</p>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/15">
+          <div class="font-display font-extrabold text-4xl sm:text-5xl mb-2">
+            <span class="counter" data-target="95">0</span>%
+          </div>
+          <p class="text-brand-100 font-medium text-sm sm:text-base">Tingkat Kepuasan</p>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/15">
+          <div class="font-display font-extrabold text-4xl sm:text-5xl mb-2">
+            <span class="counter" data-target="10">0</span>+
+          </div>
+          <p class="text-brand-100 font-medium text-sm sm:text-base">Tahun Pengalaman</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       TESTIMONI SISWA (Interactive Carousel & Grid)
+  =========================================== -->
+  <section id="testimoni" class="py-20 lg:py-28 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6 reveal">
+        <div>
+          <span class="inline-block px-3.5 py-1.5 rounded-full bg-brand-50 text-brand-700 font-semibold text-xs uppercase tracking-wider mb-3">
+            Cerita Sukses
+          </span>
+          <h2 class="font-display font-extrabold text-3xl sm:text-4xl text-slate-900">
+            Apa Kata Siswa Kebun Ilmu?
+          </h2>
+        </div>
+        <!-- Carousel Controls for Mobile/Tablet -->
+        <div class="flex items-center gap-3">
+          <button onclick="slideTestimonials(-1)" aria-label="Testimoni Sebelumnya" class="w-11 h-11 rounded-xl border border-slate-200 hover:border-brand-600 hover:bg-brand-600 hover:text-white text-slate-600 flex items-center justify-center transition-all">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <button onclick="slideTestimonials(1)" aria-label="Testimoni Berikutnya" class="w-11 h-11 rounded-xl border border-slate-200 hover:border-brand-600 hover:bg-brand-600 hover:text-white text-slate-600 flex items-center justify-center transition-all">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Testimonials Wrapper -->
+      <div id="testimonial-container" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <!-- Testimoni 1 -->
+        <div class="testimonial-item reveal bg-slate-50 p-8 rounded-3xl border border-slate-100 relative hover:bg-white hover:shadow-xl transition-all duration-300">
+          <i class="fas fa-quote-right text-4xl text-brand-200 absolute top-7 right-7"></i>
+          <div class="flex items-center gap-1 text-amber-400 text-sm mb-5">
+            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+          </div>
+          <p class="text-slate-700 leading-relaxed mb-6 italic">
+            "Belajarnya seru dan mudah dipahami. Dulu Matematika terasa menakutkan, sekarang nilai ulangan saya meningkat drastis!"
+          </p>
+          <div class="flex items-center gap-3.5 pt-4 border-t border-slate-200/70">
+            <div class="w-11 h-11 rounded-full bg-brand-600 text-white font-display font-bold flex items-center justify-center">
+              AI
+            </div>
+            <div>
+              <h4 class="font-display font-bold text-slate-900">Aisyah</h4>
+              <p class="text-xs text-slate-500">Siswa Kelas Reguler</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimoni 2 -->
+        <div class="testimonial-item reveal reveal-delay-1 bg-slate-50 p-8 rounded-3xl border border-slate-100 relative hover:bg-white hover:shadow-xl transition-all duration-300">
+          <i class="fas fa-quote-right text-4xl text-brand-200 absolute top-7 right-7"></i>
+          <div class="flex items-center gap-1 text-amber-400 text-sm mb-5">
+            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+          </div>
+          <p class="text-slate-700 leading-relaxed mb-6 italic">
+            "Gurunya ramah, sabar, dan sangat membantu memahami pelajaran sulit. Setiap bertanya selalu dijelaskan sampai benar-benar paham."
+          </p>
+          <div class="flex items-center gap-3.5 pt-4 border-t border-slate-200/70">
+            <div class="w-11 h-11 rounded-full bg-emerald-600 text-white font-display font-bold flex items-center justify-center">
+              RZ
+            </div>
+            <div>
+              <h4 class="font-display font-bold text-slate-900">Rizky</h4>
+              <p class="text-xs text-slate-500">Siswa Persiapan Ujian</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Testimoni 3 -->
+        <div class="testimonial-item reveal reveal-delay-2 bg-slate-50 p-8 rounded-3xl border border-slate-100 relative hover:bg-white hover:shadow-xl transition-all duration-300">
+          <i class="fas fa-quote-right text-4xl text-brand-200 absolute top-7 right-7"></i>
+          <div class="flex items-center gap-1 text-amber-400 text-sm mb-5">
+            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+          </div>
+          <p class="text-slate-700 leading-relaxed mb-6 italic">
+            "Tempatnya nyaman dan teman-temannya suportif, membuat saya semakin semangat belajar setiap sore sepulang sekolah."
+          </p>
+          <div class="flex items-center gap-3.5 pt-4 border-t border-slate-200/70">
+            <div class="w-11 h-11 rounded-full bg-teal-600 text-white font-display font-bold flex items-center justify-center">
+              NB
+            </div>
+            <div>
+              <h4 class="font-display font-bold text-slate-900">Nabila</h4>
+              <p class="text-xs text-slate-500">Siswa Kelas Online & Reguler</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       INTERACTIVE FAQ ACCORDION
+  =========================================== -->
+  <section id="faq" class="py-20 bg-slate-50 border-t border-slate-200/60">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12 reveal">
+        <span class="inline-block px-3.5 py-1.5 rounded-full bg-brand-100 text-brand-700 font-semibold text-xs uppercase tracking-wider mb-3">
+          Informasi Pendaftaran
+        </span>
+        <h2 class="font-display font-extrabold text-3xl text-slate-900">
+          Pertanyaan yang Sering Diajukan
+        </h2>
+      </div>
+
+      <div class="space-y-4 reveal">
+        <!-- FAQ 1 -->
+        <div class="faq-item bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full px-6 py-5 text-left flex items-center justify-between font-display font-bold text-slate-900 hover:text-brand-600 transition-colors">
+            <span>Jenjang pendidikan apa saja yang tersedia di Kebun Ilmu?</span>
+            <i class="fas fa-plus text-brand-600 transition-transform duration-300"></i>
+          </button>
+          <div class="faq-content hidden px-6 pb-5 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
+            Kebun Ilmu melayani bimbingan belajar untuk jenjang SD, SMP, hingga SMA dengan fokus pendalaman Matematika, IPA, Bahasa Inggris, serta persiapan ujian sekolah.
+          </div>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="faq-item bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full px-6 py-5 text-left flex items-center justify-between font-display font-bold text-slate-900 hover:text-brand-600 transition-colors">
+            <span>Apakah bisa mengikuti kelas percobaan (Free Trial) terlebih dahulu?</span>
+            <i class="fas fa-plus text-brand-600 transition-transform duration-300"></i>
+          </button>
+          <div class="faq-content hidden px-6 pb-5 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
+            Tentu saja! Calon siswa dapat mengikuti 1x sesi coba belajar gratis agar dapat merasakan langsung metode mengajar tentor kami sebelum mendaftar penuh.
+          </div>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="faq-item bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+          <button onclick="toggleFaq(this)" class="w-full px-6 py-5 text-left flex items-center justify-between font-display font-bold text-slate-900 hover:text-brand-600 transition-colors">
+            <span>Di mana lokasi belajar tatap muka Kebun Ilmu?</span>
+            <i class="fas fa-plus text-brand-600 transition-transform duration-300"></i>
+          </button>
+          <div class="faq-content hidden px-6 pb-5 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
+            Lokasi belajar kami berada di Perumahan Pruri Permata 1 Blok D, Bulakelor, Kec. Ketanggungan, Kab. Brebes, Jawa Tengah. Lingkungan aman, tenang, dan kondusif untuk belajar.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       CTA BANNER SECTION
+  =========================================== -->
+  <section class="py-16 lg:py-24 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 reveal">
+      <div class="relative rounded-[2.5rem] bg-gradient-to-br from-brand-700 via-brand-600 to-emerald-500 p-10 sm:p-16 text-center text-white overflow-hidden shadow-2xl shadow-brand-600/25">
+        <!-- Decorative Rings -->
+        <div class="absolute -top-24 -left-24 w-64 h-64 rounded-full border-[24px] border-white/10"></div>
+        <div class="absolute -bottom-24 -right-24 w-72 h-72 rounded-full border-[24px] border-white/10"></div>
+
+        <div class="relative z-10 max-w-2xl mx-auto space-y-6">
+          <h2 class="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl leading-tight">
+            Yuk Bergabung Bersama Kebun Ilmu
+          </h2>
+          <p class="text-brand-50 text-base sm:text-lg leading-relaxed">
+            Tingkatkan prestasi akademik dan bangun kepercayaan diri belajar bersama tentor terbaik kami hari ini.
+          </p>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <a href="register.html" class="w-full sm:w-auto px-8 py-4 bg-white text-brand-700 hover:bg-brand-50 font-bold rounded-2xl shadow-lg hover:-translate-y-1 transition-all">
+              Daftar Sekarang
+            </a>
+            <button onclick="openTrialModal('Konsultasi Program')" class="w-full sm:w-auto px-8 py-4 bg-brand-800/40 hover:bg-brand-800/60 text-white border border-white/30 font-semibold rounded-2xl transition-all">
+              Tanya Admin via WhatsApp
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================
+       FOOTER
+  =========================================== -->
+  <footer id="kontak" class="bg-slate-900 text-slate-300 pt-16 pb-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 pb-12 border-b border-slate-800">
+        
+        <!-- Col 1: Brand Info -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="flex items-center gap-3">
+            <img 
+              src="https://zahwan93.github.io/Kebun-Ilmu-Matematika-SMP/logo.png" 
+              alt="Logo Kebun Ilmu" 
+              class="w-11 h-11 rounded-xl bg-white p-1 object-contain"
+              onerror="this.src='https://placehold.co/100x100/16a34a/ffffff?text=KI'"
+            />
+            <div>
+              <h3 class="font-display font-bold text-xl text-white">Kebun Ilmu</h3>
+              <p class="text-xs text-brand-400">Bimbingan Belajar Modern</p>
+            </div>
+          </div>
+          <p class="text-slate-400 text-sm leading-relaxed max-w-md">
+            Membantu siswa tumbuh cerdas, percaya diri, dan siap menghadapi masa depan dengan metode pembelajaran modern yang menyenangkan.
+          </p>
+          <div class="flex items-center gap-3 pt-2">
+            <a href="#" aria-label="Instagram" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-brand-600 text-white flex items-center justify-center transition-colors">
+              <i class="fab fa-instagram"></i>
+            </a>
+            <a href="#" aria-label="Facebook" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-brand-600 text-white flex items-center justify-center transition-colors">
+              <i class="fab fa-facebook-f"></i>
+            </a>
+            <a href="#" aria-label="YouTube" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-brand-600 text-white flex items-center justify-center transition-colors">
+              <i class="fab fa-youtube"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Col 2: Quick Links -->
+        <div class="lg:col-span-3 space-y-4">
+          <h4 class="font-display font-bold text-white text-base">Navigasi Cepat</h4>
+          <ul class="space-y-2.5 text-sm text-slate-400">
+            <li><a href="#" class="hover:text-brand-400 transition-colors">Beranda</a></li>
+            <li><a href="#about" class="hover:text-brand-400 transition-colors">Tentang Kami</a></li>
+            <li><a href="#program" class="hover:text-brand-400 transition-colors">Program Unggulan</a></li>
+            <li><a href="#testimoni" class="hover:text-brand-400 transition-colors">Testimoni Siswa</a></li>
+            <li><a href="login.html" class="hover:text-brand-400 transition-colors">Portal Login Siswa</a></li>
+          </ul>
+        </div>
+
+        <!-- Col 3: Contact Details -->
+        <div class="lg:col-span-4 space-y-4">
+          <h4 class="font-display font-bold text-white text-base">Hubungi Kami</h4>
+          <ul class="space-y-3 text-sm text-slate-400">
+            <li class="flex items-start gap-3">
+              <i class="fas fa-map-marker-alt text-brand-500 mt-1 shrink-0"></i>
+              <span>Perumahan Pruri Permata 1 Blok D Bulakelor Kec. Ketanggungan Kab. Brebes Jawa Tengah</span>
+            </li>
+            <li class="flex items-center gap-3">
+              <i class="fas fa-phone-alt text-brand-500 shrink-0"></i>
+              <a href="tel:085641387872" class="hover:text-white transition-colors">0856-4138-7872</a>
+            </li>
+            <li class="flex items-center gap-3">
+              <i class="fas fa-envelope text-brand-500 shrink-0"></i>
+              <a href="mailto:info@kebunilmu.com" class="hover:text-white transition-colors">info@kebunilmu.com</a>
+            </li>
+          </ul>
         </div>
 
       </div>
 
-      <div class="copyright">
-        © 2026 Kebun Ilmu. All Rights Reserved.
+      <div class="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+        <p>© 2026 Kebun Ilmu. All Rights Reserved.</p>
+        <p>Dibuat dengan penuh semangat untuk pendidikan Indonesia.</p>
       </div>
-
     </div>
-
   </footer>
 
+  <!-- ==========================================
+       QUICK REGISTRATION / TRIAL MODAL
+  =========================================== -->
+  <div id="trial-modal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative animate-[fadeIn_0.25s_ease-out]">
+      <button onclick="closeTrialModal()" aria-label="Tutup Modal" class="absolute top-5 right-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition">
+        <i class="fas fa-times"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-11 h-11 rounded-2xl bg-brand-100 text-brand-600 flex items-center justify-center text-xl">
+          <i class="fas fa-graduation-cap"></i>
+        </div>
+        <div>
+          <h3 class="font-display font-bold text-xl text-slate-900">Daftar / Coba Gratis</h3>
+          <p class="text-xs text-slate-500">Terhubung langsung ke WhatsApp Admin</p>
+        </div>
+      </div>
+
+      <form onsubmit="submitWhatsAppForm(event)" class="space-y-4 mt-5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Lengkap Siswa</label>
+          <input type="text" id="student-name" required placeholder="Contoh: Ahmad Fauzan" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 outline-none text-sm transition" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Jenjang Sekolah</label>
+          <select id="student-grade" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 outline-none text-sm bg-white transition">
+            <option value="SD">SD (Sekolah Dasar)</option>
+            <option value="SMP" selected>SMP (Sekolah Menengah Pertama)</option>
+            <option value="SMA">SMA (Sekolah Menengah Atas)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Program Pilihan</label>
+          <select id="student-program" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20 outline-none text-sm bg-white transition">
+            <option value="Kelas Reguler">Kelas Reguler (Tatap Muka)</option>
+            <option value="Kelas Online">Kelas Online Interaktif</option>
+            <option value="Persiapan Ujian">Persiapan Ujian Intensif</option>
+            <option value="Konsultasi Gratis">Konsultasi & Coba Gratis</option>
+          </select>
+        </div>
+        <button type="submit" class="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-lg shadow-brand-600/25 flex items-center justify-center gap-2 transition">
+          <i class="fab fa-whatsapp text-lg"></i>
+          <span>Kirim ke WhatsApp Admin</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       FLOATING WHATSAPP BUTTON
+  =========================================== -->
+  <a 
+    href="https://wa.me/6285641387872" 
+    target="_blank" 
+    rel="noopener noreferrer"
+    aria-label="Chat WhatsApp Kebun Ilmu"
+    class="fixed bottom-6 right-6 z-50 group flex items-center gap-3"
+  >
+    <span class="hidden sm:inline-block bg-white text-slate-800 text-xs font-semibold px-3.5 py-2 rounded-xl shadow-lg border border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      Chat Admin Kebun Ilmu
+    </span>
+    <div class="w-14 h-14 sm:w-16 sm:h-16 bg-[#25D366] hover:bg-[#1ebe5d] text-white rounded-full flex items-center justify-center text-2xl sm:text-3xl shadow-xl shadow-green-500/30 animate-float transition-transform group-hover:scale-110">
+      <i class="fab fa-whatsapp"></i>
+    </div>
+  </a>
+
+  <!-- ==========================================
+       INTERACTIVE JAVASCRIPT
+  =========================================== -->
   <script>
+    // 1. Mobile Menu Toggle
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const menuIcon = document.getElementById('menu-icon');
+    const mobileLinks = document.querySelectorAll('.mobile-link');
 
-    const toggle = document.getElementById('toggle');
-    const menu = document.getElementById('menu');
-
-    toggle.addEventListener('click', () => {
-      menu.classList.toggle('active');
+    mobileBtn.addEventListener('click', () => {
+      mobileMenu.classList.toggle('hidden');
+      const isOpen = !mobileMenu.classList.contains('hidden');
+      menuIcon.className = isOpen ? 'fas fa-times text-xl' : 'fas fa-bars text-xl';
     });
 
+    mobileLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+        menuIcon.className = 'fas fa-bars text-xl';
+      });
+    });
+
+    // 2. Navbar Shrink on Scroll
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 30) {
+        navbar.classList.add('py-2.5', 'shadow-md', 'bg-white/95');
+        navbar.classList.remove('py-4', 'bg-white/80');
+      } else {
+        navbar.classList.remove('py-2.5', 'shadow-md', 'bg-white/95');
+        navbar.classList.add('py-4', 'bg-white/80');
+      }
+    });
+
+    // 3. Scroll Reveal Observer
+    const revealElements = document.querySelectorAll('.reveal');
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
+      });
+    }, { threshold: 0.12 });
+
+    revealElements.forEach(el => revealObserver.observe(el));
+
+    // 4. Animated Number Counter for Stats
+    let countersStarted = false;
+    const statsSection = document.getElementById('stats-section');
+    const counters = document.querySelectorAll('.counter');
+
+    const startCounters = () => {
+      counters.forEach(counter => {
+        const target = +counter.getAttribute('data-target');
+        const duration = 1600;
+        const stepTime = 20;
+        const steps = duration / stepTime;
+        const increment = target / steps;
+        let current = 0;
+
+        const timer = setInterval(() => {
+          current += increment;
+          if (current >= target) {
+            counter.textContent = target;
+            clearInterval(timer);
+          } else {
+            counter.textContent = Math.floor(current);
+          }
+        }, stepTime);
+      });
+    };
+
+    const statsObserver = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !countersStarted) {
+        countersStarted = true;
+        startCounters();
+      }
+    }, { threshold: 0.3 });
+
+    statsObserver.observe(statsSection);
+
+    // 5. Interactive Program Filter
+    function filterPrograms(category, btn) {
+      document.querySelectorAll('.program-tab').forEach(tab => {
+        tab.classList.remove('bg-brand-600', 'text-white');
+        tab.classList.add('text-slate-600');
+      });
+      btn.classList.add('bg-brand-600', 'text-white');
+      btn.classList.remove('text-slate-600');
+
+      const cards = document.querySelectorAll('.program-card');
+      cards.forEach(card => {
+        if (category === 'all' || card.getAttribute('data-category') === category) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    // 6. Testimonial Carousel Rotate
+    function slideTestimonials(direction) {
+      const container = document.getElementById('testimonial-container');
+      const items = container.querySelectorAll('.testimonial-item');
+      if (items.length < 2) return;
+      if (direction === 1) {
+        container.appendChild(items[0]);
+      } else {
+        container.insertBefore(items[items.length - 1], items[0]);
+      }
+    }
+
+    // 7. Interactive FAQ Accordion
+    function toggleFaq(button) {
+      const content = button.nextElementSibling;
+      const icon = button.querySelector('i');
+      const isHidden = content.classList.contains('hidden');
+
+      // Close all others
+      document.querySelectorAll('.faq-content').forEach(c => c.classList.add('hidden'));
+      document.querySelectorAll('.faq-item i').forEach(i => {
+        i.classList.remove('fa-minus', 'rotate-180');
+        i.classList.add('fa-plus');
+      });
+
+      if (isHidden) {
+        content.classList.remove('hidden');
+        icon.classList.remove('fa-plus');
+        icon.classList.add('fa-minus');
+      }
+    }
+
+    // 8. Quick Registration Modal & WhatsApp Redirect
+    const modal = document.getElementById('trial-modal');
+    const programSelect = document.getElementById('student-program');
+
+    function openTrialModal(selectedProgram) {
+      if (selectedProgram) {
+        programSelect.value = selectedProgram;
+      }
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeTrialModal() {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeTrialModal();
+    });
+
+    function submitWhatsAppForm(event) {
+      event.preventDefault();
+      const name = document.getElementById('student-name').value.trim();
+      const grade = document.getElementById('student-grade').value;
+      const program = document.getElementById('student-program').value;
+
+      const message = `Halo Admin Kebun Ilmu! Saya ingin mendaftar/konsultasi:%0A%0A• *Nama Siswa:* ${encodeURIComponent(name)}%0A• *Jenjang:* ${encodeURIComponent(grade)}%0A• *Program:* ${encodeURIComponent(program)}%0A%0AMohon informasi jadwal dan biayanya. Terima kasih!`;
+      window.open(`https://wa.me/6285641387872?text=${message}`, '_blank', 'noopener,noreferrer');
+      closeTrialModal();
+    }
   </script>
-<!-- TAMBAHKAN SEBELUM </body> -->
-
-<!-- FLOATING WHATSAPP -->
-<a 
-  href="https://wa.me/6285641387872"
-  class="floating-wa"
-  target="_blank"
->
-  <i class="fab fa-whatsapp"></i>
-</a>
-
-<style>
-
-  .floating-wa{
-    position:fixed;
-    width:65px;
-    height:65px;
-    bottom:25px;
-    right:25px;
-    background:#25D366;
-    color:white;
-    border-radius:50%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:2rem;
-    box-shadow:0 10px 25px rgba(0,0,0,0.2);
-    z-index:9999;
-    animation:floatWa 2s infinite ease-in-out;
-    transition:0.3s;
-  }
-
-  .floating-wa:hover{
-    transform:scale(1.1);
-    background:#1ebe5d;
-  }
-
-  @keyframes floatWa{
-
-    0%{
-      transform:translateY(0px);
-    }
-
-    50%{
-      transform:translateY(-8px);
-    }
-
-    100%{
-      transform:translateY(0px);
-    }
-
-  }
-
-  @media(max-width:768px){
-
-    .floating-wa{
-      width:58px;
-      height:58px;
-      font-size:1.8rem;
-      bottom:20px;
-      right:20px;
-    }
-
-  }
-
-</style>
 </body>
 </html>
