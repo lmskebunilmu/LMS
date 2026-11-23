@@ -2,223 +2,337 @@
 <html lang="id">
 
 <head>
-
-<meta charset="UTF-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Data Murid</title>
+  <title>Data Murid</title>
 
-<link rel="stylesheet"
-href="../../assets/css/style.css">
+  <link rel="stylesheet" href="../../assets/css/style.css">
+  <link rel="stylesheet" href="../../assets/css/responsive.css">
 
-<link rel="stylesheet"
-href="../../assets/css/responsive.css">
+  <style>
+    /* Styling Kartu Siswa */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
 
+    .student-card {
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      background: #ffffff;
+      color: #0f172a;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .student-card-header {
+      background: #1e3a8a;
+      color: #ffffff;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .student-card-header img {
+      width: 34px;
+      height: 34px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #ffffff;
+      padding: 2px;
+    }
+
+    .student-card-school {
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .student-card-subtitle {
+      font-size: 10px;
+      opacity: 0.85;
+    }
+
+    .student-card-body {
+      padding: 14px;
+      font-size: 13px;
+    }
+
+    .student-card-name {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #0f172a;
+    }
+
+    .student-card-class {
+      display: inline-block;
+      font-size: 11px;
+      background: #e2e8f0;
+      color: #1e293b;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .student-cred-box {
+      background: #f8fafc;
+      border: 1px dashed #94a3b8;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+
+    .student-cred-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 4px 0;
+      word-break: break-all;
+    }
+
+    .student-cred-label {
+      color: #475569;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .student-cred-value {
+      font-family: monospace;
+      font-weight: 700;
+      color: #0f172a;
+      text-align: right;
+    }
+
+    .btn-card {
+      background: #0284c7;
+      color: #fff;
+      border: none;
+      padding: 5px 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .btn-print-all {
+      background: #0f766e;
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .modal-card-box {
+      max-width: 780px;
+      width: 92%;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal-card-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    /* Area khusus saat cetak */
+    #printCardsArea {
+      display: none;
+    }
+
+    @media print {
+      body > *:not(#printCardsArea) {
+        display: none !important;
+      }
+
+      #printCardsArea {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+        padding: 10px;
+      }
+
+      .student-card {
+        box-shadow: none;
+        border: 1.5px solid #334155;
+      }
+
+      .student-card-header {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .student-cred-box {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="wrapper">
+  <div class="wrapper">
 
-<!-- SIDEBAR -->
-<div id="sidebar-container"></div>
+    <!-- SIDEBAR -->
+    <div id="sidebar-container"></div>
 
-<!-- MAIN -->
-<div class="main">
+    <!-- MAIN -->
+    <div class="main">
 
-<!-- HEADER -->
-<div id="header-container"></div>
+      <!-- HEADER -->
+      <div id="header-container"></div>
 
-<div class="card">
+      <div class="card">
 
-<h1>Data Murid</h1>
+        <h1>Data Murid</h1>
 
-<button
-class="btn-add"
-onclick="openStudentModal()">
+        <button class="btn-add" onclick="openStudentModal()">
+          ➕ Tambah Murid
+        </button>
+        <button onclick="exportStudentsToCSV()" class="btn-export">
+          Export CSV
+        </button>
+        <button onclick="importStudentsCSV()" class="btn-import">
+          📥 Import CSV
+        </button>
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none">
+        <button onclick="downloadCSVTemplate()" class="btn-template">
+          📄 Template CSV
+        </button>
+        <button onclick="openAllCardsModal()" class="btn-print-all">
+          🪪 Kartu & Cetak Semua
+        </button>
 
-➕ Tambah Murid
+        <div class="search-box">
+          <input
+            type="text"
+            id="studentSearch"
+            name="studentSearchField"
+            placeholder="🔍 Cari nama, email, atau kelas..."
+            autocomplete="off">
 
-</button>
-<button onclick="exportStudentsToCSV()" class="btn-export">
-  Export CSV
-</button>
-<button onclick="importStudentsCSV()" class="btn-import">
-  📥 Import CSV
-</button>
-<input type="file" id="csvFileInput" accept=".csv" style="display:none">
-<button onclick="downloadCSVTemplate()" class="btn-template">
-  📄 Template CSV
-</button>
-<div class="search-box">
-  <input
-    type="text"
-    id="studentSearch"
-    name="studentSearchField"
-    placeholder="🔍 Cari nama, email, atau kelas..."
-    autocomplete="off">
-  
-  <select id="filterStatus">
-    <option value="">Semua Status</option>
-    <option value="aktif">Aktif</option>
-    <option value="nonaktif">Nonaktif</option>
-  </select>
+          <select id="filterStatus">
+            <option value="">Semua Status</option>
+            <option value="aktif">Aktif</option>
+            <option value="nonaktif">Nonaktif</option>
+          </select>
 
-  <select id="filterClass">
-    <option value="">Semua Kelas</option>
-    <!-- opsi kelas akan diisi otomatis dari loadClasses -->
-  </select>
-</div>
-<div class="bulk-actions">
-  <button onclick="bulkDelete()" class="btn-delete">🗑 Hapus</button>
-  <button onclick="bulkActivate()" class="btn-status aktif">✅ Aktifkan</button>
-  <button onclick="bulkDeactivate()" class="btn-status nonaktif">⛔ Nonaktifkan</button>
-</div>
-<div class="table-container">
+          <select id="filterClass">
+            <option value="">Semua Kelas</option>
+          </select>
+        </div>
 
-<table>
+        <div class="bulk-actions">
+          <button onclick="bulkDelete()" class="btn-delete">🗑 Hapus</button>
+          <button onclick="bulkActivate()" class="btn-status aktif">✅ Aktifkan</button>
+          <button onclick="bulkDeactivate()" class="btn-status nonaktif">⛔ Nonaktifkan</button>
+        </div>
 
-<thead>
-<tr>
-  <th><input type="checkbox" id="selectAll"></th>
-  <th>Nama</th>
-  <th>Email</th>
-  <th>Kelas</th>
-  <th>Status</th>
-  <th>Aksi</th>
-</tr>
-</thead>
-<tbody id="studentTable">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>Nama</th>
+                <th>Email</th>
+                <th>Kelas</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="studentTable">
+              <tr id="loadingRow">
+                <td colspan="6">Memuat data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-<tr id="loadingRow">
-
-<td colspan="6">
-
-Memuat data...
-
-</td>
-
-</tr>
-
-</tbody>
-</table>
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-<!-- MODAL -->
-
-<div id="studentModal" class="modal">
-
-<div class="modal-content">
-
-<h3>Tambah / Edit Murid</h3>
-
-<input type="hidden" id="studentId">
-
-<input
-type="text"
-id="studentName"
-placeholder="Nama Murid">
-
-<input
-type="email"
-id="studentEmail"
-placeholder="Email Murid">
-
-<input
-type="password"
-id="studentPassword"
-placeholder="Password (hanya saat tambah)">
-
-<select id="studentClass">
-
-<option value="">
-Pilih Kelas
-</option>
-
-</select>
-
-<div class="modal-actions">
-
-<button
-class="primary"
-onclick="saveStudent()">
-
-Simpan
-
-</button>
-
-<button
-class="danger"
-onclick="closeStudentModal()">
-
-Batal
-
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-<div id="toast" class="toast">
-  <span id="toastMessage">
-    Berhasil
-  </span>
-</div>
-<div id="confirmModal" class="modal">
-
-  <div class="modal-content">
-
-    <h3 id="confirmTitle">Hapus Murid</h3>
-
-    <p id="confirmMessage">
-  Yakin ingin menghapus murid ini?
-</p>
-    <div class="modal-actions">
-
-      <button
-        class="danger"
-        id="confirmDeleteBtn">
-
-        Hapus
-
-      </button>
-
-      <button
-        class="primary"
-        onclick="closeConfirmModal()">
-
-        Batal
-
-      </button>
+      </div>
 
     </div>
 
   </div>
 
-</div>
-<div id="resetPasswordModal" class="modal">
-  <div class="modal-content">
-    <h3>Reset Password</h3>
-    <p id="resetPasswordMessage">
-      Yakin ingin mengirim email reset password ke <span id="resetEmail"></span>?
-    </p>
-    <div class="modal-actions">
-      <button class="primary" id="confirmResetBtn">Kirim</button>
-      <button class="danger" onclick="closeResetPasswordModal()">Batal</button>
+  <!-- MODAL TAMBAH / EDIT MURID -->
+  <div id="studentModal" class="modal">
+    <div class="modal-content">
+      <h3>Tambah / Edit Murid</h3>
+
+      <input type="hidden" id="studentId">
+      <input type="text" id="studentName" placeholder="Nama Murid">
+      <input type="email" id="studentEmail" placeholder="Email Murid">
+      <input type="password" id="studentPassword" placeholder="Password (hanya saat tambah)">
+
+      <select id="studentClass">
+        <option value="">Pilih Kelas</option>
+      </select>
+
+      <div class="modal-actions">
+        <button class="primary" onclick="saveStudent()">Simpan</button>
+        <button class="danger" onclick="closeStudentModal()">Batal</button>
+      </div>
     </div>
   </div>
-</div>
-<script
-type="module"
-src="./students.js"></script>
+
+  <!-- MODAL PREVIEW & CETAK KARTU -->
+  <div id="studentCardModal" class="modal">
+    <div class="modal-content modal-card-box">
+      <div class="modal-card-toolbar">
+        <h3 id="cardModalTitle" style="margin:0;">Kartu Akun Murid</h3>
+        <div>
+          <button class="primary" onclick="printCurrentCardModal()">🖨 Cetak Kartu</button>
+          <button class="danger" onclick="closeStudentCardModal()">Tutup</button>
+        </div>
+      </div>
+      <div id="cardModalPreview" class="cards-grid"></div>
+    </div>
+  </div>
+
+  <!-- AREA KHUSUS PRINT -->
+  <div id="printCardsArea"></div>
+
+  <div id="toast" class="toast">
+    <span id="toastMessage">Berhasil</span>
+  </div>
+
+  <div id="confirmModal" class="modal">
+    <div class="modal-content">
+      <h3 id="confirmTitle">Hapus Murid</h3>
+      <p id="confirmMessage">Yakin ingin menghapus murid ini?</p>
+      <div class="modal-actions">
+        <button class="danger" id="confirmDeleteBtn">Hapus</button>
+        <button class="primary" onclick="closeConfirmModal()">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="resetPasswordModal" class="modal">
+    <div class="modal-content">
+      <h3>Reset Password</h3>
+      <p id="resetPasswordMessage">
+        Yakin ingin mengirim email reset password ke <span id="resetEmail"></span>?
+      </p>
+      <div class="modal-actions">
+        <button class="primary" id="confirmResetBtn">Kirim</button>
+        <button class="danger" onclick="closeResetPasswordModal()">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./students.js"></script>
 
 </body>
 
