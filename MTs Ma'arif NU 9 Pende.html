@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTs Ma'arif NU 9 Pende - Unggul, Ilmiah, Islami</title>
+    
+    <!-- Tailwind CSS (Play CDN untuk kemudahan integrasi komponen modern) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            950: '#022c22',
+                            900: '#064e3b',
+                            800: '#065f46',
+                            700: '#047857',
+                            600: '#059669',
+                            500: '#10b981',
+                        },
+                        amber: {
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        serif: ['Merriweather', 'serif']
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'spin-slow': 'spin 12s linear infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-15px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome (Ikon Premium) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- AOS (Animate on Scroll) untuk Animasi Scroll Elegan -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-emerald-600 selection:text-white">
+
+   <!-- NAVIGATION BAR -->
+<nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent py-5">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+        <div class="flex items-center justify-between">
+            <!-- Logo & Identitas -->
+            <a href="#beranda" class="flex items-center space-x-3 group">
+                <div class="w-12 h-12 bg-white/95 rounded-2xl p-1.5 flex items-center justify-center shadow-lg shadow-emerald-900/20 group-hover:scale-105 transition-transform duration-300 overflow-hidden">
+                    <img
+                        src="https://res.cloudinary.com/djlvnubgn/image/upload/v1791274802/c4n4tizihtovqvokmfv2.png"
+                        alt="Logo MTs Ma'arif NU 9 Pende"
+                        class="w-full h-full object-contain"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    />
+                    <span class="hidden w-full h-full bg-emerald-600 text-white rounded-xl items-center justify-center">
+                        <i class="fa-solid fa-mosque text-xl"></i>
+                    </span>
+                </div>
+                <div>
+                    <span class="block font-extrabold text-lg lg:text-xl text-white tracking-tight leading-none transition-colors duration-300" id="nav-brand-main">MTs Ma'arif NU 9</span>
+                    <span class="text-xs font-bold text-amber-500 uppercase tracking-widest leading-none mt-1 block">Pende - Brebes</span>
+                </div>
+            </a>
+
+            <!-- Desktop Menu -->
+            <div class="hidden md:flex items-center space-x-8 font-semibold text-white/95" id="nav-menu">
+                <a href="#beranda" class="hover:text-amber-500 transition-colors">Beranda</a>
+                <a href="#sambutan" class="hover:text-amber-500 transition-colors">Sambutan</a>
+                <a href="#visi-misi" class="hover:text-amber-500 transition-colors">Visi & Karakter</a>
+                <a href="#ekskul" class="hover:text-amber-500 transition-colors">Ekstrakurikuler</a>
+                <a href="#kontak" class="bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-600/30 transition-all transform hover:-translate-y-1 hover:shadow-emerald-600/40">Daftar PPDB</a>
+            </div>
+
+            <!-- Mobile Menu Button -->
+            <button id="mobile-menu-btn" class="md:hidden text-white hover:text-amber-500 transition-colors p-2" aria-label="Toggle Menu">
+                <i class="fa-solid fa-bars-staggered text-2xl"></i>
+            </button>
+        </div>
+    </div>
+</nav>
+
+        <!-- Mobile Drawer -->
+        <div id="mobile-menu" class="hidden md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-lg border-b border-slate-200/50 shadow-2xl p-6 transition-all duration-300">
+            <div class="flex flex-col space-y-4 font-bold text-slate-800">
+                <a href="#beranda" class="hover:text-emerald-600 py-2">Beranda</a>
+                <a href="#sambutan" class="hover:text-emerald-600 py-2">Sambutan</a>
+                <a href="#visi-misi" class="hover:text-emerald-600 py-2">Visi & Karakter</a>
+                <a href="#ekskul" class="hover:text-emerald-600 py-2">Ekstrakurikuler</a>
+                <a href="#kontak" class="bg-emerald-600 text-white text-center py-3.5 rounded-xl hover:bg-emerald-700 shadow-md">Daftar PPDB</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION WITH PARTICLES EFFECT & TEXT OVERLAY -->
+    <header id="beranda" class="relative min-h-screen flex items-center justify-center overflow-hidden bg-emerald-950 text-white pt-24">
+        <!-- Background Overlay & Grid Elements -->
+        <div class="absolute inset-0 z-0">
+            <div class="absolute inset-0 bg-gradient-to-tr from-emerald-950 via-emerald-900/90 to-slate-900/95"></div>
+            <!-- Decorative Animated Grid Pattern -->
+            <div class="absolute inset-0 opacity-15 bg-[linear-gradient(to_right,#0f5f43_1px,transparent_1px),linear-gradient(to_bottom,#0f5f43_1px,transparent_1px)] bg-[size:4rem_4rem]"></div>
+            
+            <!-- Glowing Ambient Blobs -->
+            <div class="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-emerald-500/20 blur-[100px] animate-pulse"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full bg-amber-500/10 blur-[150px] animate-pulse duration-7000"></div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 py-20 text-center flex flex-col items-center">
+            <div class="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md border border-white/25 px-4 py-2 rounded-full text-xs lg:text-sm font-semibold tracking-wider uppercase mb-8 shadow-inner animate-[fadeInDown_1s_ease-out]">
+                <span class="flex h-2 w-2 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span class="text-amber-400 font-bold">Madrasah Riset Digital</span>
+            </div>
+
+            <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-8 leading-[1.1] max-w-5xl animate-[fadeInUp_1.2s_ease-out]">
+                Membentuk Generasi <br>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300">
+                    Sains Terapan & Berakhlak Qur'ani
+                </span>
+            </h1>
+
+            <p class="text-lg md:text-xl text-emerald-100/80 mb-12 max-w-3xl font-light leading-relaxed animate-[fadeInUp_1.4s_ease-out]">
+                Pusat pembelajaran tingkat menengah di Brebes yang memadukan inovasi kurikulum riset sains modern dengan tradisi orisinal kajian Kitab Kuning Islam Ahlussunnah wal Jama'ah.
+            </p>
+
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row items-center gap-4 animate-[fadeInUp_1.6s_ease-out] w-full sm:w-auto">
+                <a href="#ekskul" class="w-full sm:w-auto bg-emerald-600 text-white px-8 py-4.5 rounded-2xl font-bold hover:bg-emerald-500 shadow-2xl shadow-emerald-500/20 hover:shadow-emerald-500/45 transition-all duration-300 transform hover:-translate-y-1 text-center">
+                    Program & Ekstrakurikuler <i class="fa-solid fa-graduation-cap ml-2"></i>
+                </a>
+                <a href="#sambutan" class="w-full sm:w-auto bg-white/10 backdrop-blur-md border border-white/15 hover:bg-white/15 text-white px-8 py-4.5 rounded-2xl font-bold transition-all duration-300 text-center">
+                    Sambutan Kepala Madrasah
+                </a>
+            </div>
+
+            <!-- Floater stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 w-full max-w-5xl mt-24 pt-12 border-t border-white/10" data-aos="fade-up">
+                <div class="text-center">
+                    <span class="block text-3xl lg:text-4xl font-extrabold text-amber-500">100%</span>
+                    <span class="block text-sm text-emerald-200/70 mt-1">Lulusan Kompeten & Islami</span>
+                </div>
+                <div class="text-center border-l border-white/10">
+                    <span class="block text-3xl lg:text-4xl font-extrabold text-emerald-400">Riset</span>
+                    <span class="block text-sm text-emerald-200/70 mt-1">Pembelajaran Ilmiah</span>
+                </div>
+                <div class="text-center border-l border-white/10">
+                    <span class="block text-3xl lg:text-4xl font-extrabold text-amber-500">7+</span>
+                    <span class="block text-sm text-emerald-200/70 mt-1">Ekskul Unggulan Kreatif</span>
+                </div>
+                <div class="text-center border-l border-white/10">
+                    <span class="block text-3xl lg:text-4xl font-extrabold text-emerald-400">Aswaja</span>
+                    <span class="block text-sm text-emerald-200/70 mt-1">Karakter Akhlakul Karimah</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wave Separator -->
+        <div class="absolute bottom-0 left-0 right-0 w-full overflow-hidden leading-none z-10">
+            <svg class="relative block w-full h-[80px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M985.66,92.83C906.67,72,823.78,31,743.84,14.19c-82.26-17.34-168.06-16.33-250.45.39-57.84,11.73-114,31.07-172,41.86C251.52,73.13,183,73.83,113,67.73c-70-6.1-133.37-38.35-183-73.83V120H1200V92.83Z" class="fill-slate-50"></path>
+            </svg>
+        </div>
+    </header>
+
+    <!-- SAMBUTAN KEPALA MADRASAH - ULTRA MODERN -->
+    <section id="sambutan" class="py-32 px-6 lg:px-8 max-w-7xl mx-auto relative">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+            
+            <!-- Frame Foto dengan Ornamen Islami & Ilmiah Modern -->
+            <div class="lg:col-span-5 relative" data-aos="fade-right">
+                <div class="absolute -inset-4 bg-gradient-to-tr from-emerald-600 to-amber-500 rounded-[2.5rem] blur opacity-30 animate-pulse"></div>
+                <div class="relative bg-white p-4 rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
+                    <img class="w-full h-[450px] object-cover rounded-[2rem] object-center" 
+                         src="https://i.imgur.com/KXBAkyi.png" 
+                         alt="Kepala MTs Ma'arif NU 9 Pende">
+                    <div class="absolute bottom-8 left-8 right-8 bg-emerald-950/90 backdrop-blur-md p-6 rounded-2xl border border-white/10 text-white">
+                        <span class="block font-bold text-lg lg:text-xl text-amber-400">Hj. Oom Komariyah, S.Ag</span>
+                        <span class="block text-xs uppercase tracking-widest text-emerald-200 mt-1">Kepala Madrasah MTs Ma'arif NU 9 Pende</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pesan Sambutan -->
+            <div class="lg:col-span-7 space-y-8" data-aos="fade-left">
+                <div class="inline-flex items-center space-x-2 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-full text-xs font-bold text-emerald-800 tracking-wider uppercase">
+                    <i class="fa-solid fa-quote-left text-emerald-600"></i>
+                    <span>Tausiyah Sambutan</span>
+                </div>
+                
+                <h2 class="text-3xl md:text-5xl font-extrabold text-slate-900 leading-[1.2]">
+                    Menjawab Tantangan Zaman Dengan <span class="text-emerald-700">Aswaja & Sains</span>
+                </h2>
+
+                <div class="font-serif text-lg text-slate-600 leading-relaxed space-y-6 italic">
+                    <p>
+                        "Bismillahirrohmanirrohim. Assalamu'alaikum Warahmatullahi Wabarakatuh."
+                    </p>
+                    <p>
+                        "Pendidikan modern yang sesungguhnya bukanlah yang melupakan akar budayanya, melainkan yang mampu memadukan kearifan lokal, spiritualitas, dengan ketajaman berfikir sains modern. Di MTs Ma'arif NU 9 Pende, kami mengawal proses transisi emas ini."
+                    </p>
+                    <p>
+                        "Melalui kurikulum riset ilmiah dasar terintegrasi serta pengkajian Kitab Kuning kontemporer, kami berkomitmen melahirkan lulusan yang tak sekadar pandai secara intelek di depan komputer, tapi juga tawadhu', santun, dan taat dalam memegang syariat Islam Ahlussunnah Wal Jama'ah."
+                    </p>
+                </div>
+
+                <div class="pt-6 border-t border-slate-200/80 flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-amber-500/10 text-amber-600 rounded-full flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-stamp"></i>
+                    </div>
+                    <div>
+                        <span class="block font-bold text-slate-800 text-base">Komitmen Mutu & Karakter</span>
+                        <span class="block text-sm text-slate-500">Mencetak Kader NU yang Berwawasan Global</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- INTEGRATED TABS VISI DAN PENDEKATAN ILMIAH -->
+    <section id="visi-misi" class="py-24 bg-gradient-to-b from-slate-100 to-white relative overflow-hidden">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-20" data-aos="fade-up">
+                <span class="text-emerald-600 font-bold uppercase tracking-widest text-sm">Pilar Pembelajaran</span>
+                <h2 class="text-3xl md:text-5xl font-extrabold text-slate-900 mt-3 leading-tight">Visi Integratif & Karakteristik Ilmiah Kami</h2>
+                <p class="text-slate-500 mt-4">Kami percaya bahwa sains yang matang membutuhkan kompas moral yang kokoh. Berikut adalah pendekatan yang kami gunakan untuk mewujudkannya.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+                <!-- Navigasi Tab (Interactive via JS) -->
+                <div class="lg:col-span-5 flex flex-col space-y-4" data-aos="fade-right">
+                    <button onclick="switchTab('tab-ilmiah')" id="btn-tab-ilmiah" class="tab-btn w-full text-left p-6 rounded-2xl transition-all duration-300 border bg-white border-emerald-600/20 shadow-xl shadow-emerald-950/5">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-emerald-600 text-white rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-atom"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg text-emerald-950">Pendekatan Ilmiah Terapan</h3>
+                                <p class="text-sm text-slate-500 mt-1">Mengasah rasionalitas kritis lewat riset & lab.</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <button onclick="switchTab('tab-islami')" id="btn-tab-islami" class="tab-btn w-full text-left p-6 rounded-2xl transition-all duration-300 border bg-white border-slate-200 hover:border-emerald-600/30">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-amber-500 text-white rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-book-quran"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg text-slate-900">Kearifan Khazanah Islam</h3>
+                                <p class="text-sm text-slate-500 mt-1">Pedoman mutlak Akhlakul Karimah & Kitab Klasik.</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <button onclick="switchTab('tab-digital')" id="btn-tab-digital" class="tab-btn w-full text-left p-6 rounded-2xl transition-all duration-300 border bg-white border-slate-200 hover:border-emerald-600/30">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-laptop-code"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg text-slate-900">Kecerdasan Literasi Digital</h3>
+                                <p class="text-sm text-slate-500 mt-1">Teknologi informasi sehat penunjang karir masa depan.</p>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Konten Tab Display -->
+                <div class="lg:col-span-7 bg-white p-8 lg:p-12 rounded-[2rem] border border-slate-100 shadow-xl" data-aos="fade-left">
+                    <!-- Tab 1: Ilmiah -->
+                    <div id="tab-ilmiah" class="tab-content space-y-6">
+                        <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl">
+                            <i class="fa-solid fa-microscope"></i>
+                        </div>
+                        <h3 class="text-2xl font-extrabold text-slate-900">Mempelajari Alam dengan Metode Sains Terbaik</h3>
+                        <p class="text-slate-600 leading-relaxed text-base">
+                            Kurikulum ilmiah kami tidak hanya sebatas menghafal rumus. Kami melatih siswa melakukan eksplanasi mandiri, eksplorasi alam, eksperimen kimia-fisika dasar terarah, dan pengolahan data sederhana. Hal ini membentuk kemampuan problem solving yang rasional dan adaptif sejak dini.
+                        </p>
+                        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                            <div class="flex items-center space-x-2 text-slate-700 text-sm font-semibold">
+                                <i class="fa-solid fa-check-double text-emerald-600"></i>
+                                <span>Berorientasi Logika Riset</span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-slate-700 text-sm font-semibold">
+                                <i class="fa-solid fa-check-double text-emerald-600"></i>
+                                <span>Fasilitas Eksperimen Terjamin</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Islami (Hidden by default) -->
+                    <div id="tab-islami" class="tab-content hidden space-y-6">
+                        <div class="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-3xl">
+                            <i class="fa-solid fa-mosque"></i>
+                        </div>
+                        <h3 class="text-2xl font-extrabold text-slate-900">Membumikan Aswaja, Merawat Khazanah Kitab</h3>
+                        <p class="text-slate-600 leading-relaxed text-base">
+                            Keislaman di MTs Ma'arif NU 9 Pende dilandasi dengan moderasi beragama yang rahmatan lil 'alamin. Pembelajaran Al-Qur'an dan bimbingan kajian Kitab Kuning klasik membentuk fondasi kokoh untuk menghadapi paham radikalisme serta kemerosotan akhlak di luar sana.
+                        </p>
+                        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                            <div class="flex items-center space-x-2 text-slate-700 text-sm font-semibold">
+                                <i class="fa-solid fa-check-double text-amber-600"></i>
+                                <span>Kurikulum Aswaja NU</span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-slate-700 text-sm font-semibold">
+                                <i class="fa-solid fa-check-double text-amber-600"></i>
+                                <span>Bimbingan Ibadah Istiqomah</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Digital (Hidden by default) -->
+                    <div id="tab-digital" class="tab-content hidden space-y-6">
+                        <div class="w-16 h-16 bg-slate-100 text-slate-800 rounded-2xl flex items-center justify-center text-3xl">
+                            <i class="fa-solid fa-display"></i>
+                        </div>
+                        <h3 class="text-2xl font-extrabold text-slate-900">Pendidikan Komputer & Literasi Digital Sehat</h3>
+                        <p class="text-slate-600 leading-relaxed text-base">
+                            Generasi masa kini membutuhkan keahlian teknis yang memadai. Kami membekali siswa dengan kelas komputer, pengenalan sistem operasi, produktivitas perangkat lunak kantor, serta etika berinternet yang santun, aman, dan konstruktif bagi masa depan mereka.
+                        </p>
+                        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                            <div class="flex items-center space-x-2 text-slate-700 text-sm font-semibold">
+                                <i class="fa-solid fa-check-double text-slate-700"></i>
+                                <span>Satu Siswa Satu Komputer</span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-slate-700 text-sm font-semibold">
+                                <i class="fa-solid fa-check-double text-slate-700"></i>
+                                <span>Internet Sehat & Etika Media</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- EKSTRAKURIKULER UNGGULAN - REVOLUSI VISUAL -->
+    <section id="ekskul" class="py-32 bg-emerald-950 text-white relative">
+        <!-- Decoration element -->
+        <div class="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-900/10 to-transparent"></div>
+        
+        <div class="relative z-10 max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-20" data-aos="fade-up">
+                <span class="text-amber-400 font-extrabold uppercase tracking-widest text-sm">Menempa Bakat & Karakter</span>
+                <h2 class="text-3xl md:text-5xl font-extrabold text-white mt-3">Ekstrakurikuler Pilihan Unggulan</h2>
+                <p class="text-emerald-200/70 mt-4">Wadah kreasi dan kedisiplinan yang didesain interaktif untuk membentuk karakter unggul bermental juara.</p>
+            </div>
+
+            <!-- Grid Ekstrakurikuler -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                
+                <!-- 1. Kajian Kitab Kuning (Tradisional Islami) -->
+                <div class="group bg-emerald-900/40 backdrop-blur border border-white/10 rounded-3xl p-8 hover:bg-emerald-900/80 hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10" data-aos="zoom-in" data-aos-delay="100">
+                    <div class="w-16 h-16 bg-amber-500/10 text-amber-400 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-emerald-950 transition-all duration-300">
+                        <i class="fa-solid fa-book-open-reader"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Kajian Kitab Kuning</h3>
+                    <p class="text-emerald-200/70 leading-relaxed text-sm">
+                        Keunikan utama madrasah kami. Siswa diajarkan dasar hukum Islam, tajwid praktis, dan akhlak bersumber dari rujukan kitab-kitab klasik Islam Ahlussunnah wal Jama'ah secara silsilah lurus khas pondok pesantren.
+                    </p>
+                </div>
+
+                <!-- 2. Kelas Komputer (Ilmiah Digital) -->
+                <div class="group bg-emerald-900/40 backdrop-blur border border-white/10 rounded-3xl p-8 hover:bg-emerald-900/80 hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10" data-aos="zoom-in" data-aos-delay="200">
+                    <div class="w-16 h-16 bg-teal-500/10 text-teal-300 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 group-hover:bg-teal-500 group-hover:text-emerald-950 transition-all duration-300">
+                        <i class="fa-solid fa-laptop-code"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Pendidikan Komputer</h3>
+                    <p class="text-emerald-200/70 leading-relaxed text-sm">
+                        Belajar teknologi informasi secara mendasar dan menyenangkan. Meliputi pengerjaan tugas kreatif digital, penguasaan aplikasi dasar perkantoran, editing visual praktis, hingga pengenalan logika coding dasar.
+                    </p>
+                </div>
+
+                <!-- 3. Pramuka (Leadership) -->
+                <div class="group bg-emerald-900/40 backdrop-blur border border-white/10 rounded-3xl p-8 hover:bg-emerald-900/80 hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10" data-aos="zoom-in" data-aos-delay="300">
+                    <div class="w-16 h-16 bg-orange-500/10 text-orange-400 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 group-hover:bg-orange-500 group-hover:text-emerald-950 transition-all duration-300">
+                        <i class="fa-solid fa-campground"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Pramuka</h3>
+                    <p class="text-emerald-200/70 leading-relaxed text-sm">
+                        Membina jiwa kepemimpinan, kemandirian, dan ketangkasan hidup. Pramuka di madrasah kami mengajarkan kerja sama yang kokoh, teknik kepanduan modern, dan komitmen pengabdian masyarakat.
+                    </p>
+                </div>
+
+                <!-- 4. Paskibra (Discipline) -->
+                <div class="group bg-emerald-900/40 backdrop-blur border border-white/10 rounded-3xl p-8 hover:bg-emerald-900/80 hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10" data-aos="zoom-in" data-aos-delay="400">
+                    <div class="w-16 h-16 bg-red-500/10 text-red-400 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 group-hover:bg-red-500 group-hover:text-white transition-all duration-300">
+                        <i class="fa-solid fa-flag-usa"></i> <!-- Placeholder icon flag -->
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Paskibra</h3>
+                    <p class="text-emerald-200/70 leading-relaxed text-sm">
+                        Melatih keteraturan baris-berbaris tingkat mahir, kedisiplinan tingkat tinggi, kekompakan tim, rasa nasionalisme, serta ketahanan mental dan fisik yang unggul.
+                    </p>
+                </div>
+
+                <!-- 5. Marching Band (Artistic) -->
+                <div class="group bg-emerald-900/40 backdrop-blur border border-white/10 rounded-3xl p-8 hover:bg-emerald-900/80 hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10" data-aos="zoom-in" data-aos-delay="500">
+                    <div class="w-16 h-16 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300">
+                        <i class="fa-solid fa-music"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Marching Band</h3>
+                    <p class="text-emerald-200/70 leading-relaxed text-sm">
+                        Mengolah keselarasan melodi, tempo, dan koordinasi fisik. Sangat baik untuk menumbuhkan rasa musikalitas, ketepatan konsentrasi, serta seni kerja sama dalam formasi gerak parade.
+                    </p>
+                </div>
+
+                <!-- 6. PMR / Palang Merah (Social Care) -->
+                <div class="group bg-emerald-900/40 backdrop-blur border border-white/10 rounded-3xl p-8 hover:bg-emerald-900/80 hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10" data-aos="zoom-in" data-aos-delay="600">
+                    <div class="w-16 h-16 bg-red-500/10 text-rose-400 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 group-hover:bg-rose-500 group-hover:text-white transition-all duration-300">
+                        <i class="fa-solid fa-heart-pulse"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Palang Merah Remaja (PMR)</h3>
+                    <p class="text-emerald-200/70 leading-relaxed text-sm">
+                        Menanamkan kepedulian kemanusiaan yang nyata. Siswa dilatih melakukan pertolongan pertama pada kecelakaan (P3K), pengetahuan dasar kesehatan umum, dan penyuluhan sosial.
+                    </p>
+                </div>
+
+                <!-- 7. Pencak Silat (Cultural Defense) -->
+                <div class="group bg-emerald-900/40 backdrop-blur border border-white/10 rounded-3xl p-8 hover:bg-emerald-900/80 hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 md:col-span-2 lg:col-span-3 lg:max-w-md lg:mx-auto" data-aos="zoom-in" data-aos-delay="700">
+                    <div class="w-16 h-16 bg-zinc-500/10 text-zinc-300 rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 group-hover:bg-zinc-600 group-hover:text-white transition-all duration-300">
+                        <i class="fa-solid fa-user-ninja"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-4">Pencak Silat</h3>
+                    <p class="text-emerald-200/70 leading-relaxed text-sm">
+                        Bela diri warisan budaya leluhur Nusantara untuk melindungi diri, menjaga stamina fisik prima, melestarikan warisan nasional, serta melatih sportivitas jiwa ksatria.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- FASILITAS MADRASAH YANG NYATA -->
+    <section class="py-24 bg-white px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+                
+                <div class="lg:col-span-6 space-y-6" data-aos="fade-right">
+                    <span class="text-emerald-600 font-bold uppercase tracking-widest text-sm">Infrastruktur Unggul</span>
+                    <h2 class="text-3xl md:text-5xl font-extrabold text-slate-900 leading-[1.2]">Dukungan Fasilitas Laboratorium Terpadu</h2>
+                    <p class="text-slate-600 leading-relaxed text-base">
+                        Untuk menunjang nuansa ilmiah yang dinamis, kami memiliki fasilitas pendukung mutakhir yang memungkinkan para siswa melakukan praktikum, pemrograman dasar, hingga observasi langsung secara terarah dan terjadwal.
+                    </p>
+                    
+                    <ul class="space-y-4">
+                        <li class="flex items-start space-x-3 text-slate-700">
+                            <span class="w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mt-0.5">
+                                <i class="fa-solid fa-check text-xs"></i>
+                            </span>
+                            <span><strong>Lab Komputer Nyaman:</strong> Dilengkapi jaringan internet sehat dan ber-AC demi kenyamanan riset data.</span>
+                        </li>
+                        <li class="flex items-start space-x-3 text-slate-700">
+                            <span class="w-6 h-6 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mt-0.5">
+                                <i class="fa-solid fa-check text-xs"></i>
+                            </span>
+                            <span><strong>Perpustakaan Khazanah Islam:</strong> Buku-buku sains terapan berdampingan dengan ensiklopedia agama terlengkap.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Visual Representasi Laboratorium -->
+                <div class="lg:col-span-6 relative" data-aos="fade-left">
+                    <div class="absolute -inset-2 bg-gradient-to-r from-emerald-500 to-amber-500 rounded-3xl opacity-20 blur-xl"></div>
+                    <div class="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-100">
+                        <img class="w-full h-[400px] object-cover" 
+                             src="http://googleusercontent.com/image_collection/image_retrieval/4687744143179264620_0" 
+                             alt="Laboratorium Digital MTs Ma'arif">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- FORM PENDAFTARAN & KONTAK -->
+    <section id="kontak" class="py-24 bg-slate-900 text-white relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-tr from-emerald-950 via-slate-900 to-slate-950 opacity-90"></div>
+        
+        <div class="relative z-10 max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+                
+                <!-- Info Kontak -->
+                <div class="lg:col-span-5 space-y-8" data-aos="fade-right">
+                    <span class="inline-flex bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-4 py-2 rounded-full text-xs font-bold tracking-wide uppercase">
+                        Hubungi Kami
+                    </span>
+                    <h2 class="text-3xl md:text-5xl font-extrabold text-white leading-tight">Mulai Langkah Terbaik Putra-Putri Anda</h2>
+                    <p class="text-slate-400 leading-relaxed text-base">
+                        Bergabunglah bersama keluarga besar MTs Ma'arif NU 9 Pende. Kami siap melayani tanya-jawab seputar program akademik, beasiswa, dan proses penerimaan siswa baru.
+                    </p>
+
+                    <!-- Contact Details Card -->
+                    <div class="space-y-6 bg-white/5 border border-white/10 p-8 rounded-2xl backdrop-blur">
+                        <div class="flex items-start space-x-4">
+                            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white text-lg">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-base">Alamat Lengkap</h4>
+                                <p class="text-slate-400 text-sm mt-1">Jl. Masjid Nurul Faqih, Ds. Pende, Kec. Kersana, Kab. Brebes, Jawa Tengah</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start space-x-4">
+                            <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white text-lg">
+                                <i class="fa-solid fa-envelope"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-base">Surel Resmi</h4>
+                                <p class="text-slate-400 text-sm mt-1">mtsmaarifnu9pende@gmail.com</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start space-x-4">
+                            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-lg">
+                                <i class="fa-solid fa-phone"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-base">Nomor Telepon/WA</h4>
+                                <p class="text-slate-400 text-sm mt-1">+62 857-4200-XXXX</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Hubungi / Pra-Pendaftaran PPDB -->
+                <div class="lg:col-span-7" data-aos="fade-left">
+                    <div class="bg-white p-8 lg:p-12 rounded-[2rem] text-slate-800 shadow-2xl border border-slate-100">
+                        <h3 class="text-2xl font-extrabold text-slate-900 mb-2">Formulir Pra-Pendaftaran</h3>
+                        <p class="text-slate-500 mb-8 text-sm">Isi data calon siswa di bawah ini untuk memulai konsultasi penerimaan siswa baru.</p>
+                        
+                        <form onsubmit="handleSubmit(event)" class="space-y-6">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Nama Calon Siswa</label>
+                                    <input required type="text" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 focus:bg-white transition-all text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Sekolah Asal (SD/MI)</label>
+                                    <input required type="text" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 focus:bg-white transition-all text-sm">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Nama Orang Tua/Wali</label>
+                                    <input required type="text" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 focus:bg-white transition-all text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">No. WhatsApp Aktif</label>
+                                    <input required type="tel" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 focus:bg-white transition-all text-sm" placeholder="08xxxxxxxxxx">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Pilih Program Ekstrakurikuler Peminatan Utama</label>
+                                <select class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-600 focus:bg-white transition-all text-sm">
+                                    <option>Kajian Kitab Kuning (Pesantren)</option>
+                                    <option>Pendidikan Komputer & TI</option>
+                                    <option>Pramuka</option>
+                                    <option>Paskibra</option>
+                                    <option>Marching Band</option>
+                                    <option>Palang Merah Remaja (PMR)</option>
+                                    <option>Pencak Silat</option>
+                                </select>
+                            </div>
+
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/40 transform hover:-translate-y-0.5 transition-all duration-300">
+                                Kirim Formulir Pra-Pendaftaran <i class="fa-solid fa-paper-plane ml-2"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- COMPACT FOOTER -->
+    <footer class="bg-slate-950 text-slate-500 py-12 px-6 lg:px-8 border-t border-slate-900">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
+            <div>
+                <p class="text-white font-extrabold text-lg">MTs Ma'arif NU 9 Pende</p>
+                <p class="text-sm mt-1">Integrasi Ilmu Sains Modern dan Tradisi Kedalaman Khazanah Kitab Kuning.</p>
+            </div>
+            
+            <div class="flex space-x-6 text-xl">
+                <a href="#" class="hover:text-emerald-500 transition-colors" aria-label="Facebook"><i class="fa-brands fa-facebook"></i></a>
+                <a href="#" class="hover:text-emerald-500 transition-colors" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                <a href="#" class="hover:text-emerald-500 transition-colors" aria-label="Youtube"><i class="fa-brands fa-youtube"></i></a>
+            </div>
+        </div>
+        <div class="text-center text-xs text-slate-700 mt-12 border-t border-slate-900/60 pt-6">
+            &copy; 2026 MTs Ma'arif NU 9 Pende. Seluruh Hak Cipta Dilindungi Undang-Undang.
+        </div>
+    </footer>
+
+    <!-- AOS (Animate on Scroll) JS -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        // Inisialisasi AOS Animation
+        AOS.init({
+            duration: 900,
+            once: true,
+            offset: 120,
+        });
+
+        // Interaktivitas Dinamis Navbar saat di-Scroll
+        const navbar = document.getElementById('navbar');
+        const navBrandMain = document.getElementById('nav-brand-main');
+        const navMenu = document.getElementById('nav-menu');
+
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.remove('bg-transparent', 'py-5');
+                navbar.classList.add('bg-white/95', 'backdrop-blur-md', 'shadow-lg', 'py-3', 'border-b', 'border-slate-100');
+                navBrandMain.classList.remove('text-white');
+                navBrandMain.classList.add('text-emerald-950');
+                navMenu.classList.remove('text-white/95');
+                navMenu.classList.add('text-slate-700');
+            } else {
+                navbar.classList.add('bg-transparent', 'py-5');
+                navbar.classList.remove('bg-white/95', 'backdrop-blur-md', 'shadow-lg', 'py-3', 'border-b', 'border-slate-100');
+                navBrandMain.classList.add('text-white');
+                navBrandMain.classList.remove('text-emerald-950');
+                navMenu.classList.add('text-white/95');
+                navMenu.classList.remove('text-slate-700');
+            }
+        });
+
+        // Toggle Hamburger Menu di Perangkat Seluler
+        const mobileBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        mobileBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        // Switch Tab Visi & Karakter
+        function switchTab(tabId) {
+            // Sembunyikan semua konten tab
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.add('hidden'));
+
+            // Tampilkan konten tab yang dipilih
+            document.getElementById(tabId).classList.remove('hidden');
+
+            // Reset status semua tombol tab
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('border-emerald-600/20', 'shadow-xl', 'shadow-emerald-950/5');
+                btn.classList.add('border-slate-200');
+                btn.querySelector('h3').classList.remove('text-emerald-950');
+                btn.querySelector('h3').classList.add('text-slate-900');
+            });
+
+            // Aktifkan tombol yang diklik
+            const activeBtn = document.getElementById('btn-' + tabId);
+            activeBtn.classList.add('border-emerald-600/20', 'shadow-xl', 'shadow-emerald-950/5');
+            activeBtn.classList.remove('border-slate-200');
+            activeBtn.querySelector('h3').classList.add('text-emerald-950');
+            activeBtn.querySelector('h3').classList.remove('text-slate-900');
+        }
+
+        // Handle Form Submission
+        function handleSubmit(e) {
+            e.preventDefault();
+            alert('Terima kasih! Formulir Pra-Pendaftaran Anda telah berhasil terkirim. Panitia PPDB kami akan menghubungi Anda melalui WhatsApp dalam waktu dekat.');
+            e.target.reset();
+        }
+    </script>
+</body>
+</html>
